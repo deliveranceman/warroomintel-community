@@ -3,6 +3,7 @@ import { useState, useEffect, useRef, useMemo, Fragment, type CSSProperties } fr
 import { createFileRoute } from '@tanstack/react-router'
 import { useAuth, useUser } from '@clerk/tanstack-start'
 import { SpiritTagEditor } from '@/components/SpiritTagEditor'
+import { extractText, computeFileHash } from '@/lib/extractFileText'
 
 export const Route = createFileRoute('/admin')({
   component: AdminPage,
@@ -12257,7 +12258,7 @@ function SpiritCandidatesManager({ getToken, isDark }: { getToken: any; isDark: 
 function AdminPage() {
   const { user, isLoaded } = useUser()
   const { getToken }       = useAuth()
-  const [tab, setTab]      = useState<'dashboard' | 'arsenal' | 'intel' | 'moderation' | 'training' | 'daily-brief' | 'field-ministry' | 'documents' | 'library' | 'spiritual-mapping' | 'lib-intel' | 'ai-command' | 'taxonomy' | 'tracker' | 'internal-books' | 'admin-chat' | 'enrichment' | 'suggested-edits' | 'ai-context' | 'notifications' | 'ai-usage-admin' | 'content-suggestions' | 'members' | 'test-sol' | 'sol-research' | 'atmosphere' | 'spirit-candidates' | 'sources' | 'modals' | 'help-docs'>('dashboard')
+  const [tab, setTab]      = useState<'dashboard' | 'arsenal' | 'intel' | 'moderation' | 'training' | 'daily-brief' | 'field-ministry' | 'documents' | 'library' | 'spiritual-mapping' | 'lib-intel' | 'ai-command' | 'taxonomy' | 'tracker' | 'internal-books' | 'admin-chat' | 'enrichment' | 'suggested-edits' | 'ai-context' | 'notifications' | 'ai-usage-admin' | 'content-suggestions' | 'members' | 'test-sol' | 'sol-research' | 'atmosphere' | 'spirit-candidates' | 'sources' | 'modals' | 'help-docs' | 'research-drop'>('dashboard')
   const [modTab, setModTab] = useState<'feedback' | 'testimony' | 'forum' | 'fieldreports' | 'flags'>('feedback')
   const [modBadge, setModBadge] = useState(0)
   useEffect(() => {
@@ -12338,6 +12339,7 @@ function AdminPage() {
       { key: 'sol-research',        label: '✦ Research Drop'      },
     ]},
     { label: 'INTEL ARCHIVE', items: [
+      { key: 'research-drop',      label: '▲ Research Drop'   },
       { key: 'intel',              label: 'Intel Archive'     },
       { key: 'spirit-candidates',  label: 'Spirit Candidates' },
       { key: 'sources',            label: '✦ Sources'         },
@@ -12547,6 +12549,7 @@ function AdminPage() {
             {tab === 'suggested-edits'   && <SuggestedEditsAdmin getToken={getToken} isDark={isDark} />}
             {tab === 'test-sol'          && <TestSOLPanel getToken={getToken} isDark={isDark} />}
             {tab === 'sol-research'     && <SolResearchView getToken={getToken} isDark={isDark} />}
+            {tab === 'research-drop'   && <ResearchDropPage getToken={getToken} isDark={isDark} />}
             {tab === 'members'           && (
               <div style={{ padding: '32px 0', textAlign: 'center' as const, color: adDim, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.12em' }}>
                 MEMBERS — COMING SOON
@@ -14813,6 +14816,385 @@ function SuggestedEditsAdmin({ getToken, isDark }: { getToken: () => Promise<str
               )}
             </div>
           ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ─── ResearchDropPage ─────────────────────────────────────────────────────────
+
+type DropPhase = 'idle' | 'selected' | 'extracting' | 'uploading' | 'processing' | 'complete' | 'partial' | 'failed' | 'duplicate'
+
+function ResearchDropPage({ getToken, isDark }: { getToken: any; isDark: boolean }) {
+  const surf = isDark ? SURF2 : '#FFFFFF'
+  const bdr  = isDark ? BDR  : 'rgba(139,105,20,0.25)'
+  const txt  = isDark ? TXT  : '#2D2924'
+  const dim  = isDark ? DIM  : '#6B5520'
+  const gold = isDark ? G    : '#604408'
+  const inp  = isDark ? 'rgba(201,168,76,0.06)' : '#F5F2EE'
+
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const pollRef      = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  const [phase, setPhase]             = useState<DropPhase>('idle')
+  const [file, setFile]               = useState<File | null>(null)
+  const [title, setTitle]             = useState('')
+  const [author, setAuthor]           = useState('')
+  const [sourceType, setSourceType]   = useState('')
+  const [error, setError]             = useState('')
+  const [jobId, setJobId]             = useState('')
+  const [resourceId, setResourceId]   = useState('')
+  const [jobStage, setJobStage]       = useState('')
+  const [jobProgress, setJobProgress] = useState(0)
+  const [result, setResult]           = useState<any>(null)
+  const [dupInfo, setDupInfo]         = useState<{ existingTitle: string; createdAt: string; summaryStatus: string } | null>(null)
+
+  function stopPoll() {
+    if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null }
+  }
+
+  function reset() {
+    stopPoll()
+    setPhase('idle'); setFile(null); setTitle(''); setAuthor(''); setSourceType('')
+    setError(''); setJobId(''); setResourceId('')
+    setJobStage(''); setJobProgress(0); setResult(null); setDupInfo(null)
+    if (fileInputRef.current) fileInputRef.current.value = ''
+  }
+
+  function onFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const f = e.target.files?.[0] ?? null
+    if (!f) return
+    setFile(f)
+    if (!title) setTitle(f.name.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' ').trim())
+    setPhase('selected')
+    setError('')
+  }
+
+  async function startExtractAndUpload() {
+    if (!file) return
+    setError('')
+    setPhase('extracting')
+    setJobStage('extracting')
+    setJobProgress(0)
+
+    let text = ''
+    let hash = ''
+    try {
+      const [res, h] = await Promise.all([extractText(file), computeFileHash(file)])
+      text = res.text
+      hash = h
+    } catch (e: any) {
+      setError(`Text extraction failed: ${e.message}`)
+      setPhase('selected')
+      return
+    }
+
+    if (!text.trim()) {
+      setError('No text could be extracted from this file. Make sure the file contains readable text.')
+      setPhase('selected')
+      return
+    }
+
+    setPhase('uploading')
+    setJobStage('uploading')
+
+    try {
+      const token   = await getToken()
+      const fd      = new FormData()
+      fd.append('title',         title.trim() || file.name)
+      fd.append('author',        author.trim())
+      fd.append('sourceType',    sourceType.trim())
+      fd.append('extractedText', text)
+      fd.append('fileHash',      hash)
+      fd.append('file',          file, file.name)
+
+      const res = await fetch('/api/research-drop-upload', {
+        method:  'POST',
+        headers: { Authorization: `Bearer ${token}` },
+        body:    fd,
+      })
+      const data = await res.json()
+
+      if (res.status === 409) {
+        setDupInfo({ existingTitle: data.existingTitle, createdAt: data.createdAt, summaryStatus: data.summaryStatus })
+        setResourceId(data.resourceId || '')
+        setPhase('duplicate')
+        return
+      }
+      if (!res.ok) {
+        setError(data.error || 'Upload failed')
+        setPhase('selected')
+        return
+      }
+
+      setJobId(data.jobId)
+      setResourceId(data.resourceId)
+      setPhase('processing')
+      setJobStage('queued')
+      setJobProgress(0)
+
+      const jid = data.jobId as string
+      const timeout = setTimeout(() => {
+        stopPoll()
+        setError('Job timed out after 10 minutes')
+        setPhase('failed')
+      }, 10 * 60 * 1000)
+
+      stopPoll()
+      pollRef.current = setInterval(async () => {
+        try {
+          const pt  = await getToken()
+          const pr  = await fetch(`/api/job-status?jobId=${jid}`, { headers: { Authorization: `Bearer ${pt}` } })
+          if (!pr.ok) return
+          const pd  = await pr.json()
+          setJobStage(pd.stage || '')
+          setJobProgress(pd.progress ?? 0)
+          if (pd.status === 'complete') {
+            clearTimeout(timeout)
+            stopPoll()
+            setResult(pd.result_json || {})
+            const hasErrors = (pd.result_json?.scanErrors ?? 0) > 0
+            setPhase(hasErrors ? 'partial' : 'complete')
+          } else if (pd.status === 'failed') {
+            clearTimeout(timeout)
+            stopPoll()
+            setError(pd.error_message || 'Job failed')
+            setPhase('failed')
+          }
+        } catch (pe: any) {
+          console.warn('[research-drop poll]', pe.message)
+        }
+      }, 3000)
+
+    } catch (e: any) {
+      setError(`Upload error: ${e.message}`)
+      setPhase('selected')
+    }
+  }
+
+  const isWorking = phase === 'extracting' || phase === 'uploading' || phase === 'processing'
+
+  const stageLabel: Record<string, string> = {
+    extracting: 'Extracting text',
+    uploading:  'Uploading file',
+    queued:     'Queued',
+    fetching:   'Fetching resource',
+    embedding:  'Embedding chunks',
+    scanning:   'Scanning for spirits',
+    deduping:   'Deduplicating',
+    staging:    'Staging results',
+    finalizing: 'Finalizing',
+  }
+
+  return (
+    <div style={{ paddingBottom: 48 }}>
+      {/* Page header */}
+      <div style={{ marginBottom: 24 }}>
+        <div style={{ fontFamily: cinzel, fontSize: 11, letterSpacing: '0.14em', color: gold, marginBottom: 4 }}>
+          INTEL ARCHIVE
+        </div>
+        <div style={{ fontFamily: cinzel, fontSize: 20, color: txt, letterSpacing: '0.04em' }}>
+          Research Drop
+        </div>
+        <div style={{ fontFamily: crimson, fontSize: 14, color: dim, marginTop: 6 }}>
+          Upload a ministry book or document. SOL will extract spirit mentions, generate enrichment suggestions, and index the text for semantic search.
+        </div>
+      </div>
+
+      {/* Adversarial warning banner */}
+      <div style={{ background: 'rgba(201,168,76,0.06)', border: `1px solid rgba(201,168,76,0.3)`, borderRadius: 4, padding: '10px 14px', marginBottom: 24, display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+        <span style={{ color: gold, fontSize: 14, flexShrink: 0 }}>⚠</span>
+        <div style={{ fontFamily: crimson, fontSize: 13, color: dim, lineHeight: 1.5 }}>
+          <strong style={{ color: txt }}>Source material is treated as untrusted input.</strong>{' '}
+          AI prompts wrap all extracted text with injection barriers (SOURCE_START / SOURCE_END). Review all AI-generated results before promoting candidates to the archive. Do not upload documents that contain instructions or directives intended to manipulate the AI.
+        </div>
+      </div>
+
+      {/* Upload form */}
+      {(phase === 'idle' || phase === 'selected') && (
+        <div style={{ background: surf, border: `1px solid ${bdr}`, borderRadius: 4, padding: '24px 24px' }}>
+          <div style={{ marginBottom: 20 }}>
+            <div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.12em', color: gold, marginBottom: 8 }}>
+              DOCUMENT
+            </div>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".txt,.pdf,.docx"
+              onChange={onFileChange}
+              style={{ display: 'none' }}
+              id="rd-file-input"
+            />
+            <label htmlFor="rd-file-input" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '8px 16px', background: 'transparent', border: `1px solid ${bdr}`, borderRadius: 3, color: gold, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.1em', cursor: 'pointer' }}>
+              {file ? `${file.name} (${(file.size / 1024).toFixed(0)} KB)` : 'Choose file -- TXT, PDF, DOCX'}
+            </label>
+            {file && (
+              <button onClick={() => { setFile(null); setPhase('idle'); if (fileInputRef.current) fileInputRef.current.value = '' }}
+                style={{ marginLeft: 8, background: 'none', border: 'none', color: dim, cursor: 'pointer', fontSize: 13 }}>
+                x
+              </button>
+            )}
+          </div>
+
+          <div style={{ marginBottom: 16 }}>
+            <div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.12em', color: gold, marginBottom: 6 }}>TITLE *</div>
+            <input
+              type="text"
+              value={title}
+              onChange={e => setTitle(e.target.value)}
+              placeholder="Book or document title"
+              style={{ width: '100%', background: inp, border: `1px solid ${bdr}`, borderRadius: 3, padding: '8px 10px', color: txt, fontFamily: crimson, fontSize: 14, outline: 'none', boxSizing: 'border-box' as const }}
+            />
+          </div>
+
+          <div style={{ marginBottom: 16 }}>
+            <div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.12em', color: gold, marginBottom: 6 }}>AUTHOR</div>
+            <input
+              type="text"
+              value={author}
+              onChange={e => setAuthor(e.target.value)}
+              placeholder="Author name (optional)"
+              style={{ width: '100%', background: inp, border: `1px solid ${bdr}`, borderRadius: 3, padding: '8px 10px', color: txt, fontFamily: crimson, fontSize: 14, outline: 'none', boxSizing: 'border-box' as const }}
+            />
+          </div>
+
+          <div style={{ marginBottom: 24 }}>
+            <div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.12em', color: gold, marginBottom: 6 }}>SOURCE TYPE</div>
+            <select
+              value={sourceType}
+              onChange={e => setSourceType(e.target.value)}
+              style={{ width: '100%', background: inp, border: `1px solid ${bdr}`, borderRadius: 3, padding: '8px 10px', color: txt, fontFamily: crimson, fontSize: 14, outline: 'none' }}>
+              <option value="">Select source type</option>
+              <option value="christian">Christian / Ministry</option>
+              <option value="patristic">Patristic / Church Fathers</option>
+              <option value="academic">Academic / Theological</option>
+              <option value="occult">Occult / Counter-Intelligence</option>
+              <option value="deliverance">Deliverance Manual</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
+
+          {error && (
+            <div style={{ fontFamily: crimson, fontSize: 13, color: '#f87171', marginBottom: 16 }}>
+              {error}
+            </div>
+          )}
+
+          <button
+            onClick={startExtractAndUpload}
+            disabled={!file || !title.trim()}
+            style={{ padding: '10px 22px', background: (!file || !title.trim()) ? 'transparent' : gold, border: `1px solid ${gold}`, borderRadius: 3, color: (!file || !title.trim()) ? gold : (isDark ? '#0D0B14' : '#fff'), fontFamily: cinzel, fontSize: 10, letterSpacing: '0.12em', cursor: (!file || !title.trim()) ? 'not-allowed' : 'pointer', opacity: (!file || !title.trim()) ? 0.5 : 1 }}>
+            EXTRACT + UPLOAD
+          </button>
+        </div>
+      )}
+
+      {/* Working state */}
+      {isWorking && (
+        <div style={{ background: surf, border: `1px solid ${bdr}`, borderRadius: 4, padding: '28px 24px' }}>
+          <div style={{ fontFamily: cinzel, fontSize: 10, letterSpacing: '0.12em', color: gold, marginBottom: 16 }}>
+            {stageLabel[jobStage] || jobStage || 'Working...'}
+          </div>
+          <div style={{ background: 'rgba(201,168,76,0.1)', borderRadius: 2, height: 4, marginBottom: 8, overflow: 'hidden' }}>
+            <div style={{ height: '100%', background: gold, width: `${Math.max(jobProgress, phase === 'extracting' ? 20 : phase === 'uploading' ? 40 : 0)}%`, transition: 'width 0.4s ease', borderRadius: 2 }} />
+          </div>
+          <div style={{ fontFamily: crimson, fontSize: 12, color: dim }}>
+            {phase === 'extracting' && 'Extracting text from document in browser...'}
+            {phase === 'uploading'  && 'Uploading to secure storage...'}
+            {phase === 'processing' && `${jobProgress}% complete`}
+          </div>
+        </div>
+      )}
+
+      {/* Duplicate */}
+      {phase === 'duplicate' && dupInfo && (
+        <div style={{ background: surf, border: `1px solid rgba(201,168,76,0.4)`, borderRadius: 4, padding: '24px 24px' }}>
+          <div style={{ fontFamily: cinzel, fontSize: 10, letterSpacing: '0.12em', color: gold, marginBottom: 12 }}>
+            DUPLICATE DETECTED
+          </div>
+          <div style={{ fontFamily: crimson, fontSize: 14, color: txt, marginBottom: 6 }}>
+            This file has already been uploaded as:
+          </div>
+          <div style={{ fontFamily: crimson, fontSize: 16, color: txt, fontWeight: 600, marginBottom: 4 }}>
+            {dupInfo.existingTitle}
+          </div>
+          <div style={{ fontFamily: crimson, fontSize: 12, color: dim, marginBottom: 20 }}>
+            Uploaded {new Date(dupInfo.createdAt).toLocaleDateString()} · Status: {dupInfo.summaryStatus || 'unknown'}
+            {resourceId ? ` · Resource ID: ${resourceId}` : ''}
+          </div>
+          <button onClick={reset} style={{ padding: '8px 18px', background: 'transparent', border: `1px solid ${bdr}`, borderRadius: 3, color: dim, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.1em', cursor: 'pointer' }}>
+            UPLOAD DIFFERENT FILE
+          </button>
+        </div>
+      )}
+
+      {/* Failed */}
+      {phase === 'failed' && (
+        <div style={{ background: surf, border: `1px solid rgba(248,113,113,0.3)`, borderRadius: 4, padding: '24px 24px' }}>
+          <div style={{ fontFamily: cinzel, fontSize: 10, letterSpacing: '0.12em', color: '#f87171', marginBottom: 10 }}>
+            JOB FAILED
+          </div>
+          <div style={{ fontFamily: crimson, fontSize: 14, color: '#f87171', marginBottom: 20 }}>
+            {error || 'An unknown error occurred.'}
+          </div>
+          {resourceId && (
+            <div style={{ fontFamily: crimson, fontSize: 11, color: dim, marginBottom: 16 }}>
+              Resource ID: {resourceId}{jobId ? ` · Job ID: ${jobId}` : ''}
+            </div>
+          )}
+          <button onClick={reset} style={{ padding: '8px 18px', background: 'transparent', border: `1px solid ${bdr}`, borderRadius: 3, color: dim, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.1em', cursor: 'pointer' }}>
+            TRY AGAIN
+          </button>
+        </div>
+      )}
+
+      {/* Complete / Partial */}
+      {(phase === 'complete' || phase === 'partial') && result && (
+        <div style={{ background: surf, border: `1px solid ${phase === 'partial' ? 'rgba(201,168,76,0.4)' : 'rgba(74,222,128,0.25)'}`, borderRadius: 4, padding: '24px 24px' }}>
+          <div style={{ fontFamily: cinzel, fontSize: 10, letterSpacing: '0.12em', color: phase === 'partial' ? gold : '#4ade80', marginBottom: 14 }}>
+            {phase === 'partial' ? 'COMPLETE WITH WARNINGS' : 'ANALYSIS COMPLETE'}
+          </div>
+
+          <div style={{ fontFamily: crimson, fontSize: 15, color: txt, fontWeight: 600, marginBottom: 16 }}>
+            {title}
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12, marginBottom: 20 }}>
+            {[
+              { label: 'New Candidates', value: result.newCandidates ?? 0, color: gold },
+              { label: 'Enrich Suggestions', value: result.enrichSuggestions ?? 0, color: gold },
+              { label: 'Chunks Indexed', value: result.chunksEmbedded ?? 0, color: dim },
+              { label: 'Windows Scanned', value: result.windowsScanned ?? 0, color: dim },
+              { label: 'Duplicates Skipped', value: result.dupeSkipped ?? 0, color: dim },
+              { label: 'Scan Errors', value: result.scanErrors ?? 0, color: (result.scanErrors ?? 0) > 0 ? '#f87171' : dim },
+            ].map(s => (
+              <div key={s.label} style={{ background: 'rgba(201,168,76,0.04)', border: `1px solid ${bdr}`, borderRadius: 3, padding: '10px 12px' }}>
+                <div style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.1em', color: s.color, marginBottom: 4 }}>
+                  {s.label.toUpperCase()}
+                </div>
+                <div style={{ fontFamily: crimson, fontSize: 22, color: txt, fontWeight: 600 }}>
+                  {s.value}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {phase === 'partial' && (
+            <div style={{ fontFamily: crimson, fontSize: 13, color: '#f87171', marginBottom: 16 }}>
+              Some windows failed to scan. Results may be incomplete.
+            </div>
+          )}
+
+          <div style={{ fontFamily: crimson, fontSize: 12, color: dim, marginBottom: 20 }}>
+            Resource ID: {resourceId} · Job ID: {jobId}
+          </div>
+
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' as const }}>
+            <button onClick={reset} style={{ padding: '8px 18px', background: 'transparent', border: `1px solid ${bdr}`, borderRadius: 3, color: dim, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.1em', cursor: 'pointer' }}>
+              UPLOAD ANOTHER
+            </button>
+          </div>
         </div>
       )}
     </div>
