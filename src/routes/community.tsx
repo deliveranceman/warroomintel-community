@@ -6285,11 +6285,10 @@ const CONFIDENCE_COLORS = {
 }
 
 // ── INVESTIGATOR VIEW ──────────────────────────────────────
-function InvestigatorView({ userTier, isMobile, setSidebarOpen, setActiveSection }: {
+function InvestigatorView({ userTier: _userTier, isMobile, setSidebarOpen, setActiveSection }: {
   theme: string; userTier: string; isMobile: boolean; setSidebarOpen: (v: boolean) => void; setActiveSection?: (s: string) => void
 }) {
   const { getToken } = useAuth()
-  const { user } = useUser()
   const [invInput, setInvInput]   = useState('')
   const [invLoading, setInvLoading] = useState(false)
   const [invResult, setInvResult] = useState<InvestigationResult | null>(null)
@@ -6305,21 +6304,6 @@ function InvestigatorView({ userTier, isMobile, setSidebarOpen, setActiveSection
         .catch(() => {})
     })
   }, [])
-
-  const hasAccess = getAccessLevel({ tier: userTier, role: (user?.publicMetadata?.role as string) || '' }) >= 2
-
-  if (!hasAccess) {
-    return (
-      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '40px 20px', background: '#0D0B14' }}>
-        <UpgradeGate
-          variant="screen"
-          featureName="Symptom Investigator"
-          description="The Symptom Investigator is a SOL-powered operational intelligence tool available to Commander and General members. Upgrade to access real-time spirit analysis, deliverance sequencing, and session support."
-          requiredTier="commander"
-        />
-      </div>
-    )
-  }
 
   async function handleInvestigate() {
     if (!invInput.trim()) return
@@ -6557,9 +6541,8 @@ function InvestigatorView({ userTier, isMobile, setSidebarOpen, setActiveSection
 }
 
 // ── GATEWAY INVESTIGATOR VIEW ──────────────────────────────
-function GatewayInvestigatorView({ theme, userTier, isMobile, setSidebarOpen }: any) {
+function GatewayInvestigatorView({ theme, userTier: _userTier, isMobile, setSidebarOpen }: any) {
   const { getToken } = useAuth()
-  const { user } = useUser()
   const isDark = theme !== 'light'
   const bg    = isDark ? '#0D0B14' : '#FAF8F5'
   const surf  = isDark ? 'rgba(201,168,76,0.04)' : '#FFFFFF'
@@ -6573,21 +6556,6 @@ function GatewayInvestigatorView({ theme, userTier, isMobile, setSidebarOpen }: 
   const [loading, setLoading]             = useState(false)
   const [report, setReport]               = useState<any>(null)
   const [error, setError]                 = useState('')
-
-  const hasAccess = getAccessLevel({ tier: userTier, role: (user?.publicMetadata?.role as string) || '' }) >= 1
-
-  if (!hasAccess) {
-    return (
-      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '40px 20px', background: bg }}>
-        <UpgradeGate
-          variant="screen"
-          featureName="Gateway Investigator"
-          description="The Gateway Investigator is a SOL-powered intake research tool that identifies cultural entry points for any spirit. Available to Soldier, Commander, and General members."
-          requiredTier="soldier"
-        />
-      </div>
-    )
-  }
 
   const canSubmit = spiritName.trim().length > 0 || personContext.trim().length > 0
 
@@ -14558,15 +14526,36 @@ function CommunityPage() {
         </div>
       ) : <MembersView members={members} currentUserId={user?.id || ''} currentUserTier={(user?.publicMetadata?.tier as string) || 'Watchman'} currentUserRole={(user?.publicMetadata?.role as string) || 'member'} onViewProfile={setViewingProfile} onStartDM={(memberId, memberName) => { setPendingDMWith(memberId); setPendingDmName(memberName); setActiveSection('dms') }} onRequestSentinel={async (memberId, memberName) => { const t = await getToken(); if (!t) return; await fetch('/api/stream-messages?action=request-sentinel', { method: 'POST', headers: { Authorization: `Bearer ${t}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ recipientId: memberId, recipientName: memberName }) }).catch(() => {}) }} setActiveSection={setActiveSection} isDark={theme !== 'light'} isMobile={isMobile} />)}
       {activeSection === 'database'       && <div style={{ position: 'relative', flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}><DatabaseView theme={theme} isMobile={isMobile} isTablet={isTablet} setSidebarOpen={setSidebarOpen} userTier={tier} demons={demons} setActiveSection={setActiveSection} setDossierTabBarHidden={setDossierTabBarHidden} filterSheetOpen={dbFilterSheetOpen} setFilterSheetOpen={setDbFilterSheetOpen} setFilterCount={setDbFilterCount} /><OnboardingOverlay storageKey="onboard_intel_archive" icon="📚" title="INTEL ARCHIVE" points={['Search 285+ spirits by name, kingdom, or manifestation','Click any spirit to open a full intelligence dossier with 4 tabs','Use AI Enhance to deepen any entry with ministry context','Companion spirits are clickable — explore the full demonic hierarchy']} /></div>}
-      {activeSection === 'investigate'    && <InvestigatorView theme={theme} userTier={tier} isMobile={isMobile} setSidebarOpen={setSidebarOpen} setActiveSection={setActiveSection} />}
+      {activeSection === 'investigate'    && (tierLevel >= 2
+        ? <InvestigatorView theme={theme} userTier={tier} isMobile={isMobile} setSidebarOpen={setSidebarOpen} setActiveSection={setActiveSection} />
+        : <div style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', background: isDark ? '#0D0B14' : '#FAF8F5', padding:'40px 20px' }}>
+            <UpgradeGate variant="screen" requiredTier="commander" featureName="Symptom Investigator" description="The Symptom Investigator is a SOL-powered operational intelligence tool available to Commander and General members." />
+          </div>
+      )}
       {activeSection === 'arsenal'        && <div style={{ position: 'relative', flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}><ArsenalView theme={theme} userTier={tier} isMobile={isMobile} setSidebarOpen={setSidebarOpen} filterSheetOpen={arsenalFilterSheetOpen} setFilterSheetOpen={setArsenalFilterSheetOpen} setFilterCount={setArsenalFilterCount} /><OnboardingOverlay storageKey="onboard_arsenal" icon="✦" title="ARSENAL — MINISTRY RESOURCES" points={['Download protocols, worksheets, and teaching documents','Access level is based on your membership tier','Use Topic and Function filters to find what you need','Spirit Tags show which demons each document addresses']} /></div>}
       {activeSection === 'testimony-wall' && <TestimonyWallView theme={theme} isMobile={isMobile} setSidebarOpen={setSidebarOpen} userId={user?.id || ''} userName={user?.firstName || 'Warrior'} userTier={tier} userImage={user?.imageUrl || ''} />}
       {activeSection === 'assessment'     && <AssessmentUploadView theme={theme} isMobile={isMobile} setSidebarOpen={setSidebarOpen} tier={tier} tierLevel={tierLevel} user={user} getToken={getToken} />}
       {activeSection === 'help'           && <HelpSection />}
       {activeSection === 'fringe-feed'    && <FringeIntelView theme={theme} isMobile={isMobile} setSidebarOpen={setSidebarOpen} userTier={tier} />}
       {activeSection === 'body-map'       && (tierLevel >= 2 ? <BodyMapBoundary><BodyMapView isMobile={isMobile} setSidebarOpen={setSidebarOpen} setActiveSection={setActiveSection} getToken={getToken} isAdmin={(user?.publicMetadata?.role as string) === 'minister'} /></BodyMapBoundary> : <div style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', background: isDark ? '#0D0B14' : '#FAF8F5', padding:'40px 20px' }}><div style={{ textAlign:'center', maxWidth:480 }}><div style={{ fontSize:40, color:G, marginBottom:20 }}>⚔</div><h2 style={{ fontFamily:cinzel, color:G, fontSize:20, marginBottom:12 }}>COMMANDER TIER REQUIRED</h2><button onClick={() => beginUpgrade('commander')} style={{ display:'inline-block', background:G, color:'#0D0B14', fontFamily:cinzel, fontSize:12, fontWeight:700, letterSpacing:'0.08em', padding:'10px 28px', borderRadius:6, border:'none', cursor:'pointer' }}>Upgrade to Commander</button></div></div>)}
-      {activeSection === 'spirit-network' && (tierLevel >= 2 ? <div style={{ position: 'relative', flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}><SpiritNetwork demons={demons} isDark={isDark} isMobile={isMobile} userTier={tier} userId={user?.id || ''} onNavigateTo={(section: string) => setActiveSection(section)} getToken={getToken} /><OnboardingOverlay storageKey="onboard_spirit_network" icon="⚔️" title="SPIRIT NETWORK COMMAND CENTER" points={['Search for any spirit to pull its full intelligence profile','The org chart shows where it sits in the demonic hierarchy','Click companion spirit chips to navigate the network','Use breadcrumbs at the top to trace back up the tree']} /></div> : <div style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', background: isDark ? '#0D0B14' : '#FAF8F5', padding:'40px 20px' }}><div style={{ textAlign:'center', maxWidth:480 }}><h2 style={{ fontFamily:cinzel, color:G, fontSize:20, marginBottom:12 }}>COMMANDER TIER REQUIRED</h2><button onClick={() => beginUpgrade('commander')} style={{ display:'inline-block', background:G, color:'#0D0B14', fontFamily:cinzel, fontSize:12, fontWeight:700, letterSpacing:'0.08em', padding:'10px 28px', borderRadius:6, border:'none', cursor:'pointer' }}>Upgrade to Commander</button></div></div>)}
-      {activeSection === 'gateway'        && <div style={{ position: 'relative', flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}><GatewayInvestigatorView theme={theme} userTier={tier} isMobile={isMobile} setSidebarOpen={setSidebarOpen} /><OnboardingOverlay storageKey="onboard_gateway" icon="🧱" title="GATEWAY INVESTIGATOR" points={['Enter a spirit name to get its full entry point analysis','Add cultural exposure context for a more targeted report','SOL cross-references legal grounds, trauma patterns, and generational ties','Use this before or during a live deliverance session']} /></div>}
+      {activeSection === 'spirit-network' && (tierLevel >= 2
+        ? <div style={{ position: 'relative', flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+            <SpiritNetwork demons={demons} isDark={isDark} isMobile={isMobile} userTier={tier} userId={user?.id || ''} onNavigateTo={(section: string) => setActiveSection(section)} getToken={getToken} />
+            <OnboardingOverlay storageKey="onboard_spirit_network" icon="⚔️" title="SPIRIT NETWORK COMMAND CENTER" points={['Search for any spirit to pull its full intelligence profile','The org chart shows where it sits in the demonic hierarchy','Click companion spirit chips to navigate the network','Use breadcrumbs at the top to trace back up the tree']} />
+          </div>
+        : <div style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', background: isDark ? '#0D0B14' : '#FAF8F5', padding:'40px 20px' }}>
+            <UpgradeGate variant="screen" requiredTier="commander" featureName="Spirit Network" description="The Spirit Network is an interactive demonic hierarchy map for Commander-tier ministers and above." />
+          </div>
+      )}
+      {activeSection === 'gateway'        && (tierLevel >= 1
+        ? <div style={{ position: 'relative', flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+            <GatewayInvestigatorView theme={theme} userTier={tier} isMobile={isMobile} setSidebarOpen={setSidebarOpen} />
+            <OnboardingOverlay storageKey="onboard_gateway" icon="🧱" title="GATEWAY INVESTIGATOR" points={['Enter a spirit name to get its full entry point analysis','Add cultural exposure context for a more targeted report','SOL cross-references legal grounds, trauma patterns, and generational ties','Use this before or during a live deliverance session']} />
+          </div>
+        : <div style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', background: isDark ? '#0D0B14' : '#FAF8F5', padding:'40px 20px' }}>
+            <UpgradeGate variant="screen" requiredTier="soldier" featureName="Gateway Investigator" description="The Gateway Investigator identifies cultural entry points for any spirit. Available to Soldier, Commander, and General members." />
+          </div>
+      )}
       {activeSection === 'training'       && <TrainingView theme={theme} isMobile={isMobile} setSidebarOpen={setSidebarOpen} userId={user?.id || ''} userTier={tier} getToken={getToken} setActiveSection={setActiveSection} />}
       {activeSection === 'field-teams'    && <FieldTeamsSection isDark={isDark} setActiveSection={setActiveSection} getToken={getToken} onCreate={(type) => { setCreateIntent(type); setActiveSection('dms') }} onOpenChannel={(group) => { if (!group?.channelId) return; setOpenChannelIntent(group); setActiveSection('dms') }} />}
       {activeSection === 'document-creator' && <DocumentCreatorView isMobile={isMobile} setSidebarOpen={setSidebarOpen} getToken={getToken} />}
@@ -15066,7 +15055,12 @@ function CommunityPage() {
             <OnboardingOverlay storageKey="onboard_intel_archive" icon="📚" title="INTEL ARCHIVE" points={['Search 285+ spirits by name, kingdom, or manifestation','Click any spirit to open a full intelligence dossier with 4 tabs','Use AI Enhance to deepen any entry with ministry context','Companion spirits are clickable — explore the full demonic hierarchy']} />
           </div>
         )}
-        {activeSection === 'investigate' && <InvestigatorView theme={theme} userTier={tier} isMobile={isMobile} setSidebarOpen={setSidebarOpen} setActiveSection={setActiveSection} />}
+        {activeSection === 'investigate' && (tierLevel >= 2
+          ? <InvestigatorView theme={theme} userTier={tier} isMobile={isMobile} setSidebarOpen={setSidebarOpen} setActiveSection={setActiveSection} />
+          : <div style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', background: isDark ? '#0D0B14' : '#FAF8F5', padding:'40px 20px' }}>
+              <UpgradeGate variant="screen" requiredTier="commander" featureName="Symptom Investigator" description="The Symptom Investigator is a SOL-powered operational intelligence tool available to Commander and General members." />
+            </div>
+        )}
         {activeSection === 'arsenal'     && (
           <div style={{ position: 'relative', flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
             <ArsenalView theme={theme} userTier={tier} isMobile={isMobile} setSidebarOpen={setSidebarOpen} filterSheetOpen={arsenalFilterSheetOpen} setFilterSheetOpen={setArsenalFilterSheetOpen} setFilterCount={setArsenalFilterCount} />
@@ -15230,27 +15224,23 @@ function CommunityPage() {
                 </div>
               </div>
         )}
-        {activeSection === 'spirit-network' && (
-          tierLevel >= 2
-            ? <div style={{ position: 'relative', flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-                <SpiritNetwork demons={demons} isDark={isDark} isMobile={isMobile} userTier={tier} userId={user?.id || ''} onNavigateTo={(section: string) => setActiveSection(section)} getToken={getToken} />
-                <OnboardingOverlay storageKey="onboard_spirit_network" icon="⚔️" title="SPIRIT NETWORK COMMAND CENTER" points={['Search for any spirit to pull its full intelligence profile','The org chart shows where it sits in the demonic hierarchy','Click companion spirit chips to navigate the network','Use breadcrumbs at the top to trace back up the tree']} />
-              </div>
-            : <div style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', background: isDark ? '#0D0B14' : '#FAF8F5', padding:'40px 20px' }}>
-                <div style={{ textAlign:'center', maxWidth:480 }}>
-                  <div style={{ fontSize:40, color:G, marginBottom:20, fontFamily:cinzel }}>⚔</div>
-                  <div style={{ fontFamily:cinzel, fontSize:10, color:G, letterSpacing:'0.2em', marginBottom:12 }}>SPIRIT NETWORK</div>
-                  <h2 style={{ fontFamily:cinzel, color:G, fontSize:20, marginBottom:12 }}>COMMANDER TIER REQUIRED</h2>
-                  <p style={{ color:isDark?'#8B7355':'#5C5248', fontSize:15, lineHeight:1.7, marginBottom:28, fontFamily:crimson }}>The Spirit Network is an interactive demonic hierarchy map for Commander-tier ministers and above. Upgrade to unlock org-chart navigation, companion spirit mapping, and live network traversal.</p>
-                  <button onClick={() => beginUpgrade('commander')} style={{ display:'inline-block', background:G, color:'#0D0B14', fontFamily:cinzel, fontSize:12, fontWeight:700, letterSpacing:'0.08em', padding:'10px 28px', borderRadius:6, border:'none', cursor:'pointer' }}>Upgrade to Commander</button>
-                </div>
-              </div>
+        {activeSection === 'spirit-network' && (tierLevel >= 2
+          ? <div style={{ position: 'relative', flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+              <SpiritNetwork demons={demons} isDark={isDark} isMobile={isMobile} userTier={tier} userId={user?.id || ''} onNavigateTo={(section: string) => setActiveSection(section)} getToken={getToken} />
+              <OnboardingOverlay storageKey="onboard_spirit_network" icon="⚔️" title="SPIRIT NETWORK COMMAND CENTER" points={['Search for any spirit to pull its full intelligence profile','The org chart shows where it sits in the demonic hierarchy','Click companion spirit chips to navigate the network','Use breadcrumbs at the top to trace back up the tree']} />
+            </div>
+          : <div style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', background: isDark ? '#0D0B14' : '#FAF8F5', padding:'40px 20px' }}>
+              <UpgradeGate variant="screen" requiredTier="commander" featureName="Spirit Network" description="The Spirit Network is an interactive demonic hierarchy map for Commander-tier ministers and above." />
+            </div>
         )}
-        {activeSection === 'gateway' && (
-          <div style={{ position: 'relative', flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-            <GatewayInvestigatorView theme={theme} userTier={tier} isMobile={isMobile} setSidebarOpen={setSidebarOpen} />
-            <OnboardingOverlay storageKey="onboard_gateway" icon="🧱" title="GATEWAY INVESTIGATOR" points={['Enter a spirit name to get its full entry point analysis','Add cultural exposure context for a more targeted report','SOL cross-references legal grounds, trauma patterns, and generational ties','Use this before or during a live deliverance session']} />
-          </div>
+        {activeSection === 'gateway' && (tierLevel >= 1
+          ? <div style={{ position: 'relative', flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+              <GatewayInvestigatorView theme={theme} userTier={tier} isMobile={isMobile} setSidebarOpen={setSidebarOpen} />
+              <OnboardingOverlay storageKey="onboard_gateway" icon="🧱" title="GATEWAY INVESTIGATOR" points={['Enter a spirit name to get its full entry point analysis','Add cultural exposure context for a more targeted report','SOL cross-references legal grounds, trauma patterns, and generational ties','Use this before or during a live deliverance session']} />
+            </div>
+          : <div style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', background: isDark ? '#0D0B14' : '#FAF8F5', padding:'40px 20px' }}>
+              <UpgradeGate variant="screen" requiredTier="soldier" featureName="Gateway Investigator" description="The Gateway Investigator identifies cultural entry points for any spirit. Available to Soldier, Commander, and General members." />
+            </div>
         )}
         {activeSection === 'training'    && (
           <TrainingView
