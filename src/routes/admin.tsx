@@ -10930,6 +10930,71 @@ function ContentStudio({ getToken, isDark }: { getToken: any; isDark: boolean })
   const [faBody, setFaBody]         = useState('')
   const [faSummary, setFaSummary]   = useState('')
 
+  // Job polling state
+  const genPollRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const [genProgress, setGenProgress] = useState(0)
+  const [genStage, setGenStage]       = useState('')
+
+  function stopGenPoll() {
+    if (genPollRef.current) { clearInterval(genPollRef.current); genPollRef.current = null }
+  }
+
+  function populateFromGenerated(gen: Record<string, any>) {
+    if (csType === 'daily_brief') {
+      setMorningPrayer(gen.morningPrayer || '')
+      setScripture(gen.scripture || '')
+      setScriptureText(gen.scriptureText || '')
+      setDevotional(gen.devotional || '')
+      setEveningPrayer(gen.eveningPrayer || '')
+    } else if (csType === 'field_manual') {
+      setFmSummary(gen.summary || '')
+      setFmDraft(gen.draft || gen.content || '')
+    } else if (csType === 'weekly_intel') {
+      setWiSummary(gen.summary || '')
+      setWiBody(gen.body || '')
+      setWiTags(Array.isArray(gen.tags) ? gen.tags.join(', ') : '')
+    } else {
+      setFaCategory((gen.category as any) || 'open-intel')
+      setFaBody(gen.body || '')
+      setFaSummary(gen.body ? gen.body.slice(0, 200) : '')
+    }
+  }
+
+  async function pollGen(jid: string) {
+    const timeout = setTimeout(() => {
+      stopGenPoll()
+      setGenerating(false)
+      setMsg('Generation timed out after 5 minutes')
+    }, 5 * 60 * 1000)
+
+    genPollRef.current = setInterval(async () => {
+      try {
+        const token   = await getToken()
+        const pollRes = await fetch(`/api/job-status?jobId=${jid}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        })
+        if (!pollRes.ok) return
+        const pd = await pollRes.json()
+        setGenProgress(pd.progress ?? 0)
+        setGenStage(pd.stage ?? '')
+        if (pd.status === 'complete') {
+          clearTimeout(timeout)
+          stopGenPoll()
+          populateFromGenerated((pd.result_json?.generated as Record<string, any>) ?? {})
+          setGenerated(true)
+          setGenerating(false)
+        } else if (pd.status === 'failed') {
+          clearTimeout(timeout)
+          stopGenPoll()
+          setMsg(pd.error_message || 'Generation failed')
+          setGenerating(false)
+        }
+      } catch (pollErr: any) {
+        console.warn('[content-gen poll] error:', pollErr.message)
+      }
+    }, 3000)
+  }
+
   function clearFields() {
     setMorningPrayer(''); setScripture(''); setScriptureText(''); setDevotional(''); setEveningPrayer(''); setVideoUrl('')
     setFmSummary(''); setFmDraft('')
@@ -10940,7 +11005,8 @@ function ContentStudio({ getToken, isDark }: { getToken: any; isDark: boolean })
 
   async function generate() {
     if (!title.trim()) { setMsg('Enter a title first'); return }
-    setGenerating(true); setMsg('')
+    stopGenPoll()
+    setGenerating(true); setMsg(''); setGenProgress(0); setGenStage('queued')
     try {
       const token = await getToken()
       const res = await fetch('/api/admin-content-ai', {
@@ -10950,28 +11016,8 @@ function ContentStudio({ getToken, isDark }: { getToken: any; isDark: boolean })
       })
       const data = await res.json()
       if (!res.ok) { setMsg(data.error || 'Generation failed'); setGenerating(false); return }
-
-      if (csType === 'daily_brief') {
-        setMorningPrayer(data.morningPrayer || '')
-        setScripture(data.scripture || '')
-        setScriptureText(data.scriptureText || '')
-        setDevotional(data.devotional || '')
-        setEveningPrayer(data.eveningPrayer || '')
-      } else if (csType === 'field_manual') {
-        setFmSummary(data.summary || '')
-        setFmDraft(data.draft || data.content || '')
-      } else if (csType === 'weekly_intel') {
-        setWiSummary(data.summary || '')
-        setWiBody(data.body || '')
-        setWiTags(Array.isArray(data.tags) ? data.tags.join(', ') : '')
-      } else {
-        setFaCategory((data.category as any) || 'open-intel')
-        setFaBody(data.body || '')
-        setFaSummary(data.body ? data.body.slice(0, 200) : '')
-      }
-      setGenerated(true)
-    } catch { setMsg('Network error') }
-    setGenerating(false)
+      pollGen(data.jobId as string)
+    } catch { setMsg('Network error'); setGenerating(false) }
   }
 
   async function save(publish: boolean) {
@@ -11052,9 +11098,22 @@ function ContentStudio({ getToken, isDark }: { getToken: any; isDark: boolean })
           <img src="/images/sol/sol-icon.png" width={13} height={13} style={{ objectFit: 'contain' as const, filter: generating ? 'none' : 'brightness(0)' }} />
           {generating ? 'GENERATING...' : '✦ GENERATE WITH SOL'}
         </button>
-        <div style={{ fontFamily: crimson, fontSize: 11, color: mut, textAlign: 'center' as const, lineHeight: 1.5 }}>
-          SOL fills all fields based on your title
-        </div>
+        {generating ? (
+          <div style={{ marginTop: 4, marginBottom: 4 }}>
+            <div style={{ height: 3, background: `rgba(201,168,76,0.12)`, borderRadius: 2, overflow: 'hidden' }}>
+              <div style={{ height: '100%', width: `${genProgress}%`, background: GG, borderRadius: 2, transition: 'width 0.4s ease' }} />
+            </div>
+            {genStage && (
+              <div style={{ fontFamily: cinzel, fontSize: 7, color: mut, letterSpacing: '0.1em', textAlign: 'center' as const, marginTop: 4 }}>
+                {genStage.toUpperCase()}{genProgress > 0 ? ` · ${genProgress}%` : ''}
+              </div>
+            )}
+          </div>
+        ) : (
+          <div style={{ fontFamily: crimson, fontSize: 11, color: mut, textAlign: 'center' as const, lineHeight: 1.5 }}>
+            SOL fills all fields based on your title
+          </div>
+        )}
 
         {msg && (
           <div style={{ marginTop: 16, padding: '8px 12px', background: msg.startsWith('✓') ? 'rgba(74,222,128,0.08)' : 'rgba(248,113,113,0.06)', border: `1px solid ${msg.startsWith('✓') ? 'rgba(74,222,128,0.3)' : 'rgba(248,113,113,0.25)'}`, borderRadius: 6, fontFamily: crimson, fontSize: 13, color: msg.startsWith('✓') ? '#4ade80' : '#f87171' }}>
