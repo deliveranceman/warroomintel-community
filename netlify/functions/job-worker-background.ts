@@ -159,10 +159,7 @@ async function runPatristicScan(client: ReturnType<typeof sb>, job: any): Promis
     await client.from('ai_jobs').update({ stage: 'saving' }).eq('id', jobId)
 
     await client.from('resources').update({
-      summary_status:  'complete',
-      ai_summary:      firstParsed || null,
-      ai_model_used:   'claude-sonnet-4-5',
-      ai_generated_at: new Date().toISOString(),
+      summary_status: 'complete',
     }).eq('id', resourceId)
 
     const tokensUsed = totalInputTokens + totalOutputTokens

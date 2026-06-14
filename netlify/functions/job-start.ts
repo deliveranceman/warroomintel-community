@@ -10,7 +10,7 @@ function json(data: unknown, status = 200) {
 function sb() { return createClient(sbUrl!, sbKey!) }
 
 // Allowlist of accepted job types — grows per feature, never accepts arbitrary strings.
-const ALLOWED_JOB_TYPES = new Set(['patristic_scan', 'spirit_enrich'])
+const ALLOWED_JOB_TYPES = new Set(['patristic_scan', 'spirit_enrich', 'research_drop_spirits'])
 
 export default async function handler(req: Request): Promise<Response> {
   if (req.method === 'OPTIONS') return new Response('', { status: 204, headers: CORS })
@@ -37,6 +37,22 @@ export default async function handler(req: Request): Promise<Response> {
   if (jobType === 'patristic_scan') {
     if (!resourceId) return json({ error: 'resourceId required' }, 400)
     scanMode = rawScanMode === 'window8k' ? 'window8k' : 'full'
+
+    const { data: resource, error: fetchErr } = await client
+      .from('resources')
+      .select('id, extracted_text')
+      .eq('id', resourceId)
+      .single()
+
+    if (fetchErr || !resource) return json({ error: 'Resource not found' }, 404)
+    if (!resource.extracted_text?.trim()) {
+      return json({ error: 'Resource has no extracted text — run indexing first' }, 422)
+    }
+  }
+
+  // ── research_drop_spirits validation ─────────────────────────────────────
+  if (jobType === 'research_drop_spirits') {
+    if (!resourceId) return json({ error: 'resourceId required' }, 400)
 
     const { data: resource, error: fetchErr } = await client
       .from('resources')
@@ -77,6 +93,9 @@ export default async function handler(req: Request): Promise<Response> {
     jobRow.input_params  = { scanMode, resourceId }
   } else if (jobType === 'spirit_enrich') {
     jobRow.input_params  = { spiritSlug: rawSpiritSlug }
+  } else if (jobType === 'research_drop_spirits') {
+    jobRow.resource_id   = resourceId
+    jobRow.input_params  = { resourceId }
   }
 
   // Insert ai_jobs row
