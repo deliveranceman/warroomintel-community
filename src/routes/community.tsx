@@ -14543,7 +14543,12 @@ function CommunityPage() {
       )}
       {activeSection === 'training'       && <TrainingView theme={theme} isMobile={isMobile} setSidebarOpen={setSidebarOpen} userId={user?.id || ''} userTier={tier} getToken={getToken} setActiveSection={setActiveSection} />}
       {activeSection === 'field-teams'    && <FieldTeamsSection isDark={isDark} setActiveSection={setActiveSection} getToken={getToken} onCreate={(type) => { setCreateIntent(type); setActiveSection('dms') }} onOpenChannel={(group) => { if (!group?.channelId) return; setOpenChannelIntent(group); setActiveSection('dms') }} />}
-      {activeSection === 'document-creator' && <DocumentCreatorView isMobile={isMobile} setSidebarOpen={setSidebarOpen} getToken={getToken} />}
+      {activeSection === 'document-creator' && (tierLevel >= 2
+        ? <DocumentCreatorView isMobile={isMobile} setSidebarOpen={setSidebarOpen} getToken={getToken} />
+        : <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', background: isDark ? '#0D0B14' : '#FAF8F5', padding: '40px 20px' }}>
+            <UpgradeGate variant="screen" requiredTier="commander" featureName="Document Creator" description="Upgrade to Commander to create and manage ministry documents." />
+          </div>
+      )}
       {activeSection === 'session-center' && (tierLevel >= 2
         ? <SessionCenterView theme={theme} isMobile={isMobile} setSidebarOpen={setSidebarOpen} userId={user?.id || ''} getToken={getToken} demons={demons} userTier={tier} onLaunch={(sessionId?: string, caseFile?: any) => { setActiveSessionId(sessionId); setActiveSessionCF(caseFile); setSessionOpen(true) }} />
         : <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', background: isDark ? '#0D0B14' : '#FAF8F5', padding: '40px 20px' }}>
@@ -15246,7 +15251,12 @@ function CommunityPage() {
         {activeSection === 'field-teams' && (
           <FieldTeamsSection isDark={isDark} setActiveSection={setActiveSection} getToken={getToken} onCreate={(type) => { setCreateIntent(type); setActiveSection('dms') }} onOpenChannel={(group) => { if (!group?.channelId) return; setOpenChannelIntent(group); setActiveSection('dms') }} />
         )}
-        {activeSection === 'document-creator' && <DocumentCreatorView isMobile={isMobile} setSidebarOpen={setSidebarOpen} getToken={getToken} />}
+        {activeSection === 'document-creator' && (tierLevel >= 2
+          ? <DocumentCreatorView isMobile={isMobile} setSidebarOpen={setSidebarOpen} getToken={getToken} />
+          : <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', background: isDark ? '#0D0B14' : '#FAF8F5', padding: '40px 20px' }}>
+              <UpgradeGate variant="screen" requiredTier="commander" featureName="Document Creator" description="Upgrade to Commander to create and manage ministry documents." />
+            </div>
+        )}
         {activeSection === 'session-center' && (tierLevel >= 2
           ? <SessionCenterView
               theme={theme}
