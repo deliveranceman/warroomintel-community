@@ -18,6 +18,14 @@ function supabaseClient() {
   )
 }
 
+function mimeFromFilename(name: string): string {
+  const lower = name.toLowerCase()
+  if (lower.endsWith('.pdf'))  return 'application/pdf'
+  if (lower.endsWith('.txt'))  return 'text/plain'
+  if (lower.endsWith('.docx')) return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+  return 'application/octet-stream'
+}
+
 function parseMultipart(_req: Request, bodyBuf: Buffer, contentType: string): Promise<{
   fields: Record<string, string>
   file?: { buffer: Buffer; filename: string; mimeType: string }
@@ -153,11 +161,10 @@ export default async function handler(req: Request) {
 
     // Upload raw file to Supabase Storage — no text extraction
     const safeName = `${Date.now()}-${fileName.replace(/[^a-zA-Z0-9._-]/g, '_')}`
-    const isTxt = fileName.toLowerCase().endsWith('.txt')
-    const mimeType = isTxt ? 'text/plain' : 'application/pdf'
+    const fileType = mimeFromFilename(fileName)
 
     const { error: uploadErr } = await sb.storage.from(BUCKET).upload(safeName, fileBuffer, {
-      contentType: mimeType,
+      contentType: fileType,
       upsert: false,
     })
     if (uploadErr) {
@@ -165,21 +172,27 @@ export default async function handler(req: Request) {
       return new Response(JSON.stringify({ error: `Storage upload failed: ${uploadErr.message}` }), { status: 500, headers })
     }
 
-    // Insert DB record — extracted_text will remain null until a background job processes it
+    // Insert DB record into resources — extracted_text will remain null until a background job processes it
     const { data: row, error: insertErr } = await sb
-      .from('ministry_library')
+      .from('resources')
       .insert({
-        title: title.trim(),
-        author: author?.trim() || null,
-        file_path: safeName,
-        file_size_bytes: fileSize || fileBuffer.length,
-        page_count: 0,
+        title:         title.trim(),
+        author:        author?.trim() || null,
+        file_path:     safeName,
+        filename:      fileName,
+        file_size:     fileSize || fileBuffer.length,
+        file_type:     fileType,
         extracted_text: null,
-        notes: notes?.trim() || null,
-        is_enabled: true,
-        ai_enabled: true,
+        notes:         notes?.trim() || null,
+        topic:         'ministry-library',
+        source_type:   'library',
+        category:      'Reference',
+        tier:          'Free',
+        active:        true,
+        ai_generated:  false,
+        spirit_tags:   [],
       })
-      .select('id,title,author,file_path,file_size_bytes,page_count,is_enabled,ai_enabled,upload_date,notes')
+      .select('id,title,author,file_path,file_size,filename,active,ai_generated,created_at,notes,topic,spirit_tags,source_type')
       .single()
 
     if (insertErr) {
