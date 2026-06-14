@@ -9132,7 +9132,6 @@ function OnboardingOverlay({ storageKey, icon, title, points }: {
 
 // ── SESSION CENTER VIEW ────────────────────────────────────
 function SessionCenterView({ theme, isMobile, setSidebarOpen, userId: _userId, getToken, demons, onLaunch, userTier }: any) {
-  const { user } = useUser()
   const { beginUpgrade } = useContext(UpgradeFlowCtx)
   const isDark = theme !== 'light'
   const isCommanderOnly = (userTier || '').toLowerCase() === 'commander'
@@ -9204,8 +9203,6 @@ function SessionCenterView({ theme, isMobile, setSidebarOpen, userId: _userId, g
     fontFamily: "'Crimson Pro', serif", fontSize: 15, outline: 'none',
   }
 
-  const tierLevel = getAccessLevel({ tier: userTier || 'free', role: (user?.publicMetadata?.role as string) || '' })
-
   return (
     <div style={{ flex: 1, overflowY: 'auto', background: bg, padding: isMobile ? '16px' : '28px 32px' }}>
       {isMobile && (
@@ -9214,21 +9211,9 @@ function SessionCenterView({ theme, isMobile, setSidebarOpen, userId: _userId, g
       <div style={{ maxWidth: 640, margin: '0 auto' }}>
         <div style={{ fontFamily: "'Cinzel', serif", fontSize: 9, color: gold, letterSpacing: '0.2em', marginBottom: 4 }}>FIELD OPERATIONS</div>
         <div style={{ fontFamily: "'Cinzel', serif", fontSize: 22, color: txt, marginBottom: 4 }}>Session Center</div>
-        <div style={{ fontFamily: "'Crimson Pro', serif", fontSize: 15, color: dim, marginBottom: tierLevel < 2 ? 24 : (isCommanderOnly ? 12 : 24) }}>Launch, manage, and resume deliverance sessions.</div>
+        <div style={{ fontFamily: "'Crimson Pro', serif", fontSize: 15, color: dim, marginBottom: isCommanderOnly ? 12 : 24 }}>Launch, manage, and resume deliverance sessions.</div>
 
-        {tierLevel < 2 && (
-          <div style={{ textAlign: 'center', padding: '40px 20px' }}>
-            <div style={{ fontSize: 40, color: gold, marginBottom: 20, fontFamily: "'Cinzel', serif" }}>⚔</div>
-            <div style={{ fontFamily: "'Cinzel', serif", fontSize: 10, color: gold, letterSpacing: '0.2em', marginBottom: 12 }}>COMMANDER TIER REQUIRED</div>
-            <p style={{ color: dim, fontSize: 15, lineHeight: 1.7, marginBottom: 28, fontFamily: "'Crimson Pro', serif" }}>
-              The Session Center is a live deliverance operations tool for Commander-tier ministers and above. Upgrade to unlock guided sessions, case file integration, and the 9-role command structure.
-            </p>
-            <button onClick={() => beginUpgrade('commander')} style={{ display: 'inline-block', background: gold, color: '#0D0B14', fontFamily: "'Cinzel', serif", fontSize: 12, fontWeight: 700, letterSpacing: '0.08em', padding: '10px 28px', borderRadius: 6, border: 'none', cursor: 'pointer' }}>
-              Upgrade to Commander
-            </button>
-          </div>
-        )}
-        {tierLevel >= 2 && <>
+        <>
 
         {/* Commander tier — offline only */}
         {isCommanderOnly && (
@@ -9319,7 +9304,7 @@ function SessionCenterView({ theme, isMobile, setSidebarOpen, userId: _userId, g
             </button>
           </div>
         )}
-        </>}
+        </>
       </div>
     </div>
   )
@@ -14559,7 +14544,12 @@ function CommunityPage() {
       {activeSection === 'training'       && <TrainingView theme={theme} isMobile={isMobile} setSidebarOpen={setSidebarOpen} userId={user?.id || ''} userTier={tier} getToken={getToken} setActiveSection={setActiveSection} />}
       {activeSection === 'field-teams'    && <FieldTeamsSection isDark={isDark} setActiveSection={setActiveSection} getToken={getToken} onCreate={(type) => { setCreateIntent(type); setActiveSection('dms') }} onOpenChannel={(group) => { if (!group?.channelId) return; setOpenChannelIntent(group); setActiveSection('dms') }} />}
       {activeSection === 'document-creator' && <DocumentCreatorView isMobile={isMobile} setSidebarOpen={setSidebarOpen} getToken={getToken} />}
-      {activeSection === 'session-center' && <SessionCenterView theme={theme} isMobile={isMobile} setSidebarOpen={setSidebarOpen} userId={user?.id || ''} getToken={getToken} demons={demons} userTier={tier} onLaunch={(sessionId?: string, caseFile?: any) => { setActiveSessionId(sessionId); setActiveSessionCF(caseFile); setSessionOpen(true) }} />}
+      {activeSection === 'session-center' && (tierLevel >= 2
+        ? <SessionCenterView theme={theme} isMobile={isMobile} setSidebarOpen={setSidebarOpen} userId={user?.id || ''} getToken={getToken} demons={demons} userTier={tier} onLaunch={(sessionId?: string, caseFile?: any) => { setActiveSessionId(sessionId); setActiveSessionCF(caseFile); setSessionOpen(true) }} />
+        : <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', background: isDark ? '#0D0B14' : '#FAF8F5', padding: '40px 20px' }}>
+            <UpgradeGate variant="screen" requiredTier="commander" featureName="Session Center" description="The Session Center is a live deliverance operations tool for Commander-tier ministers and above." />
+          </div>
+      )}
       {activeSection === 'events'         && <EventsView theme={theme} isMobile={isMobile} setSidebarOpen={setSidebarOpen} userTier={tier} getToken={getToken} />}
       {activeSection === 'feedback'       && <FeedbackView theme={theme} userTier={tier} isMobile={isMobile} setSidebarOpen={setSidebarOpen} userId={user?.id || ''} userName={`${user?.firstName || ''} ${user?.lastName || ''}`.trim() || 'Warrior'} />}
       {activeSection === 'my-intel'       && <MyIntelView isMobile={isMobile} setSidebarOpen={setSidebarOpen} getToken={getToken} />}
@@ -15257,21 +15247,24 @@ function CommunityPage() {
           <FieldTeamsSection isDark={isDark} setActiveSection={setActiveSection} getToken={getToken} onCreate={(type) => { setCreateIntent(type); setActiveSection('dms') }} onOpenChannel={(group) => { if (!group?.channelId) return; setOpenChannelIntent(group); setActiveSection('dms') }} />
         )}
         {activeSection === 'document-creator' && <DocumentCreatorView isMobile={isMobile} setSidebarOpen={setSidebarOpen} getToken={getToken} />}
-        {activeSection === 'session-center' && (
-          <SessionCenterView
-            theme={theme}
-            isMobile={isMobile}
-            setSidebarOpen={setSidebarOpen}
-            userId={user?.id || ''}
-            getToken={getToken}
-            demons={demons}
-            userTier={tier}
-            onLaunch={(sessionId?: string, caseFile?: any) => {
-              setActiveSessionId(sessionId)
-              setActiveSessionCF(caseFile)
-              setSessionOpen(true)
-            }}
-          />
+        {activeSection === 'session-center' && (tierLevel >= 2
+          ? <SessionCenterView
+              theme={theme}
+              isMobile={isMobile}
+              setSidebarOpen={setSidebarOpen}
+              userId={user?.id || ''}
+              getToken={getToken}
+              demons={demons}
+              userTier={tier}
+              onLaunch={(sessionId?: string, caseFile?: any) => {
+                setActiveSessionId(sessionId)
+                setActiveSessionCF(caseFile)
+                setSessionOpen(true)
+              }}
+            />
+          : <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', background: isDark ? '#0D0B14' : '#FAF8F5', padding: '40px 20px' }}>
+              <UpgradeGate variant="screen" requiredTier="commander" featureName="Session Center" description="The Session Center is a live deliverance operations tool for Commander-tier ministers and above." />
+            </div>
         )}
         {activeSection === 'events'      && <EventsView theme={theme} isMobile={isMobile} setSidebarOpen={setSidebarOpen} userTier={tier} getToken={getToken} />}
         {activeSection === 'feedback'    && <FeedbackView theme={theme} userTier={tier} isMobile={isMobile} setSidebarOpen={setSidebarOpen} userId={user?.id || ''} userName={`${user?.firstName || ''} ${user?.lastName || ''}`.trim() || 'Warrior'} />}
