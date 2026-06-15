@@ -51,7 +51,7 @@ export async function runResearchDropSpirits(client: any, job: any): Promise<voi
 
     const { data: resource, error: fetchErr } = await client
       .from('resources')
-      .select('id,title,author,extracted_text')
+      .select('id,title,author,extracted_text,source_type')
       .eq('id', resourceId)
       .single()
 
@@ -59,8 +59,10 @@ export async function runResearchDropSpirits(client: any, job: any): Promise<voi
       throw new Error(`Resource ${resourceId} not found or has no extracted text`)
     }
 
-    const fullText  = resource.extracted_text as string
-    const bookTitle = (resource.title || resource.author || 'Unknown') as string
+    const fullText           = resource.extracted_text as string
+    const bookTitle          = (resource.title || resource.author || 'Unknown') as string
+    const resourceSourceType = (resource?.source_type as string | null) ?? null
+    const isAdversarial      = resourceSourceType === 'intelligence'
 
     await client.from('resources').update({ research_job_id: jobId }).eq('id', resourceId)
 
@@ -239,6 +241,7 @@ export async function runResearchDropSpirits(client: any, job: any): Promise<voi
           confidence:         confToInt(mention.confidence),
           source_excerpt:     mention.context || '',
           status:             'pending',
+          is_adversarial:     isAdversarial,
         })
         enrichSuggestions++
 
@@ -262,6 +265,7 @@ export async function runResearchDropSpirits(client: any, job: any): Promise<voi
           source_id:       resourceId,
           source_name:     bookTitle,
           status:          'pending',
+          is_adversarial:  isAdversarial,
           ai_model_used:   'claude-sonnet-4-5',
           ai_generated_at: new Date().toISOString(),
         })
@@ -298,6 +302,8 @@ export async function runResearchDropSpirits(client: any, job: any): Promise<voi
         newCandidates,
         dupeSkipped,
         scanErrors:       scanErrors.length,
+        isAdversarial,
+        sourceType:       resourceSourceType,
       },
     }).eq('id', jobId)
 

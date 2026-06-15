@@ -15069,7 +15069,7 @@ function ResearchDropPage({ getToken, isDark }: { getToken: any; isDark: boolean
               <option value="christian">Christian / Ministry</option>
               <option value="patristic">Patristic / Church Fathers</option>
               <option value="academic">Academic / Theological</option>
-              <option value="occult">Occult / Counter-Intelligence</option>
+              <option value="intelligence">Occult / Counter-Intelligence</option>
               <option value="deliverance">Deliverance Manual</option>
               <option value="other">Other</option>
             </select>
@@ -15159,6 +15159,17 @@ function ResearchDropPage({ getToken, isDark }: { getToken: any; isDark: boolean
           <div style={{ fontFamily: crimson, fontSize: 15, color: txt, fontWeight: 600, marginBottom: 16 }}>
             {title}
           </div>
+
+          {result?.isAdversarial && (
+            <div style={{ border: `1px solid ${isDark ? 'rgba(239,68,68,0.55)' : 'rgba(180,30,30,0.55)'}`, background: isDark ? 'rgba(127,29,29,0.18)' : 'rgba(180,30,30,0.06)', borderRadius: 4, padding: '12px 16px', marginBottom: 16, display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+              <span style={{ color: isDark ? '#f87171' : '#b91c1c', fontSize: 18, lineHeight: 1, marginTop: 2 }}>⚠</span>
+              <div style={{ flex: 1, fontFamily: crimson, fontSize: 13, lineHeight: 1.55, color: isDark ? TXT : '#2D2924' }}>
+                <strong style={{ fontFamily: cinzel, letterSpacing: '0.08em', fontSize: 11, textTransform: 'uppercase' as const, color: isDark ? '#f87171' : '#b91c1c' }}>Adversarial Source -- Intelligence Only</strong>
+                <br/>
+                Candidates extracted from this source are flagged for extra discernment. Source framing may present spirits with positive/promotional descriptions -- review every ai_notes field before approving, and rewrite enemy framing into ministry language.
+              </div>
+            </div>
+          )}
 
           {result?.truncated && (
             <div style={{ border: `1px solid ${isDark ? 'rgba(201,168,76,0.55)' : 'rgba(160,120,48,0.55)'}`, background: isDark ? 'rgba(201,168,76,0.08)' : 'rgba(160,120,48,0.06)', borderRadius: 4, padding: '12px 16px', marginBottom: 16, display: 'flex', gap: 12, alignItems: 'flex-start' }}>
