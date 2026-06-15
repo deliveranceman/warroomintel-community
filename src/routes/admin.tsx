@@ -14901,18 +14901,21 @@ function ResearchDropPage({ getToken, isDark }: { getToken: any; isDark: boolean
 
     try {
       const token   = await getToken()
-      const fd      = new FormData()
-      fd.append('title',         title.trim() || file.name)
-      fd.append('author',        author.trim())
-      fd.append('sourceType',    sourceType.trim())
-      fd.append('extractedText', text)
-      fd.append('fileHash',      hash)
-      fd.append('file',          file, file.name)
-
       const res = await fetch('/api/research-drop-upload', {
         method:  'POST',
-        headers: { Authorization: `Bearer ${token}` },
-        body:    fd,
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization:  `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          title:         title.trim() || file.name,
+          author:        author.trim(),
+          sourceType:    sourceType.trim(),
+          filename:      file.name,
+          fileSize:      file.size,
+          fileHash:      hash,
+          extractedText: text,
+        }),
       })
       const data = await res.json()
 

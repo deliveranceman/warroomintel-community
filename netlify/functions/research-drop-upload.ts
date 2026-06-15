@@ -1,5 +1,4 @@
 import { createClient } from '@supabase/supabase-js'
-import Busboy from 'busboy'
 import { requireAdmin2, CORS as HEADERS } from './_shared/access'
 import { mimeFromFilename } from '../../src/lib/mimeFromFilename'
 
@@ -12,64 +11,49 @@ function json(data: unknown, status = 200) {
   return new Response(JSON.stringify(data), { status, headers: { ...HEADERS, 'Content-Type': 'application/json' } })
 }
 
-function parseMultipart(bodyBuf: Buffer, contentType: string): Promise<{
-  fields: Record<string, string>
-  file?: { buffer: Buffer; filename: string }
-}> {
-  return new Promise((resolve, reject) => {
-    const fields: Record<string, string> = {}
-    let file: { buffer: Buffer; filename: string } | undefined
-    const busboy = Busboy({ headers: { 'content-type': contentType } })
-    busboy.on('field', (name, val) => { fields[name] = val })
-    busboy.on('file', (_fieldname, stream, info) => {
-      const chunks: Buffer[] = []
-      stream.on('data', (c: Buffer) => chunks.push(c))
-      stream.on('end', () => {
-        file = { buffer: Buffer.concat(chunks), filename: info.filename || 'upload' }
-      })
-    })
-    busboy.on('finish', () => resolve({ fields, file }))
-    busboy.on('error', reject)
-    busboy.write(bodyBuf)
-    busboy.end()
-  })
+interface UploadBody {
+  title?:          string
+  author?:         string | null
+  sourceType?:     string | null
+  filename?:       string
+  fileSize?:       number
+  fileHash?:       string
+  extractedText?:  string
 }
 
 export default async function handler(req: Request) {
   if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: HEADERS })
-  if (req.method !== 'POST') return json({ error: 'POST only' }, 405)
+  if (req.method !== 'POST')    return json({ error: 'POST only' }, 405)
 
   const auth = await requireAdmin2(req)
   if (auth instanceof Response) return auth
 
-  const contentType = req.headers.get('content-type') || ''
-  if (!contentType.includes('multipart/form-data')) {
-    return json({ error: 'multipart/form-data required' }, 400)
+  let body: UploadBody
+  try { body = await req.json() } catch {
+    return json({ error: 'Invalid JSON body' }, 400)
   }
 
-  const bodyBuf = Buffer.from(await req.arrayBuffer())
-  let parsed: Awaited<ReturnType<typeof parseMultipart>>
-  try {
-    parsed = await parseMultipart(bodyBuf, contentType)
-  } catch (e: any) {
-    return json({ error: `Multipart parse failed: ${e?.message}` }, 400)
-  }
+  const title         = (body.title || '').trim()
+  const author        = (body.author || '').toString().trim() || null
+  const sourceType    = (body.sourceType || '').toString().trim() || null
+  const filename      = (body.filename || '').trim() || 'upload.txt'
+  const fileSize      = typeof body.fileSize === 'number' ? body.fileSize : null
+  const fileHash      = (body.fileHash || '').toString().trim()
+  const extractedText = (body.extractedText || '').toString()
 
-  const { fields, file } = parsed
-  const title        = (fields.title || '').trim()
-  const author       = (fields.author || '').trim() || null
-  const sourceType   = (fields.sourceType || '').trim() || null
-  const extractedText = fields.extractedText || ''
-  const fileHash     = (fields.fileHash || '').trim()
-
-  if (!title)         return json({ error: 'title is required' }, 400)
-  if (!file)          return json({ error: 'file is required' }, 400)
+  if (!title)                return json({ error: 'title is required' }, 400)
+  if (!fileHash)             return json({ error: 'fileHash is required' }, 400)
   if (!extractedText.trim()) return json({ error: 'extractedText is required — extract text client-side before uploading' }, 400)
-  if (!fileHash)      return json({ error: 'fileHash is required' }, 400)
+
+  if (extractedText.length > 5_000_000) {
+    return json({
+      error: 'extractedText too large (>5 MB). Split the source into sections, or wait for the direct-Storage upload path.',
+    }, 413)
+  }
 
   const client = sb()
 
-  // ── Hash dedup check ──────────────────────────────────────────────────────────
+  // ── Hash dedup check ────────────────────────────────────────────────────
   const { data: existing } = await client
     .from('resources')
     .select('id, title, created_at, summary_status')
@@ -78,41 +62,45 @@ export default async function handler(req: Request) {
 
   if (existing) {
     return json({
-      duplicate: true,
-      resourceId: existing.id,
+      duplicate:     true,
+      resourceId:    existing.id,
       existingTitle: existing.title,
-      createdAt: existing.created_at,
+      createdAt:     existing.created_at,
       summaryStatus: existing.summary_status,
     }, 409)
   }
 
-  const fileName   = file.filename
-  const fileBuffer = file.buffer
-  const fileSize   = fileBuffer.length
-  const fileType   = mimeFromFilename(fileName)
-  const safeName   = `research-drop/${Date.now()}-${fileName.replace(/[^a-zA-Z0-9._-]/g, '_')}`
+  // ── Storage upload: write extractedText as a .txt ───────────────────────
+  const stem     = filename.replace(/\.[^.]+$/, '').replace(/[^a-zA-Z0-9._-]/g, '_')
+  const safeName = `research-drop/${Date.now()}-${stem}.txt`
+  const fileType = 'text/plain; charset=utf-8'
+  const textBuf  = Buffer.from(extractedText, 'utf-8')
+  const charCount = extractedText.length
 
-  console.log(`[research-drop-upload] Uploading: ${fileName} (${fileSize} bytes)`)
+  // mimeFromFilename kept for the original filename metadata; not used for the
+  // Storage upload (we always write .txt extraction).
+  void mimeFromFilename(filename)
 
-  // ── Storage upload ────────────────────────────────────────────────────────────
-  const { error: uploadErr } = await client.storage.from(BUCKET).upload(safeName, fileBuffer, {
+  console.log(`[research-drop-upload] Uploading: ${filename} (${charCount} chars) → ${safeName}`)
+
+  const { error: uploadErr } = await client.storage.from(BUCKET).upload(safeName, textBuf, {
     contentType: fileType,
-    upsert: false,
+    upsert:      false,
   })
   if (uploadErr) {
     console.error('[research-drop-upload] Storage upload error:', uploadErr.message)
     return json({ error: `Storage upload failed: ${uploadErr.message}` }, 500)
   }
 
-  // ── Resources insert ──────────────────────────────────────────────────────────
+  // ── Resources insert ────────────────────────────────────────────────────
   const { data: resource, error: insertErr } = await client
     .from('resources')
     .insert({
       title,
       author,
       file_path:         safeName,
-      filename:          fileName,
-      file_size:         fileSize,
+      filename:          filename,
+      file_size:         fileSize ?? textBuf.length,
       file_type:         fileType,
       extracted_text:    extractedText,
       extraction_method: 'client',
@@ -138,7 +126,7 @@ export default async function handler(req: Request) {
 
   const resourceId = resource.id as string
 
-  // ── AI job insert ─────────────────────────────────────────────────────────────
+  // ── AI job insert ───────────────────────────────────────────────────────
   const { data: job, error: jobErr } = await client
     .from('ai_jobs')
     .insert({
@@ -161,16 +149,8 @@ export default async function handler(req: Request) {
 
   const jobId = job.id as string
 
-  // Backfill research_job_id on the resource
-  await client
-    .from('resources')
-    .update({ research_job_id: jobId })
-    .eq('id', resourceId)
+  await client.from('resources').update({ research_job_id: jobId }).eq('id', resourceId)
 
-  // Do NOT await worker dispatch here — this function does ~20s of work before this
-  // point (auth + multipart parse + storage upload + DB inserts), so adding even a
-  // 5s await pushes the total past Netlify's function timeout, killing the response.
-  // job-dispatch-cron runs every minute and picks up any queued job older than 20s.
   console.log(`[research-drop-upload] Created resource ${resourceId} + job ${jobId} for "${title}"`)
   return json({ resourceId, jobId, status: 'queued' }, 202)
 }
