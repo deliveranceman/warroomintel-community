@@ -1,8 +1,8 @@
 import { checkAndIncrementUsage, getUpgradeMessage } from '../lib/ai-rate-limit'
-import { cleanAIOutput } from '../lib/clean-ai-output'
-// @ts-ignore — retained for Session 2 async conversion; not called in this endpoint until then
+// @ts-ignore — retained for Session 2 async worker where assembleWRIContext is reintroduced
 import { assembleWRIContext } from './_shared/assembleWRIContext'
 import { requireTier } from './_shared/access'
+import { createClient } from '@supabase/supabase-js'
 
 const HEADERS = {
   'Access-Control-Allow-Origin': '*',
@@ -11,114 +11,7 @@ const HEADERS = {
 }
 const { url: _sbUrl, serviceRoleKey: _sbKey } = JSON.parse(process.env.SUPABASE || '{}')
 
-
-async function callClaude(dreamDescription: string, dreamerContext: string, wriContext: string): Promise<any> {
-  const systemPrompt = `You are a prophetic and spiritual dream interpreter for deliverance ministers.
-You analyze dreams through three lenses:
-1. Biblical/Prophetic — what God may be communicating through symbols and narrative; specific Scripture references
-2. Spiritual Warfare — demonic assignments, open doors, or strongholds revealed in the dream
-3. Soulical/Trauma — unresolved wounds, fears, or soul wounds manifesting symbolically
-
-You draw from Scripture, prophetic tradition, and deliverance ministry practice.
-You name spirits, legal grounds, and Scripture references specifically — no vague generalities.
-You MUST respond with ONLY a valid JSON object.
-Do NOT include any text before or after the JSON.
-Do NOT use markdown code fences.
-Start your response with { and end with }.`
-
-  const userPrompt = `Analyze this dream from a deliverance ministry perspective.
-
-Dream: ${dreamDescription}
-${dreamerContext ? `\nDreamer context: ${dreamerContext}` : ''}
-
-Return this exact JSON structure:
-{
-  "verdict": "prophetic" | "warning" | "deliverance" | "trauma" | "mixed",
-  "summary": "2-3 sentence executive summary for a deliverance minister — what is happening spiritually",
-  "sections": [
-    {
-      "title": "Key Symbols",
-      "items": ["Symbol — Biblical/spiritual meaning with Scripture if applicable", "Symbol 2 — meaning"]
-    },
-    {
-      "title": "Prophetic Message",
-      "items": ["Specific message, direction, or confirmation God may be communicating", "Scripture reference and application: Book Chapter:Verse — quote"]
-    },
-    {
-      "title": "Warfare Indicators",
-      "items": ["Specific demonic assignment or open door identified in the dream", "Legal ground, stronghold, or spirit named (if applicable)"]
-    },
-    {
-      "title": "Prayer Response",
-      "items": ["Declaration: specific proclamation to make over this person", "Renunciation: specific thing to renounce if warfare element present", "Scripture to stand on: Book Chapter:Verse — quote"]
-    },
-    {
-      "title": "Follow-Up Questions",
-      "items": ["Specific intake question based on dream content", "Pattern question: Is there a recurring...?"]
-    }
-  ]
-}
-
-Rules:
-- Name specific Scripture by Book Chapter:Verse
-- Name specific spirits if indicated
-- Keep verdict to one of the five exact values
-- Each section must have 2-5 specific, actionable items
-- Return ONLY the JSON. Nothing else.`
-
-  const effectiveSystem = wriContext
-    ? `WRI KNOWLEDGE BASE:\n${wriContext}\n\n---\n\n${systemPrompt}`
-    : systemPrompt
-
-  const res = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': process.env.ANTHROPIC_API_KEY!,
-      'anthropic-version': '2023-06-01',
-    },
-    body: JSON.stringify({
-      model: 'claude-sonnet-4-5',
-      max_tokens: 2000,
-      system: effectiveSystem,
-      messages: [{ role: 'user', content: userPrompt }],
-    }),
-    signal: AbortSignal.timeout(25000),
-  })
-
-  if (!res.ok) throw new Error(`Claude error ${res.status}`)
-  const data = await res.json()
-  const rawText = cleanAIOutput((data.content?.[0]?.text || '').trim())
-
-  let result: any = null
-
-  try { result = JSON.parse(rawText) } catch {}
-
-  if (!result) {
-    try {
-      const stripped = rawText
-        .replace(/^```json\s*/im, '').replace(/^```\s*/im, '').replace(/```\s*$/im, '').trim()
-      result = JSON.parse(stripped)
-    } catch {}
-  }
-
-  if (!result) {
-    try {
-      const match = rawText.match(/\{[\s\S]*\}/)
-      if (match) result = JSON.parse(match[0])
-    } catch {}
-  }
-
-  if (!result) {
-    result = {
-      verdict: 'mixed',
-      summary: 'Analysis complete — see content below.',
-      sections: [{ title: 'Dream Analysis', items: [rawText] }],
-    }
-  }
-
-  return result
-}
+function sb() { return createClient(_sbUrl!, _sbKey!) }
 
 export default async function handler(req: Request) {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: HEADERS })
@@ -144,25 +37,28 @@ export default async function handler(req: Request) {
   }
 
   try {
-    // HOTFIX 2026-06-14: assembleWRIContext bloats prompt past 25s Anthropic
-    // budget — endpoint dead since 2026-06-06 per ai_search_history. Bypassed
-    // pending async conversion to job_type='dream_interpretation' (Session 2).
-    // DO NOT REMOVE the assembleWRIContext import — it'll be reintroduced in
-    // the async worker where the time budget is 15min, not 25s.
-    const report = await callClaude(dreamDescription.trim(), dreamerContext?.trim() || '', '')
+    const client = sb()
+    const { data: job, error: insertErr } = await client.from('ai_jobs').insert({
+      job_type:     'dream_interpretation',
+      status:       'queued',
+      progress:     0,
+      user_id:      auth.userId,
+      tier:         auth.tier || 'watchman',
+      input_params: {
+        dreamDescription: dreamDescription.trim(),
+        dreamerContext:   dreamerContext?.trim() || '',
+      },
+    }).select('id').single()
 
-    if (auth.userId && _sbUrl && _sbKey) {
-      fetch(`${_sbUrl}/rest/v1/ai_search_history`, {
-        method: 'POST',
-        headers: { apikey: _sbKey, Authorization: `Bearer ${_sbKey}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ user_id: auth.userId, tool: 'dream-interpreter', query: dreamDescription.trim().slice(0, 500), response: JSON.stringify(report).slice(0, 1000), context: {} }),
-      }).catch(() => {})
+    if (insertErr || !job?.id) {
+      console.error('[dream-interpreter] job insert failed:', insertErr?.message)
+      return new Response(JSON.stringify({ error: 'Failed to queue interpretation job' }), { status: 500, headers: HEADERS })
     }
 
-    return new Response(JSON.stringify(report), { status: 200, headers: HEADERS })
+    return new Response(JSON.stringify({ jobId: job.id }), { status: 202, headers: HEADERS })
   } catch (e: any) {
     console.error('[dream-interpreter] Error:', e.message)
-    return new Response(JSON.stringify({ error: e.message || 'Interpretation failed' }), { status: 500, headers: HEADERS })
+    return new Response(JSON.stringify({ error: e.message || 'Failed to start interpretation' }), { status: 500, headers: HEADERS })
   }
 }
 

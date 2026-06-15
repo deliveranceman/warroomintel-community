@@ -11,6 +11,7 @@ import { buildWindows, scanOnce, stageCandidates, WINDOW_SIZE } from './_shared/
 import { enrichSpirit } from './_shared/spiritEnrich'
 import { runResearchDropSpirits } from './_shared/researchDropExtract'
 import { runContentGeneration } from './_shared/contentGenerate'
+import { runDreamInterpretation } from './_shared/dreamInterpret'
 
 const { url: sbUrl, serviceRoleKey: sbKey } = JSON.parse(process.env.SUPABASE || '{}')
 
@@ -65,6 +66,8 @@ export default async function handler(req: Request): Promise<Response> {
     await runResearchDropSpirits(client, job)
   } else if (job.job_type === 'content_gen') {
     await runContentGeneration(client, job)
+  } else if (job.job_type === 'dream_interpretation') {
+    await runDreamInterpretation(client, job)
   } else {
     await client.from('ai_jobs').update({
       status:        'failed',

@@ -1,6 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useAuth, useUser } from '@clerk/tanstack-start'
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { ChevronDown, ChevronUp } from 'lucide-react'
 import { CommunitySidebarShell } from '@/components/CommunitySidebarShell'
 import { callCheckoutApi } from '@/lib/upgrade'
@@ -228,8 +228,13 @@ function DreamInterpreterPage() {
   const [error, setError]     = useState<string | null>(null)
   const [report, setReport]   = useState<DreamReport | null>(null)
   const [submittedDream, setSubmittedDream] = useState('')
+  const [progress, setProgress] = useState(0)
+  const [stage, setStage]       = useState('')
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
   // collapsible state: keyed by section index, default true (open)
   const [openSections, setOpenSections] = useState<Record<number, boolean>>({})
+
+  useEffect(() => () => { if (pollRef.current) clearInterval(pollRef.current) }, [])
 
   const tier     = ((user?.publicMetadata?.tier as string) || '').toLowerCase()
   const role     = (user?.publicMetadata?.role as string) || ''
@@ -251,21 +256,52 @@ function DreamInterpreterPage() {
     setLoading(true)
     setError(null)
     setReport(null)
+    setProgress(0)
+    setStage('queuing')
     setOpenSections({})
+    const capturedDream = dream.trim()
+
     try {
       const token = await getToken()
       const res = await fetch('/api/dream-interpreter', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ dreamDescription: dream.trim(), dreamerContext: context.trim() }),
+        body: JSON.stringify({ dreamDescription: capturedDream, dreamerContext: context.trim() }),
       })
       const data = await res.json()
-      if (!res.ok) { setError(data.error || 'Interpretation failed'); return }
-      setSubmittedDream(dream.trim())
-      setReport(data)
+      if (!res.ok) { setError(data.error || 'Interpretation failed'); setLoading(false); return }
+
+      const jobId: string = data.jobId
+      setSubmittedDream(capturedDream)
+
+      if (pollRef.current) clearInterval(pollRef.current)
+      pollRef.current = setInterval(async () => {
+        try {
+          const pollToken = await getToken()
+          const pollRes = await fetch(`/api/job-status?jobId=${jobId}`, {
+            headers: { Authorization: `Bearer ${pollToken}` },
+          })
+          if (!pollRes.ok) return
+          const job = await pollRes.json()
+          setProgress(job.progress ?? 0)
+          setStage(job.stage ?? '')
+
+          if (job.status === 'complete') {
+            clearInterval(pollRef.current!)
+            pollRef.current = null
+            const rpt = job.result_json?.report
+            if (rpt) { setReport(rpt) } else { setError('Interpretation returned no report') }
+            setLoading(false)
+          } else if (job.status === 'failed') {
+            clearInterval(pollRef.current!)
+            pollRef.current = null
+            setError(job.error_message || 'Interpretation failed')
+            setLoading(false)
+          }
+        } catch { /* network hiccup — keep polling */ }
+      }, 3000)
     } catch (e: any) {
       setError(e.message || 'Network error')
-    } finally {
       setLoading(false)
     }
   }
@@ -360,7 +396,9 @@ function DreamInterpreterPage() {
                 cursor: !dream.trim() || loading ? 'not-allowed' : 'pointer',
               }}
             >
-              {loading ? '🌙 Interpreting…' : '🌙 Interpret Dream'}
+              {loading
+                ? `🌙 ${stage === 'assembling_context' ? 'Gathering Intel…' : stage === 'generating' ? `Interpreting… ${progress}%` : 'Queuing…'}`
+                : '🌙 Interpret Dream'}
             </button>
           </div>
         )}
@@ -369,7 +407,7 @@ function DreamInterpreterPage() {
         {report && v && (
           <div>
             <button
-              onClick={() => { setReport(null); setDream(''); setContext(''); setSubmittedDream(''); setOpenSections({}) }}
+              onClick={() => { if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null } setReport(null); setDream(''); setContext(''); setSubmittedDream(''); setOpenSections({}); setProgress(0); setStage('') }}
               style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontFamily: mono, fontSize: 10, color: MUT, letterSpacing: '0.1em', marginBottom: 20, padding: 0 }}
             >
               ← NEW INTERPRETATION
@@ -472,7 +510,7 @@ function DreamInterpreterPage() {
             </button>
 
             <button
-              onClick={() => { setReport(null); setSubmittedDream(''); setOpenSections({}) }}
+              onClick={() => { if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null } setReport(null); setSubmittedDream(''); setOpenSections({}); setProgress(0); setStage('') }}
               style={{ marginTop: 10, background: 'transparent', border: `1px solid ${BDR}`, borderRadius: 2, padding: '8px 18px', fontFamily: cinzel, fontSize: 11, color: DIM, letterSpacing: '0.1em', cursor: 'pointer', width: '100%' }}
             >
               Interpret Another Dream
