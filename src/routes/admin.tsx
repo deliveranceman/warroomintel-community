@@ -15160,6 +15160,22 @@ function ResearchDropPage({ getToken, isDark }: { getToken: any; isDark: boolean
             {title}
           </div>
 
+          {result?.truncated && (
+            <div style={{ border: `1px solid ${isDark ? 'rgba(201,168,76,0.55)' : 'rgba(160,120,48,0.55)'}`, background: isDark ? 'rgba(201,168,76,0.08)' : 'rgba(160,120,48,0.06)', borderRadius: 4, padding: '12px 16px', marginBottom: 16, display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+              <span style={{ color: isDark ? '#C9A84C' : '#A07830', fontSize: 18, lineHeight: 1, marginTop: 2 }}>⚠</span>
+              <div style={{ flex: 1, fontFamily: crimson, fontSize: 13, lineHeight: 1.55, color: isDark ? TXT : '#2D2924' }}>
+                <strong style={{ fontFamily: cinzel, letterSpacing: '0.08em', fontSize: 11, textTransform: 'uppercase' as const, color: isDark ? '#C9A84C' : '#A07830' }}>Partial Scan</strong>
+                <br/>
+                Scanned <strong>{result.windowsScanned} of {result.windowsNeeded}</strong> windows.
+                {' '}
+                {result.hardCapHit
+                  ? 'Source exceeded the 400-window hard cap; portions after the scanned region were not analyzed. Consider splitting the source into sections, or run the remainder as a separate upload.'
+                  : 'Some windows were skipped during processing. Re-run if you suspect coverage gaps.'}
+                {' '}Embeddings cover the full source -- RAG queries still see everything; only spirit-extraction was truncated.
+              </div>
+            </div>
+          )}
+
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12, marginBottom: 20 }}>
             {[
               { label: 'New Candidates', value: result.newCandidates ?? 0, color: gold },

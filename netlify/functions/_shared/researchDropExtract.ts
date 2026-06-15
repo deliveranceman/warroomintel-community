@@ -114,7 +114,14 @@ export async function runResearchDropSpirits(client: any, job: any): Promise<voi
     // ── Stage 3: scanning ─────────────────────────────────────────────────
     await client.from('ai_jobs').update({ stage: 'scanning', progress: 25 }).eq('id', jobId)
 
-    const { windows } = buildWindows(fullText)
+    // Dynamic cap: cover the whole source up to a hard ceiling of 400 windows
+    // (~$8 max Sonnet cost at current rates). Keeps patristic-scan default
+    // behavior unchanged via the buildWindows default param.
+    const HARD_CAP_WINDOWS = 400
+    const STRIDE           = 8000 - 400 // WINDOW_SIZE - WINDOW_OVERLAP
+    const idealWindows     = Math.max(1, Math.ceil(fullText.length / STRIDE))
+    const maxWindows       = Math.min(idealWindows, HARD_CAP_WINDOWS)
+    const { windows, truncated } = buildWindows(fullText, maxWindows)
     const total = windows.length
     let done = 0
     let totalInputTokens  = 0
@@ -283,6 +290,9 @@ export async function runResearchDropSpirits(client: any, job: any): Promise<voi
       result_json:   {
         chunksEmbedded,
         windowsScanned:   windows.length,
+        windowsNeeded:    idealWindows,
+        truncated,
+        hardCapHit:       idealWindows > HARD_CAP_WINDOWS,
         mentionsFound:    mentions.length,
         enrichSuggestions,
         newCandidates,

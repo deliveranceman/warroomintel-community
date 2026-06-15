@@ -27,12 +27,15 @@ export const GENERIC_BLOCKLIST = new Set<string>([
 ].map(normalizeName))
 
 // Build overlapping scan windows for full mode.
-export function buildWindows(fullText: string): { windows: string[]; truncated: boolean } {
+export function buildWindows(
+  fullText: string,
+  maxWindows: number = MAX_WINDOWS,
+): { windows: string[]; truncated: boolean } {
   const windows: string[] = []
   let truncated = false
   let start = 0
   while (start < fullText.length) {
-    if (windows.length >= MAX_WINDOWS) { truncated = true; break }
+    if (windows.length >= maxWindows) { truncated = true; break }
     windows.push(fullText.substring(start, start + WINDOW_SIZE))
     start += WINDOW_SIZE - WINDOW_OVERLAP
   }
