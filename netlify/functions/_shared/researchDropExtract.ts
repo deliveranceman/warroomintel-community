@@ -1,5 +1,6 @@
 import { normalizeName, GENERIC_BLOCKLIST, buildWindows, scanOnce, isInSupabaseArchive } from './patristicScan'
 import { solCall } from './solClient'
+import { SCAN_CONCURRENCY } from './researchDropTypes'
 
 const CHUNK_SIZE    = 500
 const CHUNK_OVERLAP = 50
@@ -125,11 +126,6 @@ export async function runResearchDropSpirits(client: any, job: any): Promise<voi
     const maxWindows       = Math.min(idealWindows, HARD_CAP_WINDOWS)
     const { windows, truncated } = buildWindows(fullText, maxWindows)
     const total = windows.length
-
-    // Concurrency for the scanning stage. Haiku at standard Anthropic tier
-    // comfortably handles 6 concurrent. Tune up to ~10 if rate limits allow.
-    // Each batch resolves when the slowest call in it resolves.
-    const SCAN_CONCURRENCY = 6
 
     let done = 0
     let totalInputTokens  = 0
