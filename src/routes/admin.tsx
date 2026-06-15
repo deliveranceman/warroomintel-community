@@ -14987,6 +14987,7 @@ function ResearchDropPage({ getToken, isDark }: { getToken: any; isDark: boolean
     scanning:   'Scanning for spirits',
     deduping:   'Deduplicating',
     staging:    'Staging results',
+    resuming:   'Resuming (budget checkpoint)',
     finalizing: 'Finalizing',
   }
 
