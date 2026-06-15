@@ -29,7 +29,6 @@ import { Route as SplatRouteImport } from './routes/$'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminIndexRouteImport } from './routes/admin.index'
 import { Route as ProductsProductIdRouteImport } from './routes/products/$productId'
-import { Route as CommunityTestingRouteImport } from './routes/community_.testing'
 import { Route as CommunitySpiritualMappingRouteImport } from './routes/community_.spiritual-mapping'
 import { Route as CommunityScriptureRouteImport } from './routes/community_.scripture'
 import { Route as CommunityForumRouteImport } from './routes/community_.forum'
@@ -158,11 +157,6 @@ const AdminIndexRoute = AdminIndexRouteImport.update({
 const ProductsProductIdRoute = ProductsProductIdRouteImport.update({
   id: '/products/$productId',
   path: '/products/$productId',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const CommunityTestingRoute = CommunityTestingRouteImport.update({
-  id: '/community_/testing',
-  path: '/community/testing',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CommunitySpiritualMappingRoute =
@@ -362,7 +356,6 @@ export interface FileRoutesByFullPath {
   '/community/forum': typeof CommunityForumRoute
   '/community/scripture': typeof CommunityScriptureRoute
   '/community/spiritual-mapping': typeof CommunitySpiritualMappingRoute
-  '/community/testing': typeof CommunityTestingRoute
   '/products/$productId': typeof ProductsProductIdRoute
   '/admin/': typeof AdminIndexRoute
 }
@@ -413,7 +406,6 @@ export interface FileRoutesByTo {
   '/community/forum': typeof CommunityForumRoute
   '/community/scripture': typeof CommunityScriptureRoute
   '/community/spiritual-mapping': typeof CommunitySpiritualMappingRoute
-  '/community/testing': typeof CommunityTestingRoute
   '/products/$productId': typeof ProductsProductIdRoute
   '/admin': typeof AdminIndexRoute
 }
@@ -466,7 +458,6 @@ export interface FileRoutesById {
   '/community_/forum': typeof CommunityForumRoute
   '/community_/scripture': typeof CommunityScriptureRoute
   '/community_/spiritual-mapping': typeof CommunitySpiritualMappingRoute
-  '/community_/testing': typeof CommunityTestingRoute
   '/products/$productId': typeof ProductsProductIdRoute
   '/admin/': typeof AdminIndexRoute
 }
@@ -520,7 +511,6 @@ export interface FileRouteTypes {
     | '/community/forum'
     | '/community/scripture'
     | '/community/spiritual-mapping'
-    | '/community/testing'
     | '/products/$productId'
     | '/admin/'
   fileRoutesByTo: FileRoutesByTo
@@ -571,7 +561,6 @@ export interface FileRouteTypes {
     | '/community/forum'
     | '/community/scripture'
     | '/community/spiritual-mapping'
-    | '/community/testing'
     | '/products/$productId'
     | '/admin'
   id:
@@ -623,7 +612,6 @@ export interface FileRouteTypes {
     | '/community_/forum'
     | '/community_/scripture'
     | '/community_/spiritual-mapping'
-    | '/community_/testing'
     | '/products/$productId'
     | '/admin/'
   fileRoutesById: FileRoutesById
@@ -674,7 +662,6 @@ export interface RootRouteChildren {
   CommunityForumRoute: typeof CommunityForumRoute
   CommunityScriptureRoute: typeof CommunityScriptureRoute
   CommunitySpiritualMappingRoute: typeof CommunitySpiritualMappingRoute
-  CommunityTestingRoute: typeof CommunityTestingRoute
   ProductsProductIdRoute: typeof ProductsProductIdRoute
 }
 
@@ -818,13 +805,6 @@ declare module '@tanstack/react-router' {
       path: '/products/$productId'
       fullPath: '/products/$productId'
       preLoaderRoute: typeof ProductsProductIdRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/community_/testing': {
-      id: '/community_/testing'
-      path: '/community/testing'
-      fullPath: '/community/testing'
-      preLoaderRoute: typeof CommunityTestingRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/community_/spiritual-mapping': {
@@ -1093,7 +1073,6 @@ const rootRouteChildren: RootRouteChildren = {
   CommunityForumRoute: CommunityForumRoute,
   CommunityScriptureRoute: CommunityScriptureRoute,
   CommunitySpiritualMappingRoute: CommunitySpiritualMappingRoute,
-  CommunityTestingRoute: CommunityTestingRoute,
   ProductsProductIdRoute: ProductsProductIdRoute,
 }
 export const routeTree = rootRouteImport
