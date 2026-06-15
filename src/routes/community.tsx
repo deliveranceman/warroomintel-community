@@ -6556,12 +6556,17 @@ function GatewayInvestigatorView({ theme, userTier: _userTier, isMobile, setSide
   const [loading, setLoading]             = useState(false)
   const [report, setReport]               = useState<any>(null)
   const [error, setError]                 = useState('')
+  const [progress, setProgress]           = useState(0)
+  const [stage, setStage]                 = useState('')
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  useEffect(() => () => { if (pollRef.current) clearInterval(pollRef.current) }, [])
 
   const canSubmit = spiritName.trim().length > 0 || personContext.trim().length > 0
 
   async function handleInvestigate() {
     if (!canSubmit) return
-    setLoading(true); setError(''); setReport(null)
+    setLoading(true); setError(''); setReport(null); setProgress(0); setStage('queuing')
     try {
       const token = await getToken()
       const res = await fetch('/api/gateway-investigator', {
@@ -6570,19 +6575,38 @@ function GatewayInvestigatorView({ theme, userTier: _userTier, isMobile, setSide
         body: JSON.stringify({ spiritName: spiritName.trim(), personContext: personContext.trim() }),
       })
       const data = await res.json()
-      if (res.status === 429) { _usageCache = null; throw new Error(data.error || 'Daily limit reached. Upgrade to continue.') }
-      if (!res.ok) throw new Error(data.error || 'Investigation failed')
+      if (res.status === 429) { _usageCache = null; setError(data.error || 'Daily limit reached. Upgrade to continue.'); setLoading(false); return }
+      if (!res.ok) { setError(data.error || 'Investigation failed'); setLoading(false); return }
       _usageCache = null
-      setReport(data)
-      if (token) {
-        fetch('/api/ai-history', {
-          method: 'POST',
-          headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ tool: 'gateway-investigator', query: spiritName.trim() || personContext.trim(), response: data.summary || '', context: { gateway: spiritName.trim(), context: personContext.trim() } }),
-        }).catch(() => {})
-      }
-    } catch (e: any) { setError(e.message) }
-    setLoading(false)
+
+      const jobId: string = data.jobId
+      if (pollRef.current) clearInterval(pollRef.current)
+      pollRef.current = setInterval(async () => {
+        try {
+          const pollToken = await getToken()
+          const pollRes = await fetch(`/api/job-status?jobId=${jobId}`, {
+            headers: { Authorization: `Bearer ${pollToken}` },
+          })
+          if (!pollRes.ok) return
+          const job = await pollRes.json()
+          setProgress(job.progress ?? 0)
+          setStage(job.stage ?? '')
+
+          if (job.status === 'complete') {
+            clearInterval(pollRef.current!)
+            pollRef.current = null
+            const rpt = job.result_json?.report
+            if (rpt) { setReport(rpt) } else { setError('Investigation returned no report') }
+            setLoading(false)
+          } else if (job.status === 'failed') {
+            clearInterval(pollRef.current!)
+            pollRef.current = null
+            setError(job.error_message || 'Investigation failed')
+            setLoading(false)
+          }
+        } catch { /* network hiccup — keep polling */ }
+      }, 3000)
+    } catch (e: any) { setError(e.message); setLoading(false) }
   }
 
   return (
@@ -6635,7 +6659,9 @@ function GatewayInvestigatorView({ theme, userTier: _userTier, isMobile, setSide
             disabled={loading || !canSubmit}
             style={{ background: loading ? 'rgba(201,168,76,0.4)' : G, color: '#0D0B14', fontFamily: cinzel, fontSize: 11, fontWeight: 700, letterSpacing: '0.1em', border: 'none', borderRadius: 6, padding: '11px 28px', cursor: loading || !canSubmit ? 'wait' : 'pointer', opacity: !canSubmit ? 0.5 : 1 }}
           >
-            {loading ? '🔍 Investigating…' : '🚪 Run Gateway Report'}
+            {loading
+              ? `🔍 ${stage === 'assembling_context' ? 'Gathering Intel…' : stage === 'generating' ? `Investigating… ${progress}%` : 'Queuing…'}`
+              : '🚪 Run Gateway Report'}
           </button>
         </div>
 

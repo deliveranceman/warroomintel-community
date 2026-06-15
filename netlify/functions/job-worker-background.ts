@@ -12,6 +12,7 @@ import { enrichSpirit } from './_shared/spiritEnrich'
 import { runResearchDropSpirits } from './_shared/researchDropExtract'
 import { runContentGeneration } from './_shared/contentGenerate'
 import { runDreamInterpretation } from './_shared/dreamInterpret'
+import { runGatewayInvestigation } from './_shared/gatewayInvestigate'
 
 const { url: sbUrl, serviceRoleKey: sbKey } = JSON.parse(process.env.SUPABASE || '{}')
 
@@ -68,6 +69,8 @@ export default async function handler(req: Request): Promise<Response> {
     await runContentGeneration(client, job)
   } else if (job.job_type === 'dream_interpretation') {
     await runDreamInterpretation(client, job)
+  } else if (job.job_type === 'gateway_investigation') {
+    await runGatewayInvestigation(client, job)
   } else {
     await client.from('ai_jobs').update({
       status:        'failed',
