@@ -49,20 +49,20 @@ async function main() {
     const supabase = createClient(supabaseUrl, serviceRoleKey)
     const { data, error } = await supabase
       .from('library_chunks')
-      .select('content, resource_id, resources(title, source_meta)')
+      .select('chunk_text, book_id, book_title')
       .eq('id', args[0])
       .maybeSingle()
     if (error || !data) {
       console.error(`Chunk ${args[0]} not found:`, error?.message || 'no data')
       process.exit(1)
     }
-    sourceText        = data.content
+    sourceText        = data.chunk_text
     targetSpiritName  = args[1]
     sourceMetadata = {
-      title:       (data.resources as any)?.title || 'unknown',
-      author:      'unknown',
-      year:        'unknown',
-      sourceType:  'academic',
+      title:         data.book_title || 'unknown',
+      author:        'unknown',
+      year:          'unknown',
+      sourceType:    'academic',
       isAdversarial: false,
     }
   } else {
