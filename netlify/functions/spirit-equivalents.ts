@@ -1,4 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk'
+import { createClient } from '@supabase/supabase-js'
 import { requireAuth } from './_shared/access'
 
 const CORS = {
@@ -6,6 +7,9 @@ const CORS = {
   'Access-Control-Allow-Headers': 'Content-Type, Authorization',
   'Content-Type': 'application/json',
 }
+
+const { url: sbUrl, serviceRoleKey: sbKey } = JSON.parse(process.env.SUPABASE || '{}')
+function sb() { return createClient(sbUrl, sbKey) }
 
 export default async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response('', { headers: CORS })
@@ -15,7 +19,7 @@ export default async (req: Request) => {
   if (auth instanceof Response) return auth
 
   const body = await req.json().catch(() => ({}))
-  const { spiritName, kingdom, description, aka } = body
+  const { spiritId, spiritName, kingdom, description, aka } = body
   if (!spiritName) return new Response(JSON.stringify({ error: 'spiritName required' }), { status: 400, headers: CORS })
 
   const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! })
@@ -53,6 +57,18 @@ If no equivalents exist with confidence 6+, return an empty equivalents array.`
     const clean = raw.replace(/```json|```/g, '').trim()
     const match = clean.match(/\{[\s\S]*\}/)
     const parsed = JSON.parse(match ? match[0] : clean)
+
+    if (spiritId && Array.isArray(parsed.equivalents)) {
+      const equivalentsText = parsed.equivalents
+        .map((e: any) => e.tradition ? `${e.name} (${e.tradition})` : e.name)
+        .join(', ')
+      const { error } = await sb()
+        .from('spirits')
+        .update({ equivalents: equivalentsText })
+        .eq('id', spiritId)
+      if (error) throw new Error(`Failed to save equivalents: ${error.message}`)
+      console.log('[spirit-equivalents] saved', spiritId, equivalentsText)
+    }
 
     return new Response(JSON.stringify(parsed), { headers: CORS })
   } catch (err: any) {
