@@ -1,6 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
 import { requireAdmin2, CORS as HEADERS } from './_shared/access'
-import { mimeFromFilename } from '../../src/lib/mimeFromFilename'
 
 const { url: sbUrl, serviceRoleKey: sbKey } = JSON.parse(process.env.SUPABASE || '{}')
 const BUCKET = 'ministry-library'
@@ -76,10 +75,6 @@ export default async function handler(req: Request) {
   const fileType = 'text/plain; charset=utf-8'
   const textBuf  = Buffer.from(extractedText, 'utf-8')
   const charCount = extractedText.length
-
-  // mimeFromFilename kept for the original filename metadata; not used for the
-  // Storage upload (we always write .txt extraction).
-  void mimeFromFilename(filename)
 
   console.log(`[research-drop-upload] Uploading: ${filename} (${charCount} chars) → ${safeName}`)
 
