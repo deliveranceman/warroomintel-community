@@ -7,8 +7,11 @@ const NAME_FIELD = '⚔ WAR ROOM COMMUNITY — MASTER DEMON DATABASE'
 
 // Single authoritative bridge: [camelCase key, Airtable field name, snake column].
 // Inbound bodies arrive in BOTH camelCase AND Airtable-field-name shapes, so the
-// lookup map is keyed by both. `region`, `function`, `equivalentSpirits` are
-// intentionally absent — they have no Supabase column and are ignored on write.
+// lookup map is keyed by both. `region` and `function` are intentionally absent —
+// they have no Supabase column and are ignored on write.
+// `equivalents` column added 2026-06-15 — cross-cultural manifestations of the same
+// principality class (Baal → Odin, Zeus, Indra, Marduk). Distinct from `aka`
+// (name variants) and `cultural_presence` (regions).
 const FIELD_DEFS: Array<[string, string, string]> = [
   ['name', NAME_FIELD, 'name'],
   ['aka', 'Also Known As', 'aka'],
@@ -52,6 +55,7 @@ const FIELD_DEFS: Array<[string, string, string]> = [
   ['prayerPoints', 'Prayer Points', 'prayer_points'],
   ['aftercareNotes', 'Aftercare Notes', 'aftercare_notes'],
   ['culturalPresence', 'Cultural Presence', 'cultural_presence'],
+  ['equivalents', 'Equivalent Spirits', 'equivalents'],
   ['sessionTriggerQuestions', 'Session Trigger Questions', 'session_trigger_questions'],
 ]
 
@@ -86,7 +90,7 @@ function toColumns(fields: Record<string, any>): Record<string, any> {
   const cols: Record<string, any> = {}
   for (const [k, v] of Object.entries(fields)) {
     const col = TO_COLUMN[k]
-    if (!col) continue // unknown/ignored (region, function, equivalentSpirits, slug, id…)
+    if (!col) continue // unknown/ignored (region, function, slug, id…)
     if (BOOL_COLS.has(col)) {
       cols[col] = v === true || v === 'true' || v === 'Yes' || v === 'yes'
     } else if (ARRAY_COLS.has(col)) {

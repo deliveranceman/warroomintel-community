@@ -1053,7 +1053,7 @@ function demonToSpiritFields(d: any): Record<string, string> {
     'Institutional Expression': d.institutionalExpression || '',
     'Prayer Points': d.prayerPoints || '',
     'Legal Rights Framework': d.legalRightsFramework || '',
-    'Equivalent Spirits': d.equivalentSpirits || '',
+    'Equivalent Spirits': d.equivalents || '',
     'Is Generational': String(d.isGenerational || false),
     'Is Territorial': String(d.isTerritorial || false),
   }
@@ -1222,7 +1222,7 @@ function SpiritEditForm({ fields, setField, onSave, onCancel, saving, msg, demon
           demonicAgreements: 'Demonic Agreements', transmissionVectors: 'Transmission Vectors',
           etymologyNotes: 'Etymology Notes', archaeologyNotes: 'Archaeology Notes',
           scriptureContext: 'Scripture Context', prayerPoints: 'Prayer Points',
-          aftercareNotes: 'Aftercare Notes', equivalentSpirits: 'Equivalent Spirits',
+          aftercareNotes: 'Aftercare Notes', equivalents: 'Equivalent Spirits',
         }
         const formKey = CAMEL_TO_FORM[d.restoredField]
         if (formKey) {
@@ -1276,6 +1276,7 @@ function SpiritEditForm({ fields, setField, onSave, onCancel, saving, msg, demon
         method: 'POST',
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          ...(spiritId ? { spiritId } : {}),
           spiritName: f(INTEL_NAME_F),
           kingdom: f('Kingdom'),
           description: f('Description'),
