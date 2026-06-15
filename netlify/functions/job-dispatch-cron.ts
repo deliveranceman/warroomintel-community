@@ -24,15 +24,11 @@ export default async (_req: Request) => {
     return new Response(JSON.stringify({ error: error.message }), { status: 500 })
   }
 
-  if (!stuck || stuck.length === 0) {
-    return new Response(JSON.stringify({ dispatched: 0 }))
-  }
-
   const url = `${process.env.URL}/api/job-worker-background`
   const key = process.env.INTERNAL_API_KEY ?? ''
   const dispatched: string[] = []
 
-  for (const job of stuck) {
+  for (const job of (stuck ?? [])) {
     try {
       const r = await fetch(url, {
         method: 'POST',
@@ -53,7 +49,45 @@ export default async (_req: Request) => {
     }
   }
 
-  console.log('[cron] dispatched', dispatched.length, 'of', stuck.length,
-              'jobs:', dispatched.join(','))
+  if (dispatched.length > 0) {
+    console.log('[cron] dispatched', dispatched.length, 'of', (stuck ?? []).length,
+                'jobs:', dispatched.join(','))
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  // Zombie detection: status='running' jobs whose current invocation
+  // has exceeded Netlify's 15-min hard ceiling are definitionally dead.
+  // Resumable jobs exit cleanly at the 13-min budget guard, so anything
+  // past 16 min means the worker died inside a non-checkpointed stage
+  // (embedding, dedup, finalizing) or hit an uncaught exception.
+  // Mark them failed with a clear, debuggable error message.
+  // ─────────────────────────────────────────────────────────────
+  {
+    const zombieThreshold = new Date(Date.now() - 16 * 60 * 1000).toISOString()
+    const { data: zombies, error: zombieErr } = await supabase
+      .from('ai_jobs')
+      .update({
+        status: 'failed',
+        completed_at: new Date().toISOString(),
+        error_message:
+          'Zombie detected by cron sweeper: worker ran past 16 minutes without ' +
+          'completing or checkpointing. Likely died inside a non-resumable stage ' +
+          '(embedding/dedup/finalizing) or hit an unhandled exception. Review ' +
+          'Netlify function logs for the invocation that owned this job to diagnose.',
+      })
+      .eq('status', 'running')
+      .lt('started_at', zombieThreshold)
+      .select('id, job_type')
+
+    if (zombieErr) {
+      console.error('[cron] zombie sweep error:', zombieErr.message)
+    } else if (zombies && zombies.length > 0) {
+      console.log(
+        `[cron] marked ${zombies.length} zombie job(s) failed: ` +
+        zombies.map(z => `${z.id} (${z.job_type})`).join(', ')
+      )
+    }
+  }
+
   return new Response(JSON.stringify({ dispatched }))
 }
