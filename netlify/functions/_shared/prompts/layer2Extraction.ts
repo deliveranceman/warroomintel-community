@@ -367,6 +367,11 @@ SOURCE_END
 Now perform the Layer 2 extraction. Return only the JSON object specified
 above. No prose preamble. No prose postamble. JSON only.`
 
+// Standalone system prompt for per-field AI calls that need Layer 2 discipline
+// (source-faithful, no refusals, blanks over hallucination) without the full
+// extraction scaffold and template variables.
+export const LAYER2_DISCIPLINE_SYSTEM = [SECTION_ROLE, '---', SECTION_RULES].join('\n\n')
+
 export const LAYER2_EXTRACTION_PROMPT_TEMPLATE = [
   SECTION_ROLE,
   '---',

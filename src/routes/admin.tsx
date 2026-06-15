@@ -14397,13 +14397,18 @@ function EnrichmentSuggestions({ getToken, isDark }: { getToken: any; isDark: bo
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ suggestionId: sugId, action: 'ai_fill_field', fieldName, currentValue, spiritName, bookTitle }),
       })
-      if (res.ok) {
-        const data = await res.json()
-        if (data.value) {
-          setEditedFields(prev => ({ ...prev, [sugId]: { ...(prev[sugId] || {}), [fieldName]: data.value } }))
-        }
+      const data = await res.json().catch(() => ({}))
+      if (res.ok && data.value) {
+        setEditedFields(prev => ({ ...prev, [sugId]: { ...(prev[sugId] || {}), [fieldName]: data.value } }))
+      } else if (!res.ok) {
+        const msg = data.error === 'refusal_detected'
+          ? `⚠ Model refused "${fieldName}" — system prompt logged`
+          : data.error || 'AI fill failed'
+        setCardErrors(prev => ({ ...prev, [sugId]: msg }))
       }
-    } catch {}
+    } catch (e: any) {
+      setCardErrors(prev => ({ ...prev, [sugId]: `Network error on AI fill: ${e.message}` }))
+    }
     setAiFillingField(prev => { const n = { ...prev }; delete n[key]; return n })
   }
 

@@ -274,12 +274,23 @@ export async function runResearchDropSpirits(client: any, job: any): Promise<voi
       if (inArchive) {
         // Known spirit — generate enrichment suggestion
         const safe = mention.name.replace(/[%_\\]/g, '\\$&')
-        const { data: spiritRow } = await client
+        let { data: spiritRow } = await client
           .from('spirits')
           .select('slug,name,description,manifestation,scripture,entry_points,legal_rights,symptoms,companion_spirits')
           .ilike('name', safe)
           .limit(1)
           .maybeSingle()
+        // Aka fallback — isInSupabaseArchive may have matched on aka (e.g. Anamalech→Anammelech)
+        // but the name lookup above is exact-only. Ensure existing_record_id gets the right slug.
+        if (!spiritRow) {
+          const { data: akaRow } = await client
+            .from('spirits')
+            .select('slug,name,description,manifestation,scripture,entry_points,legal_rights,symptoms,companion_spirits')
+            .ilike('aka', `%${safe}%`)
+            .limit(1)
+            .maybeSingle()
+          spiritRow = akaRow || null
+        }
 
         // Dedup: skip if we already have a suggestion for this resource + spirit
         const { data: existingSugg } = await client

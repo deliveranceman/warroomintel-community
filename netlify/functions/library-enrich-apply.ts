@@ -1,6 +1,8 @@
 import { createClient } from '@supabase/supabase-js'
 import { requireAuth } from './_shared/access'
 import { generateSlug, toColumns, createSpirit, findSpiritSlugByName, insertFieldSnapshots } from './_shared/spiritWrite'
+import { solCall } from './_shared/solClient'
+import { LAYER2_DISCIPLINE_SYSTEM } from './_shared/prompts/layer2Extraction'
 
 const { url: supabaseUrl, serviceRoleKey: supabaseServiceKey } = JSON.parse(process.env.SUPABASE || '{}')
 const { token: airtableToken } = JSON.parse(process.env.AIRTABLE || '{}')
@@ -98,23 +100,58 @@ export default async function handler(req: Request) {
   if (action === 'ai_fill_field') {
     const { fieldName, currentValue, spiritName, bookTitle } = body
     if (!fieldName) return new Response(JSON.stringify({ error: 'fieldName required' }), { status: 400, headers: CORS })
-    if (!process.env.ANTHROPIC_API_KEY) return new Response(JSON.stringify({ error: 'AI not configured' }), { status: 500, headers: CORS })
 
-    const prompt = `You are assisting a deliverance ministry database. Improve or complete this field for the spirit/demon "${spiritName}" from the book "${bookTitle}".
+    const REFUSAL_PATTERNS = [
+      /I can'?t (help|create|generate|provide|assist)/i,
+      /I cannot (help|create|generate|provide|assist)/i,
+      /I won'?t (help|create|generate|provide)/i,
+      /I'?m not able to/i,
+      /I am not able to/i,
+      /as an AI/i,
+      /as a language model/i,
+      /vulnerable individuals/i,
+      /psychological harm/i,
+      /I'?m designed to/i,
+      /against my (guidelines|values|principles)/i,
+    ]
+    const isRefusal = (text: string) =>
+      text.length >= 20 && REFUSAL_PATTERNS.some(p => p.test(text))
+
+    const sourceExcerpt = suggestion.source_excerpt
+      ? `Source excerpt from "${bookTitle}":\n"${suggestion.source_excerpt}"\n\n`
+      : ''
+
+    try {
+      const result = await solCall({
+        tier:   'standard',
+        system: LAYER2_DISCIPLINE_SYSTEM,
+        messages: [{
+          role: 'user',
+          content: `You are researching the spirit "${spiritName}" using source material from "${bookTitle}".
+
+${sourceExcerpt}Complete or improve the following field using only what the source material supports. If the source is silent on this field, return an empty string — do not hallucinate or draw from general knowledge outside the source.
 
 Field: ${fieldName}
 Current value: ${currentValue || '(empty)'}
 
-Rewrite this field with accurate, specific deliverance ministry content. Be concise and professional. Return only the improved field text — no labels, no preamble.`
-
-    try {
-      const aiRes = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-api-key': process.env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' },
-        body: JSON.stringify({ model: 'claude-haiku-4-5', max_tokens: 400, messages: [{ role: 'user', content: prompt }] }),
+Return only the improved field text. No labels, no preamble, no explanation. If the source has nothing to add, return an empty string.`,
+        }],
+        maxTokens: 400,
+        timeoutMs: 30000,
+        meta: { userId: auth.userId, userTier: 'admin', callType: 'library_enrich_field' },
       })
-      const aiData = await aiRes.json()
-      const value = aiData.content?.[0]?.text?.trim() || ''
+
+      const value = result.text.trim()
+
+      if (isRefusal(value)) {
+        console.warn('[library-enrich-apply] ai_fill_field refusal for', fieldName, ':', value.slice(0, 200))
+        return new Response(JSON.stringify({
+          error:   'refusal_detected',
+          message: 'Model refused this field — system prompt may need strengthening',
+          raw:     value,
+        }), { status: 502, headers: CORS })
+      }
+
       return new Response(JSON.stringify({ success: true, value }), { status: 200, headers: CORS })
     } catch (e: any) {
       return new Response(JSON.stringify({ error: e.message }), { status: 500, headers: CORS })
@@ -138,13 +175,32 @@ Rewrite this field with accurate, specific deliverance ministry content. Be conc
     // enrichment_rejected insert stay on Supabase regardless.
     if (USE_SUPABASE_DEMON_WRITES) {
       if (suggestion.action === 'enrich') {
-        // Match the spirit by name (case-insensitive); fall back to a derived slug.
-        const slug = (await findSpiritSlugByName(supabase, suggestion.spirit_name)) || generateSlug(suggestion.spirit_name)
-        const { data: rows } = await supabase.from('spirits').select('*').eq('slug', slug).limit(1)
-        if (!rows || rows.length === 0) {
+        let row: any = null
+
+        // 1. Stored slug (existing_record_id) — set by classifier, most precise
+        if (suggestion.existing_record_id) {
+          const { data } = await supabase.from('spirits').select('*').eq('slug', suggestion.existing_record_id).limit(1)
+          if (data && data.length > 0) row = data[0]
+        }
+
+        // 2. Exact name match (case-insensitive)
+        if (!row) {
+          const slug = (await findSpiritSlugByName(supabase, suggestion.spirit_name)) || generateSlug(suggestion.spirit_name)
+          const { data } = await supabase.from('spirits').select('*').eq('slug', slug).limit(1)
+          if (data && data.length > 0) row = data[0]
+        }
+
+        // 3. Aka fallback — catches Anamalech→Anammelech-style mismatches where
+        //    isInSupabaseArchive matched on aka but slug was left empty in classifier
+        if (!row) {
+          const safe = suggestion.spirit_name.replace(/[%_\\]/g, '\\$&')
+          const { data } = await supabase.from('spirits').select('*').ilike('aka', `%${safe}%`).limit(1)
+          if (data && data.length > 0) row = data[0]
+        }
+
+        if (!row) {
           return new Response(JSON.stringify({ error: `Spirit not found in Supabase for "${suggestion.spirit_name}"` }), { status: 404, headers: CORS })
         }
-        const row = rows[0]
         // Normalize the Airtable-named proposed fields to snake columns, then
         // apply the SAME merge: empty current → set; non-empty → append '\n\n'.
         const proposedCols = toColumns(proposedFields)
@@ -163,7 +219,7 @@ Rewrite this field with accurate, specific deliverance ministry content. Be conc
             console.error('[library-enrich-apply] snapshot failed:', snapErr)
             return new Response(JSON.stringify({ error: `Snapshot failed — aborting: ${snapErr}` }), { status: 500, headers: CORS })
           }
-          const { error: upErr } = await supabase.from('spirits').update(merged).eq('slug', slug)
+          const { error: upErr } = await supabase.from('spirits').update(merged).eq('slug', row.slug)
           if (upErr) return new Response(JSON.stringify({ error: `Supabase update failed: ${upErr.message}` }), { status: 500, headers: CORS })
         }
       } else if (suggestion.action === 'add') {
