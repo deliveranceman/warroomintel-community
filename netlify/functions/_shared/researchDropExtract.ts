@@ -125,6 +125,12 @@ export async function runResearchDropSpirits(client: any, job: any): Promise<voi
     const maxWindows       = Math.min(idealWindows, HARD_CAP_WINDOWS)
     const { windows, truncated } = buildWindows(fullText, maxWindows)
     const total = windows.length
+
+    // Concurrency for the scanning stage. Haiku at standard Anthropic tier
+    // comfortably handles 6 concurrent. Tune up to ~10 if rate limits allow.
+    // Each batch resolves when the slowest call in it resolves.
+    const SCAN_CONCURRENCY = 6
+
     let done = 0
     let totalInputTokens  = 0
     let totalOutputTokens = 0
@@ -133,27 +139,55 @@ export async function runResearchDropSpirits(client: any, job: any): Promise<voi
     let firstParsed: any = null
     const collected: any[] = []
 
-    for (const w of windows) {
-      try {
-        const result = await scanOnce(w, meta)
-        if (result.parsed) {
-          if (!firstParsed) firstParsed = result.parsed
-          if (Array.isArray(result.parsed.spirit_mentions)) {
-            collected.push(...result.parsed.spirit_mentions)
+    for (let i = 0; i < windows.length; i += SCAN_CONCURRENCY) {
+      const batch = windows.slice(i, i + SCAN_CONCURRENCY)
+
+      // Run up to SCAN_CONCURRENCY windows in parallel.
+      // Promise.allSettled isolates per-window failures — one bad window
+      // does not kill the job.
+      const settled = await Promise.allSettled(
+        batch.map(w => scanOnce(w, meta))
+      )
+
+      // Iterate in input order so `firstParsed` still means "first by window index".
+      settled.forEach((outcome, idxInBatch) => {
+        const windowIndex = i + idxInBatch
+        if (outcome.status === 'fulfilled') {
+          const result = outcome.value
+          if (result.parsed) {
+            if (!firstParsed) firstParsed = result.parsed
+            if (Array.isArray(result.parsed.spirit_mentions)) {
+              collected.push(...result.parsed.spirit_mentions)
+            }
           }
+          totalInputTokens  += result.inputTokens
+          totalOutputTokens += result.outputTokens
+          totalCostUsd      += result.costUsd
+        } else {
+          const msg = (outcome.reason?.message || String(outcome.reason)).slice(0, 200)
+          scanErrors.push(msg)
+          console.error(`[research-drop] window ${windowIndex + 1}/${total} failed:`, msg)
         }
-        totalInputTokens  += result.inputTokens
-        totalOutputTokens += result.outputTokens
-        totalCostUsd      += result.costUsd
-      } catch (e: any) {
-        scanErrors.push((e.message || String(e)).slice(0, 200))
-        console.error(`[research-drop] window ${done + 1}/${total} failed:`, e.message)
-      }
-      done++
-      // Progress 25..60 across scan windows
+      })
+
+      done += batch.length
+
+      // Live flush: progress + tokens + cost so the UI shows real movement
+      // and a running stage is observable (fixes the "tokens_used = 0 at 28%" symptom).
       await client.from('ai_jobs').update({
-        progress: 25 + Math.round(done / total * 35),
+        progress:      25 + Math.round(done / total * 35),
+        tokens_used:   totalInputTokens + totalOutputTokens,
+        cost_estimate: totalCostUsd,
       }).eq('id', jobId)
+    }
+
+    // Sanity floor — if more than half the windows failed, surface it
+    // so the job ends in `failed` with a useful message instead of silently
+    // proceeding to dedup with near-empty input.
+    if (scanErrors.length > total / 2) {
+      throw new Error(
+        `Scanning failed on ${scanErrors.length}/${total} windows. First reason: ${scanErrors[0]}`
+      )
     }
 
     // ── Stage 4: deduping ─────────────────────────────────────────────────
