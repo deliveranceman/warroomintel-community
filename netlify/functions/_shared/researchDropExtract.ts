@@ -1,6 +1,6 @@
 import { normalizeName, GENERIC_BLOCKLIST, buildWindows, scanOnce, isInSupabaseArchive } from './patristicScan'
 import { solCall } from './solClient'
-import { SCAN_CONCURRENCY } from './researchDropTypes'
+import { ResearchDropCheckpoint, BUDGET_MS, SCAN_CONCURRENCY } from './researchDropTypes'
 
 const CHUNK_SIZE    = 500
 const CHUNK_OVERLAP = 50
@@ -34,6 +34,18 @@ function confToInt(c: string): number {
   return c === 'high' ? 85 : c === 'medium' ? 60 : 30
 }
 
+async function checkpointAndRequeue(
+  client: any,
+  jobId:  string,
+  cp:     ResearchDropCheckpoint,
+): Promise<void> {
+  await client.from('ai_jobs').update({
+    status:      'queued',
+    stage:       'resuming',
+    result_json: cp,
+  }).eq('id', jobId)
+}
+
 export async function runResearchDropSpirits(client: any, job: any): Promise<void> {
   const jobId      = job.id as string
   const params     = (job.input_params as any) || {}
@@ -43,6 +55,8 @@ export async function runResearchDropSpirits(client: any, job: any): Promise<voi
   const meta       = { userId, userTier, callType: 'research_drop_spirits' }
 
   try {
+    const runStartedAt = Date.now()
+
     // ── Stage 1: fetching ─────────────────────────────────────────────────
     await client.from('ai_jobs').update({
       status:     'running',
@@ -65,54 +79,73 @@ export async function runResearchDropSpirits(client: any, job: any): Promise<voi
     const resourceSourceType = (resource?.source_type as string | null) ?? null
     const isAdversarial      = resourceSourceType === 'intelligence'
 
+    // ── Resumption: read prior checkpoint ────────────────────────────────────
+    const priorJson             = (job.result_json as Partial<ResearchDropCheckpoint>) || {}
+    const isResumption          = priorJson._is_resumption === true
+    const resumeCursor          = typeof priorJson._cursor === 'number' ? priorJson._cursor : 0
+    const resumeCollected       = Array.isArray(priorJson._partial_collected) ? priorJson._partial_collected : []
+    const chunksAlreadyEmbedded = priorJson._chunks_embedded === true
+    const resumeInputTokens     = typeof priorJson._total_input_tokens  === 'number' ? priorJson._total_input_tokens  : 0
+    const resumeOutputTokens    = typeof priorJson._total_output_tokens === 'number' ? priorJson._total_output_tokens : 0
+    const resumeCostUsd         = typeof priorJson._total_cost_usd      === 'number' ? priorJson._total_cost_usd      : 0
+    const resumeScanErrors      = Array.isArray(priorJson._scan_errors) ? [...priorJson._scan_errors] : []
+
+    if (isResumption) {
+      console.log(`[research-drop] ${jobId} resuming from cursor=${resumeCursor}, collected=${resumeCollected.length}`)
+    }
+
     await client.from('resources').update({ research_job_id: jobId }).eq('id', resourceId)
 
     // ── Stage 2: embedding ────────────────────────────────────────────────
-    await client.from('ai_jobs').update({ stage: 'embedding', progress: 5 }).eq('id', jobId)
+    let chunksEmbedded     = 0
+    let embeddingCompleted = chunksAlreadyEmbedded
+    if (!chunksAlreadyEmbedded) {
+      await client.from('ai_jobs').update({ stage: 'embedding', progress: 5 }).eq('id', jobId)
 
-    let chunksEmbedded = 0
-    const OPENAI_KEY = process.env.OPENAI_API_KEY || ''
-    if (OPENAI_KEY) {
-      const words: string[] = fullText.split(/\s+/)
-      const chunks: string[] = []
-      for (let i = 0; i < words.length; i += CHUNK_SIZE - CHUNK_OVERLAP) {
-        const chunk = words.slice(i, i + CHUNK_SIZE).join(' ')
-        if (chunk.trim().length > 100) chunks.push(chunk)
-      }
-      if (chunks.length) {
-        await client.from('library_chunks').delete().eq('book_id', resourceId)
-        for (let i = 0; i < chunks.length; i += 10) {
-          const batch = chunks.slice(i, i + 10)
-          try {
-            const embRes = await fetch('https://api.openai.com/v1/embeddings', {
-              method:  'POST',
-              headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${OPENAI_KEY}` },
-              body:    JSON.stringify({ model: 'text-embedding-3-small', input: batch }),
-              signal:  AbortSignal.timeout(20000),
-            })
-            if (!embRes.ok) {
-              console.error(`[research-drop] OpenAI embed ${embRes.status} — skipping remaining chunks`)
-              break
+      const OPENAI_KEY = process.env.OPENAI_API_KEY || ''
+      if (OPENAI_KEY) {
+        const words: string[] = fullText.split(/\s+/)
+        const chunks: string[] = []
+        for (let i = 0; i < words.length; i += CHUNK_SIZE - CHUNK_OVERLAP) {
+          const chunk = words.slice(i, i + CHUNK_SIZE).join(' ')
+          if (chunk.trim().length > 100) chunks.push(chunk)
+        }
+        if (chunks.length) {
+          await client.from('library_chunks').delete().eq('book_id', resourceId)
+          for (let i = 0; i < chunks.length; i += 10) {
+            const batch = chunks.slice(i, i + 10)
+            try {
+              const embRes = await fetch('https://api.openai.com/v1/embeddings', {
+                method:  'POST',
+                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${OPENAI_KEY}` },
+                body:    JSON.stringify({ model: 'text-embedding-3-small', input: batch }),
+                signal:  AbortSignal.timeout(20000),
+              })
+              if (!embRes.ok) {
+                console.error(`[research-drop] OpenAI embed ${embRes.status} — skipping remaining chunks`)
+                break
+              }
+              const embData = await embRes.json()
+              const rows = batch.map((chunk, j) => ({
+                book_id:     resourceId,
+                book_title:  bookTitle,
+                chunk_index: i + j,
+                chunk_text:  chunk,
+                embedding:   embData.data[j]?.embedding ?? null,
+              }))
+              const { error: insErr } = await client.from('library_chunks').insert(rows)
+              if (insErr) console.error('[research-drop] chunk insert error:', insErr.message)
+              else chunksEmbedded += rows.length
+            } catch (e: any) {
+              console.error('[research-drop] embed batch error:', e.message)
             }
-            const embData = await embRes.json()
-            const rows = batch.map((chunk, j) => ({
-              book_id:     resourceId,
-              book_title:  bookTitle,
-              chunk_index: i + j,
-              chunk_text:  chunk,
-              embedding:   embData.data[j]?.embedding ?? null,
-            }))
-            const { error: insErr } = await client.from('library_chunks').insert(rows)
-            if (insErr) console.error('[research-drop] chunk insert error:', insErr.message)
-            else chunksEmbedded += rows.length
-          } catch (e: any) {
-            console.error('[research-drop] embed batch error:', e.message)
           }
         }
       }
-    }
 
-    await client.from('ai_jobs').update({ progress: 20 }).eq('id', jobId)
+      await client.from('ai_jobs').update({ progress: 20 }).eq('id', jobId)
+      embeddingCompleted = true
+    }
 
     // ── Stage 3: scanning ─────────────────────────────────────────────────
     await client.from('ai_jobs').update({ stage: 'scanning', progress: 25 }).eq('id', jobId)
@@ -127,15 +160,15 @@ export async function runResearchDropSpirits(client: any, job: any): Promise<voi
     const { windows, truncated } = buildWindows(fullText, maxWindows)
     const total = windows.length
 
-    let done = 0
-    let totalInputTokens  = 0
-    let totalOutputTokens = 0
-    let totalCostUsd      = 0
-    const scanErrors: string[] = []
-    let firstParsed: any = null
-    const collected: any[] = []
+    let done              = resumeCursor
+    let totalInputTokens  = resumeInputTokens
+    let totalOutputTokens = resumeOutputTokens
+    let totalCostUsd      = resumeCostUsd
+    const scanErrors: string[] = resumeScanErrors
+    let firstParsed: any  = null
+    const collected: any[] = [...resumeCollected]
 
-    for (let i = 0; i < windows.length; i += SCAN_CONCURRENCY) {
+    for (let i = resumeCursor; i < windows.length; i += SCAN_CONCURRENCY) {
       const batch = windows.slice(i, i + SCAN_CONCURRENCY)
 
       // Run up to SCAN_CONCURRENCY windows in parallel.
@@ -175,6 +208,24 @@ export async function runResearchDropSpirits(client: any, job: any): Promise<voi
         tokens_used:   totalInputTokens + totalOutputTokens,
         cost_estimate: totalCostUsd,
       }).eq('id', jobId)
+
+      // Budget guard — checkpoint and requeue if we're close to the ceiling
+      if (Date.now() - runStartedAt > BUDGET_MS) {
+        const cp: ResearchDropCheckpoint = {
+          _cursor:              done,
+          _partial_collected:   collected,
+          _chunks_embedded:     embeddingCompleted,
+          _total_input_tokens:  totalInputTokens,
+          _total_output_tokens: totalOutputTokens,
+          _total_cost_usd:      totalCostUsd,
+          _scan_errors:         scanErrors,
+          _windows_total:       total,
+          _is_resumption:       true,
+        }
+        await checkpointAndRequeue(client, jobId, cp)
+        console.log(`[research-drop] ${jobId} budget hit at window ${done}/${total} — checkpointed and requeued`)
+        return
+      }
     }
 
     // Sanity floor — if more than half the windows failed, surface it

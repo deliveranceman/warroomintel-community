@@ -43,7 +43,7 @@ export default async function handler(req: Request): Promise<Response> {
   // Load the job row
   const { data: job, error: loadErr } = await client
     .from('ai_jobs')
-    .select('id,job_type,status,user_id,tier,resource_id,input_params')
+    .select('id,job_type,status,user_id,tier,resource_id,input_params,result_json')
     .eq('id', jobId)
     .single()
 
