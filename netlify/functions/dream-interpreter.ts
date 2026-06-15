@@ -1,5 +1,6 @@
 import { checkAndIncrementUsage, getUpgradeMessage } from '../lib/ai-rate-limit'
 import { cleanAIOutput } from '../lib/clean-ai-output'
+// @ts-ignore — retained for Session 2 async conversion; not called in this endpoint until then
 import { assembleWRIContext } from './_shared/assembleWRIContext'
 import { requireTier } from './_shared/access'
 
@@ -143,8 +144,12 @@ export default async function handler(req: Request) {
   }
 
   try {
-    const wriContext = await assembleWRIContext({ query: dreamDescription, maxChars: 4000 })
-    const report = await callClaude(dreamDescription.trim(), dreamerContext?.trim() || '', wriContext)
+    // HOTFIX 2026-06-14: assembleWRIContext bloats prompt past 25s Anthropic
+    // budget — endpoint dead since 2026-06-06 per ai_search_history. Bypassed
+    // pending async conversion to job_type='dream_interpretation' (Session 2).
+    // DO NOT REMOVE the assembleWRIContext import — it'll be reintroduced in
+    // the async worker where the time budget is 15min, not 25s.
+    const report = await callClaude(dreamDescription.trim(), dreamerContext?.trim() || '', '')
 
     if (auth.userId && _sbUrl && _sbKey) {
       fetch(`${_sbUrl}/rest/v1/ai_search_history`, {
