@@ -1,5 +1,6 @@
 import { checkAndIncrementUsage, getUpgradeMessage } from '../lib/ai-rate-limit'
 import { cleanAIOutput } from '../lib/clean-ai-output'
+// @ts-ignore — retained for Session 2 async conversion; not called in this endpoint until then
 import { assembleWRIContext } from './_shared/assembleWRIContext'
 import { requireTier } from './_shared/access'
 
@@ -203,13 +204,13 @@ export default async function handler(req: Request) {
   }
 
   try {
+    // HOTFIX 2026-06-14: assembleWRIContext bypassed — same regression as
+    // dream-interpreter (dead since 2026-06-06). Replaced with Promise.resolve('')
+    // to restore service. Async conversion to job_type='gateway_investigation'
+    // queued for Session 2 — the worker will reintroduce assembleWRIContext.
     const [dbContext, wriContext] = await Promise.all([
       spiritName?.trim() ? fetchSpiritContext(spiritName.trim()) : Promise.resolve(''),
-      assembleWRIContext({
-        query: [spiritName?.trim(), personContext?.trim()].filter(Boolean).join(' '),
-        spiritName: spiritName?.trim() || undefined,
-        maxChars: 3000,
-      }),
+      Promise.resolve(''),
     ])
     const report = await callClaude(spiritName?.trim() || '', dbContext, personContext?.trim() || '', wriContext)
 
