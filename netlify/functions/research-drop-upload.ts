@@ -72,7 +72,7 @@ export default async function handler(req: Request) {
   // ── Storage upload: write extractedText as a .txt ───────────────────────
   const stem     = filename.replace(/\.[^.]+$/, '').replace(/[^a-zA-Z0-9._-]/g, '_')
   const safeName = `research-drop/${Date.now()}-${stem}.txt`
-  const fileType = 'text/plain; charset=utf-8'
+  const fileType = 'text/plain'
   const textBuf  = Buffer.from(extractedText, 'utf-8')
   const charCount = extractedText.length
 
