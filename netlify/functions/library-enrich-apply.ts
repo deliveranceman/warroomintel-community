@@ -2,7 +2,7 @@ import { createClient } from '@supabase/supabase-js'
 import { requireAuth } from './_shared/access'
 import { generateSlug, toColumns, createSpirit, findSpiritSlugByName, insertFieldSnapshots } from './_shared/spiritWrite'
 import { solCall } from './_shared/solClient'
-import { LAYER2_DISCIPLINE_SYSTEM } from './_shared/prompts/layer2Extraction'
+import { LAYER2_FIELD_GENERATION_SYSTEM } from './_shared/prompts/layer2Extraction'
 
 const { url: supabaseUrl, serviceRoleKey: supabaseServiceKey } = JSON.parse(process.env.SUPABASE || '{}')
 const { token: airtableToken } = JSON.parse(process.env.AIRTABLE || '{}')
@@ -101,21 +101,31 @@ export default async function handler(req: Request) {
     const { fieldName, currentValue, spiritName, bookTitle } = body
     if (!fieldName) return new Response(JSON.stringify({ error: 'fieldName required' }), { status: 400, headers: CORS })
 
+    // Belt-and-suspenders: match both straight and curly apostrophes (U+2019).
+    const APOS = `['']`
     const REFUSAL_PATTERNS = [
-      /I can'?t (help|create|generate|provide|assist)/i,
-      /I cannot (help|create|generate|provide|assist)/i,
-      /I won'?t (help|create|generate|provide)/i,
-      /I'?m not able to/i,
+      new RegExp(`I can${APOS}t (help|create|generate|provide|assist|improve|write|produce|make)`, 'i'),
+      /I cannot (help|create|generate|provide|assist|improve|write|produce|make)/i,
+      new RegExp(`I won${APOS}t (help|create|generate|provide|assist|improve)`, 'i'),
+      new RegExp(`I${APOS}m not able to`, 'i'),
       /I am not able to/i,
       /as an AI/i,
       /as a language model/i,
       /vulnerable individuals/i,
       /psychological harm/i,
-      /I'?m designed to/i,
+      new RegExp(`I${APOS}m designed to`, 'i'),
+      /I (am|am not) designed to/i,
       /against my (guidelines|values|principles)/i,
+      /not appropriate for me to/i,
+      /unable to provide content/i,
+      new RegExp(`can${APOS}t engage with`, 'i'),
     ]
-    const isRefusal = (text: string) =>
-      text.length >= 20 && REFUSAL_PATTERNS.some(p => p.test(text))
+    function isRefusal(text: string): boolean {
+      if (!text || text.length < 20) return false
+      // Normalize curly quotes to straight so patterns fire on either form.
+      const normalized = text.replace(/’/g, "'").replace(/[“”]/g, '"')
+      return REFUSAL_PATTERNS.some(p => p.test(normalized)) || REFUSAL_PATTERNS.some(p => p.test(text))
+    }
 
     const sourceExcerpt = suggestion.source_excerpt
       ? `Source excerpt from "${bookTitle}":\n"${suggestion.source_excerpt}"\n\n`
@@ -124,7 +134,7 @@ export default async function handler(req: Request) {
     try {
       const result = await solCall({
         tier:   'standard',
-        system: LAYER2_DISCIPLINE_SYSTEM,
+        system: LAYER2_FIELD_GENERATION_SYSTEM,
         messages: [{
           role: 'user',
           content: `You are researching the spirit "${spiritName}" using source material from "${bookTitle}".
@@ -142,6 +152,16 @@ Return only the improved field text. No labels, no preamble, no explanation. If 
       })
 
       const value = result.text.trim()
+
+      console.log('[ai_fill_field]', {
+        fieldName,
+        spiritName,
+        rawLength: result.text.length,
+        preview: value.slice(0, 120),
+        isRefusalResult: isRefusal(value),
+        inputTokens: result.inputTokens,
+        outputTokens: result.outputTokens,
+      })
 
       if (isRefusal(value)) {
         console.warn('[library-enrich-apply] ai_fill_field refusal for', fieldName, ':', value.slice(0, 200))

@@ -14558,7 +14558,7 @@ function EnrichmentSuggestions({ getToken, isDark }: { getToken: any; isDark: bo
                 {s.action === 'add' ? 'NEW SPIRIT' : 'ENRICH EXISTING'}
               </span>
               <span style={{ fontFamily: cinzel, fontSize: 8, color: '#4a3f2f', marginLeft: 8 }}>
-                CONFIDENCE: {s.confidence}/10
+                CONFIDENCE: {s.confidence}%
               </span>
             </div>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' as const, justifyContent: 'flex-end' }}>
@@ -14613,7 +14613,7 @@ function EnrichmentSuggestions({ getToken, isDark }: { getToken: any; isDark: bo
                     onClick={() => handleAIFillField(s.id, field, s.spirit_name, s.book_title)}
                     disabled={aiFillingField[aiKey]}
                     style={{ background: 'transparent', border: `1px solid ${aiFillingField[aiKey] ? 'rgba(201,168,76,0.15)' : 'rgba(201,168,76,0.3)'}`, borderRadius: 3, padding: '2px 8px', fontSize: 8, color: aiFillingField[aiKey] ? dim : gold, fontFamily: cinzel, cursor: 'pointer', letterSpacing: '0.06em' }}>
-                    {aiFillingField[aiKey] ? '…' : '✦ AI'}
+                    {aiFillingField[aiKey] ? '…' : '✦ SOL'}
                   </button>
                 </div>
                 <textarea
