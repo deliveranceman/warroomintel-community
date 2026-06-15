@@ -12,6 +12,7 @@ export interface ResearchDropCheckpoint {
   _total_cost_usd:      number
   _scan_errors:         string[]
   _windows_total:       number
+  _staging_cursor:      number    // index of next mention to stage (0 = not started); scanning complete when set
   _is_resumption:       boolean   // true on any run after the first
 }
 

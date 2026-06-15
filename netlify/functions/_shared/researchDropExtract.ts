@@ -89,6 +89,7 @@ export async function runResearchDropSpirits(client: any, job: any): Promise<voi
     const resumeOutputTokens    = typeof priorJson._total_output_tokens === 'number' ? priorJson._total_output_tokens : 0
     const resumeCostUsd         = typeof priorJson._total_cost_usd      === 'number' ? priorJson._total_cost_usd      : 0
     const resumeScanErrors      = Array.isArray(priorJson._scan_errors) ? [...priorJson._scan_errors] : []
+    const resumeStagingCursor   = typeof priorJson._staging_cursor === 'number' ? priorJson._staging_cursor : 0
 
     if (isResumption) {
       console.log(`[research-drop] ${jobId} resuming from cursor=${resumeCursor}, collected=${resumeCollected.length}`)
@@ -220,6 +221,7 @@ export async function runResearchDropSpirits(client: any, job: any): Promise<voi
           _total_cost_usd:      totalCostUsd,
           _scan_errors:         scanErrors,
           _windows_total:       total,
+          _staging_cursor:      0,
           _is_resumption:       true,
         }
         await checkpointAndRequeue(client, jobId, cp)
@@ -262,7 +264,8 @@ export async function runResearchDropSpirits(client: any, job: any): Promise<voi
     let newCandidates     = 0
     let dupeSkipped       = 0
 
-    for (const mention of mentions) {
+    for (let stagingIdx = resumeStagingCursor; stagingIdx < mentions.length; stagingIdx++) {
+      const mention  = mentions[stagingIdx]
       const nameNorm = normalizeName(mention.name)
       if (!nameNorm) continue
 
@@ -351,6 +354,25 @@ export async function runResearchDropSpirits(client: any, job: any): Promise<voi
           ai_generated_at: new Date().toISOString(),
         })
         newCandidates++
+      }
+
+      // Budget guard in staging stage
+      if (Date.now() - runStartedAt > BUDGET_MS) {
+        const cp: ResearchDropCheckpoint = {
+          _cursor:              done,
+          _partial_collected:   collected,
+          _chunks_embedded:     embeddingCompleted,
+          _total_input_tokens:  totalInputTokens,
+          _total_output_tokens: totalOutputTokens,
+          _total_cost_usd:      totalCostUsd,
+          _scan_errors:         scanErrors,
+          _windows_total:       total,
+          _staging_cursor:      stagingIdx + 1,
+          _is_resumption:       true,
+        }
+        await checkpointAndRequeue(client, jobId, cp)
+        console.log(`[research-drop] ${jobId} budget hit in staging at mention ${stagingIdx + 1}/${mentions.length} — checkpointed and requeued`)
+        return
       }
     }
 
