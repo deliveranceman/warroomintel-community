@@ -20,7 +20,7 @@ const TIER_FIELDS: Record<number, string[]> = {
     'function', 'strongman', 'kingdom', 'subKingdom', 'biblicalRank', 'caseType',
     'phonetic', 'images', 'isGenerational', 'isTerritorial', 'hierarchyCategory',
     'region', 'parentStrongman', 'relatedSpirits', 'clusterSpirits',
-    'culturalPresence',
+    'culturalPresence', 'equivalents',
   ],
   1: ['manifestation', 'scripture', 'companionSpirits'],
   2: [
@@ -137,6 +137,7 @@ function mapSpiritRow(row: any, i: number) {
     prayerPoints: row.prayer_points || '',
     aftercareNotes: row.aftercare_notes || '',
     culturalPresence: Array.isArray(row.cultural_presence) ? row.cultural_presence : [],
+    equivalents: row.equivalents || '',
     sessionTriggerQuestions: row.session_trigger_questions || '',
   }
 }
