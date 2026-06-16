@@ -122,11 +122,11 @@ export function UpgradeGate({ featureName, description, requiredTier, variant = 
     return (
       <>
         {confirmDialog}
-        <div style={{ background: 'rgba(201,168,76,0.08)', border: '1px solid rgba(201,168,76,0.2)', borderRadius: 6, padding: '10px 14px', textAlign: 'center' as const, color: 'rgba(201,168,76,0.7)', fontSize: 13 }}>
+        <div style={{ background: 'rgba(201,168,76,0.08)', border: '1px solid rgba(201,168,76,0.2)', borderRadius: 6, padding: '10px 14px', textAlign: 'center' as const, color: 'var(--gold)', fontSize: 13 }}>
           🔒 {featureName}.{' '}
           <button
             onClick={handleUpgradeClick}
-            style={{ background: 'none', border: 'none', color: '#C9A84C', cursor: 'pointer', fontSize: 13, padding: 0, textDecoration: 'underline' }}
+            style={{ background: 'none', border: 'none', color: 'var(--gold)', cursor: 'pointer', fontSize: 13, padding: 0, textDecoration: 'underline' }}
           >
             Upgrade to {tierLabel} to access.
           </button>

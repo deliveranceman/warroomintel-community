@@ -627,7 +627,7 @@ function ArsenalPage() {
           const upgradeLabel = nextTierUp.charAt(0).toUpperCase() + nextTierUp.slice(1)
           return (
             <div style={{ marginTop: 8, padding: '16px', border: '1px solid rgba(201,168,76,0.15)', borderRadius: 8, background: 'rgba(201,168,76,0.04)', textAlign: 'center' as const }}>
-              <div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.15em', color: 'rgba(201,168,76,0.6)', marginBottom: 6 }}>
+              <div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.15em', color: 'var(--gold)', marginBottom: 6, opacity: 0.7 }}>
                 🔒 {lockedCount} MORE RESOURCE{lockedCount !== 1 ? 'S' : ''} AVAILABLE
               </div>
               <div style={{ fontFamily: crimson, fontSize: 13, color: 'var(--t-3)', marginBottom: 12, lineHeight: 1.5 }}>
@@ -635,7 +635,7 @@ function ArsenalPage() {
               </div>
               <button
                 onClick={() => callUpgrade(nextTierUp, getToken, () => user?.reload())}
-                style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.12em', padding: '8px 18px', background: 'rgba(201,168,76,0.15)', border: '1px solid #C9A84C', color: '#C9A84C', borderRadius: 4, cursor: 'pointer' }}
+                style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.12em', padding: '8px 18px', background: 'rgba(201,168,76,0.15)', border: '1px solid var(--gold)', color: 'var(--gold)', borderRadius: 4, cursor: 'pointer' }}
               >
                 UPGRADE TO {upgradeLabel.toUpperCase()} →
               </button>
