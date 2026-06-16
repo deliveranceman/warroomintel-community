@@ -1,17 +1,28 @@
-import { useEffect, useState } from 'react'
+import { useState, useEffect } from 'react'
 
-// Mirrors the persisted theme written by CommunityPage to
-// document.documentElement.dataset.theme. Defaults to dark for SSR/first
-// paint so hydration matches, then syncs to the actual theme on mount and
-// stays in sync if the attribute changes.
+/**
+ * Reads `data-theme` from <html> and stays synced.
+ * Defaults to dark on SSR (matches SSR'd <html data-theme="dark">).
+ * On client first-render, reads the actual attribute (boot script may have flipped to light).
+ * MutationObserver re-syncs on later toggle changes.
+ */
 export function useIsDark(): boolean {
-  const [isDark, setIsDark] = useState(true)
+  const [isDark, setIsDark] = useState<boolean>(() => {
+    if (typeof document === 'undefined') return true
+    return document.documentElement.dataset.theme !== 'light'
+  })
+
   useEffect(() => {
-    const read = () => setIsDark(document.documentElement.dataset.theme !== 'light')
-    read()
-    const obs = new MutationObserver(read)
-    obs.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] })
-    return () => obs.disconnect()
+    const html = document.documentElement
+    const update = () => {
+      const next = html.dataset.theme !== 'light'
+      setIsDark(prev => prev === next ? prev : next)
+    }
+    update()
+    const observer = new MutationObserver(update)
+    observer.observe(html, { attributes: true, attributeFilter: ['data-theme'] })
+    return () => observer.disconnect()
   }, [])
+
   return isDark
 }
