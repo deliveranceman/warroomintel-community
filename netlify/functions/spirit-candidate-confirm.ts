@@ -1,6 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import { requireAdmin2, CORS } from './_shared/access'
-import { createSpirit, generateSlug, findSpiritSlugByName } from './_shared/spiritWrite'
+import { createSpirit, generateSlug, findSpiritSlugByName, toColumns, insertFieldSnapshots } from './_shared/spiritWrite'
 
 const { url: sbUrl, serviceRoleKey: sbKey } = JSON.parse(process.env.SUPABASE || '{}')
 const { token: airtableToken }              = JSON.parse(process.env.AIRTABLE || '{}')
@@ -78,7 +78,7 @@ export default async function handler(req: Request) {
     }
 
     // candidate.function holds the dossier "Description"; source_name -> Source / Origin.
-    const { record, error: createErr } = await createSpirit(client, {
+    const inboundFields = {
       name:             candidate.name,
       aka:              candidate.also_known_as,
       description:      candidate.function,
@@ -88,10 +88,22 @@ export default async function handler(req: Request) {
       biblicalRank:     candidate.biblical_rank,
       subKingdom:       candidate.sub_kingdom,
       sourceOrigin:     candidate.source_name,
-    })
+    }
+    const { record, error: createErr } = await createSpirit(client, inboundFields)
     if (createErr || !record) {
       return new Response(JSON.stringify({ error: `Supabase create failed: ${createErr || 'unknown'}` }), { status: 500, headers: CORS })
     }
+
+    // Write per-field snapshots (one row per populated column).
+    // prior_value = null for all fields (new spirit — no prior state).
+    // Snapshot failure logs but does NOT block the approve.
+    const snapErr = await insertFieldSnapshots(
+      client,
+      { id: record.id, name: record.name },
+      toColumns(inboundFields),
+      { jobId: null, appliedBy: userId, source: 'enrich' },
+    )
+    if (snapErr) console.error('[spirit-candidate-confirm] snapshot write failed:', snapErr)
 
     // airtable_record_id now transitionally holds the Supabase spirit SLUG (not an
     // Airtable id) — column reused to avoid a schema change.
