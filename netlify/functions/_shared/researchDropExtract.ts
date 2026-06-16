@@ -336,6 +336,25 @@ export async function runResearchDropSpirits(client: any, job: any): Promise<voi
 
         if (existingCand) { dupeSkipped++; continue }
 
+        // Tier 3: word-boundary match — does any word in the candidate name (len >= 4) match
+        // a known spirit name exactly? Sets possible_duplicate_of but NOT existing_record_id.
+        // Human confirmation required before merge (taxonomy trap: Aesma Daeva != Daeva).
+        const candidateWords = mention.name.split(/\s+/).filter((w: string) => w.length >= 4)
+        let possibleDupSlug: string | null = null
+        let longestWordMatch = 0
+        for (const word of candidateWords) {
+          const { data: wMatch } = await client
+            .from('spirits')
+            .select('slug, name')
+            .ilike('name', word)
+            .limit(1)
+            .maybeSingle()
+          if (wMatch && (wMatch.name as string).length > longestWordMatch) {
+            longestWordMatch = (wMatch.name as string).length
+            possibleDupSlug = wMatch.slug as string
+          }
+        }
+
         await client.from('spirit_candidates').insert({
           name:            mention.name,
           name_normalized: nameNorm,
@@ -348,6 +367,8 @@ export async function runResearchDropSpirits(client: any, job: any): Promise<voi
           is_adversarial:  isAdversarial,
           ai_model_used:   'claude-sonnet-4-5',
           ai_generated_at: new Date().toISOString(),
+          possible_duplicate_of:         possibleDupSlug,
+          possible_duplicate_confidence: possibleDupSlug ? 3 : null,
         })
         newCandidates++
       }

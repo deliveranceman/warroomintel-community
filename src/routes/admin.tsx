@@ -2463,6 +2463,19 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
   // Sub-section navigation
   const [intelTab, setIntelTab] = useState<'database' | 'enrichment' | 'taxonomy' | 'gap-analysis' | 'duplicates' | 'body-map' | 'history'>('database')
 
+  // On mount: check if SpiritCandidatesManager dropped a pre-fill intent via sessionStorage
+  // (used by the "Merge into X" button on the candidates page to deep-link into Duplicate Finder)
+  useEffect(() => {
+    const target = sessionStorage.getItem('intelTabTarget')
+    const search = sessionStorage.getItem('dupeFinderSearch')
+    if (target === 'duplicates') {
+      setIntelTab('duplicates')
+      if (search) setDupeSearch(search)
+      sessionStorage.removeItem('intelTabTarget')
+      sessionStorage.removeItem('dupeFinderSearch')
+    }
+  }, [])
+
   // Duplicate Finder
   const [dupeGroups, setDupeGroups] = useState<Array<{ key: string; type: 'exact' | 'near' | 'fuzzy'; entries: any[] }>>([])
   const [dupeScanned, setDupeScanned] = useState(false)
@@ -11943,7 +11956,7 @@ function SourcesMasterList({ getToken, isDark }: { getToken: any; isDark: boolea
 }
 
 // ─── SPIRIT CANDIDATES MANAGER ───────────────────────────────────────────────
-function SpiritCandidatesManager({ getToken, isDark }: { getToken: any; isDark: boolean }) {
+function SpiritCandidatesManager({ getToken, isDark, setTab }: { getToken: any; isDark: boolean; setTab?: (t: string) => void }) {
   const SSURF = isDark ? '#13111a' : '#fff'
   const SBDR  = isDark ? 'rgba(201,168,76,0.2)' : 'rgba(139,105,20,0.25)'
   const STXT  = isDark ? '#e8e0d0' : '#2D2924'
@@ -12318,6 +12331,7 @@ function SpiritCandidatesManager({ getToken, isDark }: { getToken: any; isDark: 
                 <div style={{ fontFamily: cinzel, fontSize: 10, color: isConfirmed ? SG : STXT, letterSpacing: '0.04em', display: 'flex', alignItems: 'center', gap: 4, overflow: 'hidden' }}>
                   <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{c.name}</span>
                   {isMerged && <span style={{ flexShrink: 0, fontFamily: cinzel, fontSize: 7, color: '#fbbf24', background: 'rgba(251,191,36,0.1)', border: '1px solid rgba(251,191,36,0.3)', borderRadius: 2, padding: '1px 4px' }}>⚠ MERGED</span>}
+                  {c.possible_duplicate_of && <span style={{ flexShrink: 0, fontFamily: cinzel, fontSize: 7, color: '#E4A743', background: 'rgba(228,167,67,0.1)', border: '1px solid rgba(228,167,67,0.35)', borderRadius: 2, padding: '1px 4px', letterSpacing: '0.04em' }}>~ VARIANT?</span>}
                   {isConfirmed && <span style={{ flexShrink: 0, fontSize: 9, color: SG }}>✓</span>}
                 </div>
 
@@ -12451,6 +12465,14 @@ function SpiritCandidatesManager({ getToken, isDark }: { getToken: any; isDark: 
                     </>
                   )}
 
+                  {/* Possible variant warning (tier-3 word-boundary classifier) */}
+                  {c.possible_duplicate_of && (
+                    <div style={{ marginBottom: 12, padding: '8px 12px', background: 'rgba(228,167,67,0.06)', border: '1px solid rgba(228,167,67,0.25)', borderRadius: 5 }}>
+                      <div style={{ fontFamily: cinzel, fontSize: 9, color: '#E4A743', letterSpacing: '0.08em', marginBottom: 4 }}>MAY BE VARIANT OF {(c.possible_duplicate_of as string).toUpperCase()}</div>
+                      <div style={{ fontFamily: crimson, fontSize: 12, color: SMUT, marginBottom: 0 }}>Word-boundary classifier matched. Requires human confirmation — do not auto-merge (taxonomy trap: named vs. functional entities may share names).</div>
+                    </div>
+                  )}
+
                   {/* Duplicate warning */}
                   {c.duplicate_of && (
                     <div style={{ marginBottom: 12, padding: '8px 12px', background: 'rgba(251,191,36,0.08)', border: '1px solid rgba(251,191,36,0.25)', borderRadius: 5 }}>
@@ -12489,6 +12511,17 @@ function SpiritCandidatesManager({ getToken, isDark }: { getToken: any; isDark: 
                           style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', color: '#f87171', background: 'rgba(248,113,113,0.08)', border: '1px solid rgba(248,113,113,0.25)', borderRadius: 4, padding: '6px 12px', cursor: 'pointer' }}
                         >{isRejectOpen ? 'Cancel' : '✗ Reject'}</button>
                       </>
+                    )}
+                    {c.possible_duplicate_of && setTab && (
+                      <button
+                        onClick={e => {
+                          e.stopPropagation()
+                          sessionStorage.setItem('dupeFinderSearch', c.possible_duplicate_of as string)
+                          sessionStorage.setItem('intelTabTarget', 'duplicates')
+                          setTab('intel')
+                        }}
+                        style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', color: '#E4A743', background: 'rgba(228,167,67,0.08)', border: '1px solid rgba(228,167,67,0.3)', borderRadius: 4, padding: '6px 12px', cursor: 'pointer' }}
+                      >✦ Merge into {c.possible_duplicate_of}</button>
                     )}
                     {isConfirmed && airtableIds[c.id] && (
                       <span style={{ fontFamily: cinzel, fontSize: 9, color: SG, letterSpacing: '0.06em' }}>Pushed: {airtableIds[c.id]}</span>
@@ -12817,7 +12850,7 @@ function AdminPage() {
             {tab === 'field-ministry'    && <FieldMinistryManager getToken={getToken} isDark={isDark} />}
             {tab === 'documents'         && <DocumentsView getToken={getToken} isDark={isDark} demons={dashDemons} />}
             {tab === 'library'           && <LibraryManager getToken={getToken} isDark={isDark} />}
-            {tab === 'spirit-candidates' && <SpiritCandidatesManager getToken={getToken} isDark={isDark} />}
+            {tab === 'spirit-candidates' && <SpiritCandidatesManager getToken={getToken} isDark={isDark} setTab={setTab as (t: string) => void} />}
             {tab === 'sources'           && <SourcesMasterList getToken={getToken} isDark={isDark} />}
             {tab === 'spiritual-mapping' && <SpiritualMappingAdmin isDark={isDark} />}
             {tab === 'lib-intel'         && <LibraryIntelligence getToken={getToken} isDark={isDark} />}
