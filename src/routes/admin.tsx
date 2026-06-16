@@ -4,6 +4,7 @@ import { createFileRoute } from '@tanstack/react-router'
 import { useAuth, useUser } from '@clerk/tanstack-start'
 import { SpiritTagEditor } from '@/components/SpiritTagEditor'
 import { extractText, computeFileHash } from '@/lib/extractFileText'
+import { classifyField, FIELD_GROUPS, appendMerge, type FieldState } from '@/lib/spiritMergeHelpers'
 
 export const Route = createFileRoute('/admin')({
   component: AdminPage,
@@ -11955,8 +11956,301 @@ function SourcesMasterList({ getToken, isDark }: { getToken: any; isDark: boolea
   )
 }
 
+// ─── SPIRIT VARIANT MERGE MODAL ──────────────────────────────────────────────
+function SpiritVariantMergeModal({ candidate, allSpirits, getToken, isDark, onClose, onSuccess }: {
+  candidate: any
+  allSpirits: any[]
+  getToken: any
+  isDark: boolean
+  onClose: () => void
+  onSuccess: () => void
+}) {
+  const SSURF = isDark ? '#13111a' : '#fff'
+  const SBDR  = isDark ? 'rgba(201,168,76,0.2)' : 'rgba(139,105,20,0.25)'
+  const STXT  = isDark ? '#e8e0d0' : '#2D2924'
+  const SMUT  = isDark ? '#9a8c74' : '#5C5248'
+  const SG    = isDark ? '#C9A84C' : '#604408'
+
+  // Target spirit slug — defaults to the classifier's suggestion
+  const [targetSlug, setTargetSlug] = useState<string>(candidate.possible_duplicate_of || '')
+  const [targetSearch, setTargetSearch] = useState<string>(candidate.possible_duplicate_of || '')
+
+  // Classify fields against the selected target spirit row
+  const targetRow = allSpirits.find((s: any) => s.slug === targetSlug || s.airtableId === targetSlug) || null
+
+  const classified: FieldState[] = useMemo(() => {
+    if (!targetRow) return []
+    return FIELD_GROUPS.map(camel => {
+      const existingValue  = targetRow[camel] ?? ''
+      // Map candidate fields: some are stored under slightly different keys
+      const candidateFieldMap: Record<string, string> = {
+        aka:              'also_known_as',
+        manifestation:    'manifestations',
+        sourceOrigin:     'source_name',
+        primaryBattlefield: 'function',
+      }
+      const candidateKey = candidateFieldMap[camel] || camel
+      const candidateValue = candidate[candidateKey] ?? candidate[camel] ?? ''
+      return classifyField(camel, existingValue, candidateValue)
+    }).filter(f => f.kind !== 'empty')
+  }, [targetRow, candidate])
+
+  // auto-fill selections: map of camel → checked (default true)
+  const autoFields   = classified.filter(f => f.kind === 'auto')
+  const conflictFields = classified.filter(f => f.kind === 'conflict' || f.kind === 'relational')
+
+  const [autoChecked, setAutoChecked] = useState<Record<string, boolean>>({})
+  useEffect(() => {
+    const init: Record<string, boolean> = {}
+    for (const f of autoFields) init[f.camel] = true
+    setAutoChecked(init)
+  }, [targetSlug])
+
+  // conflict resolutions: 'existing' | 'candidate' | 'custom'
+  const [conflictChoice, setConflictChoice] = useState<Record<string, 'existing' | 'candidate' | 'custom'>>({})
+  const [customValues, setCustomValues] = useState<Record<string, string>>({})
+
+  const [autoOpen, setAutoOpen] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
+  const [submitError, setSubmitError] = useState<string | null>(null)
+
+  const filteredSpirits = useMemo(() => {
+    const q = targetSearch.toLowerCase()
+    return allSpirits.filter((s: any) => s.name?.toLowerCase().includes(q) || s.slug?.includes(q)).slice(0, 10)
+  }, [targetSearch, allSpirits])
+
+  function buildMergedFields(): Record<string, any> {
+    const merged: Record<string, any> = {}
+    for (const f of autoFields) {
+      if (autoChecked[f.camel] !== false) {
+        if (f.kind === 'auto') merged[f.camel] = f.value
+      }
+    }
+    for (const f of conflictFields) {
+      const choice = conflictChoice[f.camel] || 'existing'
+      if (f.kind === 'conflict') {
+        if (choice === 'existing')   merged[f.camel] = f.existing
+        else if (choice === 'candidate') merged[f.camel] = f.candidate
+        else if (choice === 'custom') merged[f.camel] = customValues[f.camel] || ''
+      }
+      // relational: skip — human should manage via dedicated editors
+    }
+    return merged
+  }
+
+  async function handleSubmit() {
+    if (!targetSlug) return
+    setSubmitting(true)
+    setSubmitError(null)
+    try {
+      const mergedFields = buildMergedFields()
+      const token = await getToken()
+      const res = await fetch('/api/spirit-candidate-merge-into-existing', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ candidateId: candidate.id, targetSlug, mergedFields }),
+      })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        setSubmitError((err as any).error || `HTTP ${res.status}`)
+        return
+      }
+      onSuccess()
+    } catch (e: any) {
+      setSubmitError(e.message || 'Network error')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  return (
+    <div
+      style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', zIndex: 300, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '40px 20px', overflowY: 'auto' }}
+      onClick={e => { if (e.target === e.currentTarget) onClose() }}
+    >
+      <div style={{ background: SSURF, border: `1px solid ${SG}55`, borderRadius: 10, padding: 28, width: '100%', maxWidth: 680 }}>
+        {/* Header */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+          <div>
+            <div style={{ fontFamily: cinzel, fontSize: 11, color: SG, letterSpacing: '0.12em', marginBottom: 4 }}>FIELD-BY-FIELD VARIANT MERGE</div>
+            <div style={{ fontFamily: crimson, fontSize: 15, color: STXT }}>{candidate.name}</div>
+          </div>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', color: SMUT, fontSize: 18, cursor: 'pointer' }}>✕</button>
+        </div>
+
+        {/* Layer 2 banner */}
+        {candidate._hasLayer2 && (
+          <div style={{ marginBottom: 14, padding: '7px 12px', background: 'rgba(122,180,224,0.07)', border: '1px solid rgba(122,180,224,0.25)', borderRadius: 5 }}>
+            <span style={{ fontFamily: cinzel, fontSize: 8, color: '#7ab4e0', letterSpacing: '0.08em' }}>SOL LAYER 2 DATA AVAILABLE</span>
+            <span style={{ fontFamily: crimson, fontSize: 12, color: SMUT, marginLeft: 10 }}>Layer 2 fields included in candidate values below.</span>
+          </div>
+        )}
+
+        {/* Target spirit picker */}
+        <div style={{ marginBottom: 18 }}>
+          <div style={{ fontFamily: cinzel, fontSize: 8, color: SMUT, letterSpacing: '0.1em', marginBottom: 6 }}>MERGE INTO (TARGET SPIRIT)</div>
+          <input
+            value={targetSearch}
+            onChange={e => setTargetSearch(e.target.value)}
+            placeholder="Search spirit name or slug..."
+            style={{ width: '100%', boxSizing: 'border-box', background: isDark ? 'rgba(255,255,255,0.04)' : '#f8f7f2', border: `1px solid ${SBDR}`, borderRadius: 5, padding: '7px 10px', color: STXT, fontFamily: crimson, fontSize: 14, outline: 'none', marginBottom: 4 }}
+          />
+          {targetSearch && (
+            <div style={{ border: `1px solid ${SBDR}`, borderRadius: 5, overflow: 'hidden', maxHeight: 180, overflowY: 'auto' }}>
+              {filteredSpirits.map((s: any) => (
+                <div
+                  key={s.slug}
+                  onClick={() => { setTargetSlug(s.slug); setTargetSearch(s.name) }}
+                  style={{ padding: '7px 12px', cursor: 'pointer', background: targetSlug === s.slug ? (isDark ? 'rgba(201,168,76,0.12)' : 'rgba(96,68,8,0.08)') : 'transparent', color: STXT, fontFamily: crimson, fontSize: 13, borderBottom: `1px solid ${SBDR}` }}
+                >
+                  <span style={{ color: SG, fontFamily: cinzel, fontSize: 9, marginRight: 8 }}>{s.slug}</span>{s.name}
+                </div>
+              ))}
+              {filteredSpirits.length === 0 && <div style={{ padding: '8px 12px', color: SMUT, fontFamily: crimson, fontSize: 12 }}>No spirits found</div>}
+            </div>
+          )}
+          {targetRow && (
+            <div style={{ marginTop: 4, fontFamily: cinzel, fontSize: 8, color: SG, letterSpacing: '0.06em' }}>TARGET: {targetRow.name}</div>
+          )}
+        </div>
+
+        {!targetRow && (
+          <div style={{ fontFamily: crimson, fontSize: 13, color: SMUT, textAlign: 'center', padding: 20 }}>Select a target spirit above to preview field differences.</div>
+        )}
+
+        {targetRow && (
+          <>
+            {/* Auto-fill section */}
+            {autoFields.length > 0 && (
+              <div style={{ marginBottom: 16, border: `1px solid ${SBDR}`, borderRadius: 6 }}>
+                <button
+                  type="button"
+                  onClick={() => setAutoOpen(o => !o)}
+                  style={{ width: '100%', background: 'none', border: 'none', padding: '9px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }}
+                >
+                  <span style={{ fontFamily: cinzel, fontSize: 9, color: SG, letterSpacing: '0.08em' }}>AUTO-FILL ({autoFields.filter(f => autoChecked[f.camel] !== false).length}/{autoFields.length} fields — new data only)</span>
+                  <span style={{ color: SMUT, fontSize: 12 }}>{autoOpen ? '▲' : '▼'}</span>
+                </button>
+                {autoOpen && (
+                  <div style={{ padding: '4px 14px 12px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    {autoFields.map(f => (
+                      <label key={f.camel} style={{ display: 'flex', gap: 10, alignItems: 'flex-start', cursor: 'pointer' }}>
+                        <input
+                          type="checkbox"
+                          checked={autoChecked[f.camel] !== false}
+                          onChange={e => setAutoChecked(prev => ({ ...prev, [f.camel]: e.target.checked }))}
+                          style={{ marginTop: 3, accentColor: SG }}
+                        />
+                        <div>
+                          <div style={{ fontFamily: cinzel, fontSize: 7, color: SMUT, letterSpacing: '0.08em', marginBottom: 2 }}>{f.label.toUpperCase()}</div>
+                          <div style={{ fontFamily: crimson, fontSize: 12, color: STXT, opacity: autoChecked[f.camel] === false ? 0.4 : 1 }}>
+                            {f.kind === 'auto' ? (Array.isArray(f.value) ? f.value.join(', ') : String(f.value || '')) : ''}
+                          </div>
+                        </div>
+                      </label>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Conflict fields */}
+            {conflictFields.length > 0 && (
+              <div style={{ marginBottom: 16 }}>
+                <div style={{ fontFamily: cinzel, fontSize: 9, color: '#f87171', letterSpacing: '0.08em', marginBottom: 10 }}>CONFLICTS — CHOOSE WINNING VALUE</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                  {conflictFields.map(f => {
+                    if (f.kind === 'relational') {
+                      return (
+                        <div key={f.camel} style={{ border: `1px solid rgba(228,167,67,0.2)`, borderRadius: 5, padding: '10px 12px' }}>
+                          <div style={{ fontFamily: cinzel, fontSize: 8, color: '#E4A743', letterSpacing: '0.1em', marginBottom: 6 }}>
+                            {f.label.toUpperCase()} <span style={{ color: SMUT, fontWeight: 400 }}>(relational — edit via dedicated editor after merge)</span>
+                          </div>
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                            <div>
+                              <div style={{ fontFamily: cinzel, fontSize: 7, color: SMUT, marginBottom: 3 }}>EXISTING</div>
+                              <div style={{ fontFamily: crimson, fontSize: 12, color: STXT }}>{String(f.existing || '')}</div>
+                            </div>
+                            <div>
+                              <div style={{ fontFamily: cinzel, fontSize: 7, color: SMUT, marginBottom: 3 }}>CANDIDATE</div>
+                              <div style={{ fontFamily: crimson, fontSize: 12, color: STXT }}>{String(f.candidate || '')}</div>
+                            </div>
+                          </div>
+                        </div>
+                      )
+                    }
+                    // conflict
+                    const choice = conflictChoice[f.camel] || 'existing'
+                    const canAppend = typeof f.existing === 'string' && typeof f.candidate === 'string'
+                    return (
+                      <div key={f.camel} style={{ border: `1px solid rgba(248,113,113,0.25)`, borderRadius: 5, padding: '10px 12px' }}>
+                        <div style={{ fontFamily: cinzel, fontSize: 8, color: '#f87171', letterSpacing: '0.1em', marginBottom: 8 }}>{f.label.toUpperCase()}</div>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 8 }}>
+                          <div>
+                            <div style={{ fontFamily: cinzel, fontSize: 7, color: SMUT, marginBottom: 3 }}>EXISTING</div>
+                            <div style={{ fontFamily: crimson, fontSize: 12, color: STXT, lineHeight: 1.4 }}>{String(f.existing || '').slice(0, 200)}</div>
+                          </div>
+                          <div>
+                            <div style={{ fontFamily: cinzel, fontSize: 7, color: SMUT, marginBottom: 3 }}>CANDIDATE</div>
+                            <div style={{ fontFamily: crimson, fontSize: 12, color: STXT, lineHeight: 1.4 }}>{String(f.candidate || '').slice(0, 200)}</div>
+                          </div>
+                        </div>
+                        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                          {(['existing', 'candidate', 'custom'] as const).map(opt => (
+                            <label key={opt} style={{ display: 'flex', gap: 5, alignItems: 'center', cursor: 'pointer', fontFamily: cinzel, fontSize: 8, color: choice === opt ? SG : SMUT, letterSpacing: '0.06em' }}>
+                              <input type="radio" name={`conflict-${f.camel}`} value={opt} checked={choice === opt} onChange={() => {
+                                setConflictChoice(prev => ({ ...prev, [f.camel]: opt }))
+                                if (opt === 'custom' && canAppend && !customValues[f.camel]) {
+                                  setCustomValues(prev => ({ ...prev, [f.camel]: appendMerge(f.existing as string, f.candidate as string) }))
+                                }
+                              }} style={{ accentColor: SG }} />
+                              {opt === 'existing' ? 'Keep existing' : opt === 'candidate' ? 'Use candidate' : 'Custom / append'}
+                            </label>
+                          ))}
+                        </div>
+                        {choice === 'custom' && (
+                          <textarea
+                            value={customValues[f.camel] || ''}
+                            onChange={e => setCustomValues(prev => ({ ...prev, [f.camel]: e.target.value }))}
+                            rows={4}
+                            style={{ width: '100%', boxSizing: 'border-box', marginTop: 8, background: isDark ? 'rgba(255,255,255,0.04)' : '#f8f7f2', border: `1px solid ${SBDR}`, borderRadius: 4, padding: '6px 10px', color: STXT, fontFamily: crimson, fontSize: 13, outline: 'none', resize: 'vertical' }}
+                          />
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+
+            {autoFields.length === 0 && conflictFields.length === 0 && (
+              <div style={{ padding: 16, textAlign: 'center', fontFamily: crimson, fontSize: 13, color: SMUT }}>No field differences detected. Candidate adds nothing new to {targetRow.name}.</div>
+            )}
+
+            {submitError && (
+              <div style={{ marginBottom: 12, padding: '8px 12px', background: 'rgba(248,113,113,0.06)', border: '1px solid rgba(248,113,113,0.25)', borderRadius: 4, fontFamily: crimson, fontSize: 12, color: '#f87171' }}>{submitError}</div>
+            )}
+
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', paddingTop: 8, borderTop: `1px solid ${SBDR}` }}>
+              <button
+                onClick={onClose}
+                style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', color: SMUT, background: 'none', border: `1px solid ${SBDR}`, borderRadius: 5, padding: '9px 18px', cursor: 'pointer' }}
+              >Cancel</button>
+              <button
+                onClick={handleSubmit}
+                disabled={submitting || !targetSlug}
+                style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', color: '#0D0B14', background: SG, border: 'none', borderRadius: 5, padding: '9px 22px', cursor: submitting || !targetSlug ? 'not-allowed' : 'pointer', opacity: !targetSlug ? 0.5 : 1 }}
+              >{submitting ? 'Merging...' : '✓ CONFIRM MERGE'}</button>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  )
+}
+
 // ─── SPIRIT CANDIDATES MANAGER ───────────────────────────────────────────────
-function SpiritCandidatesManager({ getToken, isDark, setTab }: { getToken: any; isDark: boolean; setTab?: (t: string) => void }) {
+function SpiritCandidatesManager({ getToken, isDark, allSpirits }: { getToken: any; isDark: boolean; allSpirits: any[] }) {
   const SSURF = isDark ? '#13111a' : '#fff'
   const SBDR  = isDark ? 'rgba(201,168,76,0.2)' : 'rgba(139,105,20,0.25)'
   const STXT  = isDark ? '#e8e0d0' : '#2D2924'
@@ -11989,6 +12283,7 @@ function SpiritCandidatesManager({ getToken, isDark, setTab }: { getToken: any; 
   const [variantsOnly, setVariantsOnly]           = useState(false)
   const [runningLayer2Id, setRunningLayer2Id]     = useState<string | null>(null)
   const [layer2Error, setLayer2Error]             = useState<{ id: string; msg: string } | null>(null)
+  const [mergeModalCandidate, setMergeModalCandidate] = useState<any | null>(null)
 
   // Hydrate filter state from URL params on mount (enables deep-linking)
   useEffect(() => {
@@ -12564,14 +12859,9 @@ function SpiritCandidatesManager({ getToken, isDark, setTab }: { getToken: any; 
                         >{isRejectOpen ? 'Cancel' : '✗ Reject'}</button>
                       </>
                     )}
-                    {c.possible_duplicate_of && setTab && (
+                    {c.possible_duplicate_of && (
                       <button
-                        onClick={e => {
-                          e.stopPropagation()
-                          sessionStorage.setItem('dupeFinderSearch', c.possible_duplicate_of as string)
-                          sessionStorage.setItem('intelTabTarget', 'duplicates')
-                          setTab('intel')
-                        }}
+                        onClick={e => { e.stopPropagation(); setMergeModalCandidate(c) }}
                         style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', color: '#E4A743', background: 'rgba(228,167,67,0.08)', border: '1px solid rgba(228,167,67,0.3)', borderRadius: 4, padding: '6px 12px', cursor: 'pointer' }}
                       >✦ Merge into {c.possible_duplicate_of}</button>
                     )}
@@ -12629,6 +12919,18 @@ function SpiritCandidatesManager({ getToken, isDark, setTab }: { getToken: any; 
             </div>
           </div>
         </div>
+      )}
+
+      {/* Variant merge modal */}
+      {mergeModalCandidate && (
+        <SpiritVariantMergeModal
+          candidate={mergeModalCandidate}
+          allSpirits={allSpirits}
+          getToken={getToken}
+          isDark={isDark}
+          onClose={() => setMergeModalCandidate(null)}
+          onSuccess={() => { setMergeModalCandidate(null); loadCandidates() }}
+        />
       )}
     </div>
   )
@@ -12902,7 +13204,7 @@ function AdminPage() {
             {tab === 'field-ministry'    && <FieldMinistryManager getToken={getToken} isDark={isDark} />}
             {tab === 'documents'         && <DocumentsView getToken={getToken} isDark={isDark} demons={dashDemons} />}
             {tab === 'library'           && <LibraryManager getToken={getToken} isDark={isDark} />}
-            {tab === 'spirit-candidates' && <SpiritCandidatesManager getToken={getToken} isDark={isDark} setTab={setTab as (t: string) => void} />}
+            {tab === 'spirit-candidates' && <SpiritCandidatesManager getToken={getToken} isDark={isDark} allSpirits={dashDemons} />}
             {tab === 'sources'           && <SourcesMasterList getToken={getToken} isDark={isDark} />}
             {tab === 'spiritual-mapping' && <SpiritualMappingAdmin isDark={isDark} />}
             {tab === 'lib-intel'         && <LibraryIntelligence getToken={getToken} isDark={isDark} />}
