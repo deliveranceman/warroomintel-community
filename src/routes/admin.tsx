@@ -2622,13 +2622,13 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
     for (const [key, entries] of Object.entries(exactMap)) {
       if (entries.length > 1) {
         result.push({ key, type: 'exact', entries })
-        entries.forEach(d => usedIds.add(d.airtableId))
+        entries.forEach(d => usedIds.add(d.id))
       }
     }
     // Pass 2: near (normalized name match)
     const normMap: Record<string, any[]> = {}
     for (const d of demons) {
-      if (usedIds.has(d.airtableId)) continue
+      if (usedIds.has(d.id)) continue
       const key = normalizeSpiritName(d.name || '')
       if (!key) continue
       if (!normMap[key]) normMap[key] = []
@@ -2639,12 +2639,12 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
         const rawNames = [...new Set(entries.map(d => (d.name || '').toLowerCase().trim()))]
         if (rawNames.length > 1) {
           result.push({ key, type: 'near', entries })
-          entries.forEach(d => usedIds.add(d.airtableId))
+          entries.forEach(d => usedIds.add(d.id))
         }
       }
     }
     // Pass 3: fuzzy (similarity >= 0.75)
-    const remaining = demons.filter(d => !usedIds.has(d.airtableId))
+    const remaining = demons.filter(d => !usedIds.has(d.id))
     const seen = new Set<string>()
     for (let i = 0; i < remaining.length; i++) {
       for (let j = i + 1; j < remaining.length; j++) {
@@ -2652,7 +2652,7 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
         const nb = normalizeSpiritName(remaining[j].name || '')
         if (!na || !nb || na === nb) continue
         if (nameSimilarity(na, nb) >= 0.75) {
-          const pKey = [remaining[i].airtableId, remaining[j].airtableId].sort().join('|')
+          const pKey = [remaining[i].id, remaining[j].id].sort().join('|')
           if (!seen.has(pKey)) {
             seen.add(pKey)
             result.push({ key: pKey, type: 'fuzzy', entries: [remaining[i], remaining[j]] })
@@ -4082,9 +4082,9 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
                         </div>
                       )}
                       {results.map((d, i) => {
-                        const isSelA = searchMergeA?.airtableId === d.airtableId
+                        const isSelA = !!(searchMergeA && searchMergeA.id && d.id && searchMergeA.id === d.id)
                         return (
-                          <div key={d.airtableId} style={{ padding: '9px 12px', borderBottom: i < results.length - 1 ? `1px solid ${adBdr}` : 'none', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, background: isSelA ? 'rgba(201,168,76,0.06)' : 'transparent' }}>
+                          <div key={d.id} style={{ padding: '9px 12px', borderBottom: i < results.length - 1 ? `1px solid ${adBdr}` : 'none', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, background: isSelA ? 'rgba(201,168,76,0.06)' : 'transparent' }}>
                             <div>
                               <span style={{ fontFamily: crimson, fontSize: 14, color: adTxt }}>{d.name}</span>
                               {d.biblicalRank && <span style={{ fontFamily: cinzel, fontSize: 8, color: adDim, marginLeft: 8, border: `1px solid ${adBdr}`, borderRadius: 3, padding: '1px 6px', letterSpacing: '0.05em' }}>{d.biblicalRank}</span>}
@@ -4095,7 +4095,7 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
                                 DESELECT
                               </button>
                             ) : searchMergeA ? (
-                              <button onClick={() => openMerge(`search-${searchMergeA.airtableId}-${d.airtableId}`, searchMergeA, d)}
+                              <button onClick={() => openMerge(`search-${searchMergeA.id}-${d.id}`, searchMergeA, d)}
                                 style={{ padding: '4px 12px', background: adGold, border: 'none', borderRadius: 3, color: '#0D0B14', fontFamily: cinzel, fontSize: 8, letterSpacing: '0.06em', cursor: 'pointer', fontWeight: 700 }}>
                                 ⚔ MERGE WITH A
                               </button>
