@@ -1344,7 +1344,7 @@ function SpiritEditForm({ fields, setField, onSave, onCancel, saving, msg, demon
         <div><label style={l}>Typical Personality Presentation</label>{ti('Typical Personality Presentation')}</div>
         <div style={{ gridColumn: '1 / -1' }}><label style={l}>Counter Scriptures</label>{ta('Counter Scriptures')}</div>
         <div><label style={l}>Scripture Reference</label>{ti('Scripture Reference')}</div>
-        <div><label style={l}>Source / Orgin</label>{ti('Source / Orgin')}</div>
+        <div><label style={l}>Source / Origin</label>{ti('Source / Orgin')}</div>
         <div><label style={l}>Strongman</label>{ti('Strongman')}</div>
         <div><label style={l}>Assignment</label>{ti('Assignment')}</div>
         <div style={{ gridColumn: '1 / -1' }}>
@@ -12183,7 +12183,7 @@ function SpiritCandidatesManager({ getToken, isDark }: { getToken: any; isDark: 
                         onClick={() => handleEnrich(c.id)}
                         disabled={enrichingId === c.id}
                         style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', color: '#7ab4e0', background: 'rgba(122,180,224,0.08)', border: '1px solid rgba(122,180,224,0.25)', borderRadius: 4, padding: '6px 12px', cursor: 'pointer' }}
-                      >{enrichingId === c.id ? 'Enriching...' : '✦ Enrich with AI'}</button>
+                      >{enrichingId === c.id ? 'Enriching...' : '✦ Enrich with SOL'}</button>
                     )}
                     {c.status === 'pending' && (
                       <>
@@ -12229,7 +12229,7 @@ function SpiritCandidatesManager({ getToken, isDark }: { getToken: any; isDark: 
       {previewData && (
         <div style={{ position: 'fixed' as const, inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
           <div style={{ background: isDark ? '#13111e' : '#fff', border: `1px solid ${SG}44`, borderRadius: 10, padding: 28, width: '100%', maxWidth: 520, maxHeight: '80vh', overflowY: 'auto' as const }}>
-            <div style={{ fontFamily: cinzel, fontSize: 12, color: SG, letterSpacing: '0.1em', marginBottom: 18 }}>AIRTABLE RECORD PREVIEW</div>
+            <div style={{ fontFamily: cinzel, fontSize: 12, color: SG, letterSpacing: '0.1em', marginBottom: 18 }}>INTEL ARCHIVE PREVIEW</div>
             <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 10, marginBottom: 20 }}>
               {Object.entries(previewData.preview).map(([k, v]) => v ? (
                 <div key={k}>
