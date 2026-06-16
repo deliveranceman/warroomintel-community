@@ -12515,26 +12515,40 @@ function SpiritCandidatesManager({ getToken, isDark, allSpirits }: { getToken: a
         body: JSON.stringify({ candidateId }),
       })
 
-      // ── 504/502: Netlify timed out the response but the server is still running.
-      //     The extraction usually completes within another 15-45 seconds.
+      // ── 504/502: Netlify timed out but the server is likely still running.
       if (res.status === 504 || res.status === 502) {
         console.log(`[runLayer2] ${res.status} — polling for delayed completion`)
 
         const POLL_ATTEMPTS    = 12
         const POLL_INTERVAL_MS = 4000
+        // Capture token once outside the loop — getToken() is async and may be slow.
+        const pollToken = await getToken()
+        // Capture filter value at call-time (closure-safe — no stale React state read).
+        const statusParam = filter !== 'all' ? filter : 'pending'
 
         for (let attempt = 0; attempt < POLL_ATTEMPTS; attempt++) {
           await new Promise(r => setTimeout(r, POLL_INTERVAL_MS))
-          await loadCandidates()
 
-          const updated = candidates.find((c: any) => c.id === candidateId)
-          if (updated?._hasLayer2) {
-            alert('Layer 2 extraction completed (took longer than 30 seconds — Netlify proxy timed out but the server finished and the data has loaded).')
-            return
+          // Direct fetch inside the loop — avoids the React state closure stale-read bug.
+          try {
+            const probeRes = await fetch(
+              `/api/spirit-candidates?stats=true&status=${encodeURIComponent(statusParam)}`,
+              { headers: { Authorization: `Bearer ${pollToken}` } }
+            )
+            if (!probeRes.ok) continue
+            const probeData = await probeRes.json()
+            const updated = (probeData.candidates as any[])?.find(c => c.id === candidateId)
+            if (updated?._hasLayer2) {
+              await loadCandidates()
+              alert('Layer 2 extraction completed (Netlify proxy timed out at 30s, but the server finished and the data has loaded).')
+              return
+            }
+          } catch (e) {
+            console.warn('[runLayer2] poll attempt failed, will retry:', e)
           }
         }
 
-        alert('Extraction has been running for over 48 seconds without completion. The background job may still be processing — refresh the page in a minute, or try Run Layer 2 again.')
+        alert('Extraction has been running for over 48 seconds without completion. The server may still be processing — refresh the page in a minute, or try Run Layer 2 again.')
         return
       }
 
