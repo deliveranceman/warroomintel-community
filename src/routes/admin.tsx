@@ -12125,7 +12125,26 @@ function SpiritCandidatesManager({ getToken, isDark }: { getToken: any; isDark: 
     return true
   })
 
-  const CONF_COLORS: Record<string, string> = { high: '#4ade80', medium: SG, low: SMUT }
+  function trimSourceName(s: string | null | undefined): string {
+    if (!s) return '--'
+    return s.replace(/^\d+\s+/, '').trim() || s
+  }
+
+  const LEVEL_STYLES: Record<string, { text: string; bg: string; border: string }> = {
+    named:      { text: '#f87171', bg: 'rgba(248,113,113,0.08)', border: 'rgba(248,113,113,0.25)' },
+    functional: { text: '#fb923c', bg: 'rgba(251,146,60,0.08)',  border: 'rgba(251,146,60,0.25)'  },
+    rank:       { text: '#a78bfa', bg: 'rgba(167,139,250,0.08)', border: 'rgba(167,139,250,0.25)' },
+  }
+
+  const LAYER_SECTIONS: { label: string; keys: string[] }[] = [
+    { label: 'LINE',              keys: ['sourceOrigin','culturalPresence','etymologyNotes','archaeologyNotes','institutionalExpression','isGenerational','isTerritorial'] },
+    { label: 'NETWORK',          keys: ['strongman','parentStrongman','companionSpirits','clusterSpirits','relatedSpirits'] },
+    { label: 'GATEWAYS',         keys: ['entryPoints','legalRights','transmissionVectors','demonicAgreements'] },
+    { label: 'MANIFESTATIONS',   keys: ['manifestation','symptoms','sessionIndicators','personalityPresentation','primaryBattlefield'] },
+    { label: 'SCRIPTURE',        keys: ['scripture','scriptureContext','counterScriptures','description'] },
+    { label: 'COUNTER',          keys: ['deliveranceSequence','prayerPoints','sessionTriggerQuestions','resistanceSignature','aftercareNotes','operationalNotes'] },
+  ]
+
   const STAT_COLORS: Record<string, { bg: string; border: string; text: string }> = {
     pending:   { bg: 'rgba(201,168,76,0.08)',  border: 'rgba(201,168,76,0.3)',  text: SG },
     approved:  { bg: 'rgba(74,222,128,0.08)',  border: 'rgba(74,222,128,0.25)', text: '#4ade80' },
@@ -12237,8 +12256,8 @@ function SpiritCandidatesManager({ getToken, isDark }: { getToken: any; isDark: 
       {/* Table */}
       <div style={{ background: SSURF, border: `1px solid ${SBDR}`, borderRadius: 8, overflow: 'hidden' }}>
         {/* Header */}
-        <div style={{ display: 'grid', gridTemplateColumns: '200px 80px 1fr 100px 90px 90px', gap: 8, padding: '10px 14px', background: isDark ? '#1a1726' : '#f5f3ef', borderBottom: `1px solid ${SBDR}` }}>
-          {['NAME','CONF','SOURCE','KINGDOM','RANK','STATUS'].map(h => (
+        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(120px,1.5fr) minmax(80px,1fr) 60px 80px 72px minmax(80px,1.5fr) 72px 20px', gap: 8, padding: '10px 14px', background: isDark ? '#1a1726' : '#f5f3ef', borderBottom: `1px solid ${SBDR}` }}>
+          {['NAME','SOURCE','CONF','STATUS','ENTITY','EXCERPT','ADV',''].map(h => (
             <div key={h} style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.12em', color: SMUT }}>{h}</div>
           ))}
         </div>
@@ -12248,59 +12267,157 @@ function SpiritCandidatesManager({ getToken, isDark }: { getToken: any; isDark: 
         ) : filteredCandidates.length === 0 ? (
           <div style={{ padding: 40, textAlign: 'center' as const, fontFamily: crimson, fontSize: 14, color: SMUT, fontStyle: 'italic' }}>No candidates match the current filter.</div>
         ) : filteredCandidates.map((c: any) => {
-          const isExpanded    = expandedId === c.id
-          const sc            = STAT_COLORS[c.status] || STAT_COLORS['pending']
-          const isConfirmed   = confirmedIds.has(c.id)
-          const isRejectOpen  = rejectExpanded === c.id
+          const isExpanded   = expandedId === c.id
+          const sc           = STAT_COLORS[c.status] || STAT_COLORS['pending']
+          const isConfirmed  = confirmedIds.has(c.id)
+          const isRejectOpen = rejectExpanded === c.id
+          const hasL2        = c._hasLayer2 === true
+          const confPct      = confToInt(c.confidence)
+          const confColor    = confPct >= 70 ? '#4ade80' : confPct >= 40 ? SG : SMUT
+          const entityLevel  = (c._proposedFields as any)?.entityLevel as string | undefined
+          const levelStyle   = entityLevel ? (LEVEL_STYLES[entityLevel.toLowerCase()] || null) : null
+          const excerptText  = c._sourceExcerpt as string | undefined
+          const isMerged     = c.name?.includes('/')
+          const gridCols     = 'minmax(120px,1.5fr) minmax(80px,1fr) 60px 80px 72px minmax(80px,1.5fr) 72px 20px'
+
           return (
             <div key={c.id} style={{ borderBottom: `1px solid ${SBDR}`, background: isConfirmed ? 'rgba(201,168,76,0.05)' : 'transparent' }}>
               {/* Row */}
               <div
                 onClick={() => setExpandedId(isExpanded ? null : c.id)}
-                style={{ display: 'grid', gridTemplateColumns: '200px 80px 1fr 100px 90px 90px', gap: 8, padding: '10px 14px', cursor: 'pointer', transition: 'background 0.1s' }}
+                style={{ display: 'grid', gridTemplateColumns: gridCols, gap: 8, padding: '10px 14px', cursor: 'pointer', transition: 'background 0.1s', alignItems: 'center' }}
                 onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(201,168,76,0.03)' }}
                 onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent' }}
               >
-                <div style={{ fontFamily: cinzel, fontSize: 10, color: isConfirmed ? SG : STXT, letterSpacing: '0.04em' }}>
-                  {c.name}
-                  {isConfirmed && <span style={{ marginLeft: 6, fontSize: 9, color: SG }}>✓</span>}
+                {/* NAME */}
+                <div style={{ fontFamily: cinzel, fontSize: 10, color: isConfirmed ? SG : STXT, letterSpacing: '0.04em', display: 'flex', alignItems: 'center', gap: 4, overflow: 'hidden' }}>
+                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{c.name}</span>
+                  {isMerged && <span style={{ flexShrink: 0, fontFamily: cinzel, fontSize: 7, color: '#fbbf24', background: 'rgba(251,191,36,0.1)', border: '1px solid rgba(251,191,36,0.3)', borderRadius: 2, padding: '1px 4px' }}>⚠ MERGED</span>}
+                  {isConfirmed && <span style={{ flexShrink: 0, fontSize: 9, color: SG }}>✓</span>}
                 </div>
-                <div style={{ fontFamily: cinzel, fontSize: 9, color: CONF_COLORS[c.confidence] || SMUT }}>{(c.confidence || '').toUpperCase()}</div>
-                <div style={{ fontFamily: crimson, fontSize: 12, color: SMUT, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{c.source_name || '--'}</div>
-                <div style={{ fontFamily: crimson, fontSize: 12, color: SMUT }}>{c.kingdom || '--'}</div>
-                <div style={{ fontFamily: crimson, fontSize: 12, color: SMUT }}>{c.biblical_rank || '--'}</div>
+
+                {/* SOURCE */}
+                <div style={{ fontFamily: crimson, fontSize: 11, color: SMUT, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{trimSourceName(c.source_name)}</div>
+
+                {/* CONF */}
+                <div style={{ fontFamily: cinzel, fontSize: 9, color: confColor, letterSpacing: '0.04em' }}>{confPct > 0 ? `${confPct}%` : (c.confidence || '').toUpperCase()}</div>
+
+                {/* STATUS */}
                 <div>
                   <span style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.06em', color: sc.text, background: sc.bg, border: `1px solid ${sc.border}`, borderRadius: 3, padding: '2px 7px' }}>{c.status}</span>
                 </div>
+
+                {/* ENTITY */}
+                <div>
+                  {levelStyle ? (
+                    <span style={{ fontFamily: cinzel, fontSize: 7, letterSpacing: '0.06em', color: levelStyle.text, background: levelStyle.bg, border: `1px solid ${levelStyle.border}`, borderRadius: 3, padding: '2px 6px' }}>{(entityLevel || '').toUpperCase()}</span>
+                  ) : <span style={{ fontFamily: crimson, fontSize: 11, color: SMUT }}>—</span>}
+                </div>
+
+                {/* EXCERPT */}
+                <div style={{ fontFamily: crimson, fontSize: 11, color: SMUT, fontStyle: 'italic', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>
+                  {excerptText ? excerptText.slice(0, 120) : '—'}
+                </div>
+
+                {/* ADV */}
+                <div>
+                  {c.is_adversarial && <span style={{ fontFamily: cinzel, fontSize: 7, color: '#f87171', background: 'rgba(248,113,113,0.1)', border: '1px solid rgba(248,113,113,0.3)', borderRadius: 2, padding: '1px 5px', letterSpacing: '0.06em' }}>ADV</span>}
+                </div>
+
+                {/* CHEVRON */}
+                <div style={{ fontFamily: crimson, fontSize: 10, color: SMUT, textAlign: 'right' as const }}>{isExpanded ? '▼' : '▶'}</div>
               </div>
 
               {/* Expanded detail */}
               {isExpanded && (
                 <div style={{ padding: '14px 18px', background: 'rgba(255,255,255,0.02)', borderTop: `1px solid ${SBDR}` }}>
-                  {/* Enrichment fields */}
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
-                    {[
-                      { label: 'Function',     value: c.function         },
-                      { label: 'Manifestations', value: c.manifestations  },
-                      { label: 'Scripture',    value: c.scripture_context },
-                      { label: 'Sub-Kingdom',  value: c.sub_kingdom       },
-                      { label: 'Also Known As',value: c.also_known_as     },
-                      { label: 'Notes',        value: c.ai_notes          },
-                    ].map(f => f.value ? (
-                      <div key={f.label}>
-                        <div style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.1em', color: SMUT, marginBottom: 3 }}>{f.label.toUpperCase()}</div>
-                        <div style={{ fontFamily: crimson, fontSize: 13, color: STXT, lineHeight: 1.5 }}>{f.value}</div>
+
+                  {/* Adversarial banner */}
+                  {c.is_adversarial && (
+                    <div style={{ marginBottom: 12, padding: '6px 12px', background: 'rgba(248,113,113,0.06)', border: '1px solid rgba(248,113,113,0.2)', borderRadius: 4 }}>
+                      <span style={{ fontFamily: cinzel, fontSize: 8, color: '#f87171', letterSpacing: '0.1em' }}>⚠ ADVERSARIAL SOURCE — verify claims independently</span>
+                    </div>
+                  )}
+
+                  {/* STATE A: Layer 2 data exists */}
+                  {hasL2 ? (
+                    <>
+                      {/* Source excerpt */}
+                      {excerptText && (
+                        <div style={{ marginBottom: 14 }}>
+                          <div style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.1em', color: SMUT, marginBottom: 4 }}>SOURCE EXCERPT</div>
+                          <div style={{ fontFamily: crimson, fontSize: 13, color: STXT, lineHeight: 1.6, fontStyle: 'italic', borderLeft: `2px solid ${SBDR}`, paddingLeft: 10 }}>{excerptText}</div>
+                        </div>
+                      )}
+
+                      {/* Layer 2 sections */}
+                      {LAYER_SECTIONS.map(section => {
+                        const proposedFields = c._proposedFields as Record<string, string> | undefined
+                        const entries = proposedFields
+                          ? section.keys.filter(k => proposedFields[k]).map(k => ({ key: k, value: proposedFields[k] }))
+                          : []
+                        if (entries.length === 0) return null
+                        return (
+                          <div key={section.label} style={{ marginBottom: 14 }}>
+                            <div style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.14em', color: SG, marginBottom: 6, paddingBottom: 4, borderBottom: `1px solid ${SBDR}` }}>{section.label}</div>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                              {entries.map(({ key, value }) => (
+                                <div key={key}>
+                                  <div style={{ fontFamily: cinzel, fontSize: 7, letterSpacing: '0.1em', color: SMUT, marginBottom: 2 }}>{key.replace(/([A-Z])/g, ' $1').toUpperCase().trim()}</div>
+                                  <div style={{ fontFamily: crimson, fontSize: 12, color: STXT, lineHeight: 1.5 }}>{value}</div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </>
+                  ) : (
+                    /* STATE B: name-only / no Layer 2 */
+                    <>
+                      {/* Flat candidate fields */}
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
+                        {[
+                          { label: 'Function',       value: c.function          },
+                          { label: 'Manifestations', value: c.manifestations     },
+                          { label: 'Scripture',      value: c.scripture_context  },
+                          { label: 'Sub-Kingdom',    value: c.sub_kingdom        },
+                          { label: 'Also Known As',  value: c.also_known_as      },
+                          { label: 'Notes',          value: c.ai_notes           },
+                        ].map(f => f.value ? (
+                          <div key={f.label}>
+                            <div style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.1em', color: SMUT, marginBottom: 3 }}>{f.label.toUpperCase()}</div>
+                            <div style={{ fontFamily: crimson, fontSize: 13, color: STXT, lineHeight: 1.5 }}>{f.value}</div>
+                          </div>
+                        ) : null)}
                       </div>
-                    ) : null)}
-                  </div>
+
+                      {/* Taxonomy chips */}
+                      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' as const, marginBottom: 14 }}>
+                        {c.kingdom && <span style={{ fontFamily: cinzel, fontSize: 7, color: SMUT, background: 'rgba(255,255,255,0.04)', border: `1px solid ${SBDR}`, borderRadius: 3, padding: '2px 7px', letterSpacing: '0.06em' }}>{c.kingdom}</span>}
+                        {c.biblical_rank && <span style={{ fontFamily: cinzel, fontSize: 7, color: SMUT, background: 'rgba(255,255,255,0.04)', border: `1px solid ${SBDR}`, borderRadius: 3, padding: '2px 7px', letterSpacing: '0.06em' }}>{c.biblical_rank}</span>}
+                        {c.sub_kingdom && <span style={{ fontFamily: cinzel, fontSize: 7, color: SMUT, background: 'rgba(255,255,255,0.04)', border: `1px solid ${SBDR}`, borderRadius: 3, padding: '2px 7px', letterSpacing: '0.06em' }}>{c.sub_kingdom}</span>}
+                      </div>
+
+                      {/* Run Layer 2 CTA (disabled placeholder) */}
+                      <div style={{ marginBottom: 14, padding: '10px 14px', background: 'rgba(122,180,224,0.04)', border: '1px solid rgba(122,180,224,0.15)', borderRadius: 5 }}>
+                        <div style={{ fontFamily: cinzel, fontSize: 8, color: '#7ab4e0', letterSpacing: '0.1em', marginBottom: 6 }}>NO LAYER 2 DATA</div>
+                        <div style={{ fontFamily: crimson, fontSize: 12, color: SMUT, marginBottom: 8 }}>Run a full Layer 2 extraction to surface detailed gateways, manifestations, network, and counter-strategy fields from this source.</div>
+                        <button
+                          disabled
+                          style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', color: '#7ab4e0', background: 'rgba(122,180,224,0.06)', border: '1px solid rgba(122,180,224,0.2)', borderRadius: 4, padding: '6px 14px', cursor: 'not-allowed', opacity: 0.5 }}
+                        >▶ Run Layer 2 (coming soon)</button>
+                      </div>
+                    </>
+                  )}
 
                   {/* Duplicate warning */}
                   {c.duplicate_of && (
                     <div style={{ marginBottom: 12, padding: '8px 12px', background: 'rgba(251,191,36,0.08)', border: '1px solid rgba(251,191,36,0.25)', borderRadius: 5 }}>
                       <div style={{ fontFamily: cinzel, fontSize: 9, color: '#fbbf24', letterSpacing: '0.08em', marginBottom: 6 }}>May already exist as: {c.duplicate_of}</div>
                       <div style={{ display: 'flex', gap: 8 }}>
-                        <button onClick={() => handleAction('unmark-duplicate', c.id)} style={{ fontFamily: cinzel, fontSize: 8, color: SG, background: 'rgba(201,168,76,0.08)', border: `1px solid ${SBDR}`, borderRadius: 3, padding: '4px 10px', cursor: 'pointer' }}>It's Different — Keep</button>
-                        <button onClick={() => handleAction('mark-duplicate', c.id)}   style={{ fontFamily: cinzel, fontSize: 8, color: '#fbbf24', background: 'rgba(251,191,36,0.06)', border: '1px solid rgba(251,191,36,0.2)', borderRadius: 3, padding: '4px 10px', cursor: 'pointer' }}>Mark as Duplicate</button>
+                        <button onClick={e => { e.stopPropagation(); handleAction('unmark-duplicate', c.id) }} style={{ fontFamily: cinzel, fontSize: 8, color: SG, background: 'rgba(201,168,76,0.08)', border: `1px solid ${SBDR}`, borderRadius: 3, padding: '4px 10px', cursor: 'pointer' }}>It's Different — Keep</button>
+                        <button onClick={e => { e.stopPropagation(); handleAction('mark-duplicate', c.id) }}   style={{ fontFamily: cinzel, fontSize: 8, color: '#fbbf24', background: 'rgba(251,191,36,0.06)', border: '1px solid rgba(251,191,36,0.2)', borderRadius: 3, padding: '4px 10px', cursor: 'pointer' }}>Mark as Duplicate</button>
                       </div>
                     </div>
                   )}
@@ -12316,7 +12433,7 @@ function SpiritCandidatesManager({ getToken, isDark }: { getToken: any; isDark: 
                   <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' as const }}>
                     {(c.enrichment_status === 'pending' || c.enrichment_status === 'failed') && (
                       <button
-                        onClick={() => handleEnrich(c.id)}
+                        onClick={e => { e.stopPropagation(); handleEnrich(c.id) }}
                         disabled={enrichingId === c.id}
                         style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', color: '#7ab4e0', background: 'rgba(122,180,224,0.08)', border: '1px solid rgba(122,180,224,0.25)', borderRadius: 4, padding: '6px 12px', cursor: 'pointer' }}
                       >{enrichingId === c.id ? 'Enriching...' : '✦ Enrich with SOL'}</button>
@@ -12324,11 +12441,11 @@ function SpiritCandidatesManager({ getToken, isDark }: { getToken: any; isDark: 
                     {c.status === 'pending' && (
                       <>
                         <button
-                          onClick={() => handleGetPreview(c.id)}
+                          onClick={e => { e.stopPropagation(); handleGetPreview(c.id) }}
                           style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', color: SG, background: 'rgba(201,168,76,0.08)', border: `1px solid ${SBDR}`, borderRadius: 4, padding: '6px 12px', cursor: 'pointer' }}
                         >Preview for Approval</button>
                         <button
-                          onClick={() => { setRejectExpanded(isRejectOpen ? null : c.id); setRejectReason('') }}
+                          onClick={e => { e.stopPropagation(); setRejectExpanded(isRejectOpen ? null : c.id); setRejectReason('') }}
                           style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', color: '#f87171', background: 'rgba(248,113,113,0.08)', border: '1px solid rgba(248,113,113,0.25)', borderRadius: 4, padding: '6px 12px', cursor: 'pointer' }}
                         >{isRejectOpen ? 'Cancel' : '✗ Reject'}</button>
                       </>
@@ -12349,7 +12466,7 @@ function SpiritCandidatesManager({ getToken, isDark }: { getToken: any; isDark: 
                         style={{ width: '100%', boxSizing: 'border-box' as const, background: 'rgba(255,255,255,0.04)', border: `1px solid ${SBDR}`, borderRadius: 4, padding: '6px 10px', color: STXT, fontFamily: crimson, fontSize: 13, outline: 'none', resize: 'vertical' as const, marginBottom: 8 }}
                       />
                       <button
-                        onClick={() => handleAction('reject', c.id, { rejectionReason: rejectReason })}
+                        onClick={e => { e.stopPropagation(); handleAction('reject', c.id, { rejectionReason: rejectReason }) }}
                         style={{ fontFamily: cinzel, fontSize: 9, color: '#f87171', background: 'rgba(248,113,113,0.1)', border: '1px solid rgba(248,113,113,0.3)', borderRadius: 4, padding: '6px 14px', cursor: 'pointer' }}
                       >Confirm Reject</button>
                     </div>
