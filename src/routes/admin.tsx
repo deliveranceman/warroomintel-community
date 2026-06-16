@@ -13108,7 +13108,10 @@ function SpiritCandidatesManager({ getToken, isDark, allSpirits }: { getToken: a
 function AdminPage() {
   const { user, isLoaded } = useUser()
   const { getToken }       = useAuth()
-  const [tab, setTab]      = useState<'dashboard' | 'arsenal' | 'intel' | 'moderation' | 'training' | 'daily-brief' | 'field-ministry' | 'documents' | 'library' | 'spiritual-mapping' | 'lib-intel' | 'ai-command' | 'taxonomy' | 'tracker' | 'internal-books' | 'admin-chat' | 'enrichment' | 'suggested-edits' | 'ai-context' | 'notifications' | 'ai-usage-admin' | 'content-suggestions' | 'members' | 'test-sol' | 'sol-research' | 'atmosphere' | 'spirit-candidates' | 'sources' | 'modals' | 'help-docs' | 'research-drop'>('dashboard')
+  const [tab, setTab]      = useState<string>(() => {
+    if (typeof window === 'undefined') return 'dashboard'
+    return new URLSearchParams(window.location.search).get('tab') || 'dashboard'
+  })
   const [modTab, setModTab] = useState<'feedback' | 'testimony' | 'forum' | 'fieldreports' | 'flags'>('feedback')
   const [modBadge, setModBadge] = useState(0)
   useEffect(() => {
@@ -13120,6 +13123,15 @@ function AdminPage() {
         .catch(() => {})
     })
   }, [])
+  // Sync tab → URL so deep links like /admin?tab=spirit-candidates round-trip correctly.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    if (tab === 'dashboard') params.delete('tab')
+    else params.set('tab', tab)
+    const qs = params.toString()
+    window.history.replaceState({}, '', qs ? `${window.location.pathname}?${qs}` : window.location.pathname)
+  }, [tab])
+
   const [dashDemons, setDashDemons] = useState<any[]>([])
   useEffect(() => {
     getToken().then(token => fetch('/api/demons', { headers: { Authorization: `Bearer ${token}` } }).then(r => r.json()).then(d => setDashDemons(d.demons || [])).catch(() => {}))
