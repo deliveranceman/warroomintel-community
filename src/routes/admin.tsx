@@ -11986,6 +11986,7 @@ function SpiritCandidatesManager({ getToken, isDark, setTab }: { getToken: any; 
   const [confBands, setConfBands]                 = useState<string[]>([])
   const [entityLevelFilter, setEntityLevelFilter] = useState<string>('all')
   const [adversarialFilter, setAdversarialFilter] = useState<string>('all')
+  const [variantsOnly, setVariantsOnly]           = useState(false)
   const [runningLayer2Id, setRunningLayer2Id]     = useState<string | null>(null)
   const [layer2Error, setLayer2Error]             = useState<{ id: string; msg: string } | null>(null)
 
@@ -11997,6 +11998,7 @@ function SpiritCandidatesManager({ getToken, isDark, setTab }: { getToken: any; 
     if (params.has('conf')) setConfBands((params.get('conf') || '').split(',').filter(Boolean))
     if (params.has('level')) setEntityLevelFilter(params.get('level') || 'all')
     if (params.has('adv') && params.get('adv') !== 'all') setAdversarialFilter(params.get('adv') || 'all')
+    if (params.get('variants') === '1') setVariantsOnly(true)
     if (params.has('status')) {
       const s = params.get('status') as any
       if (['all','pending','approved','rejected','duplicate'].includes(s)) setFilter(s)
@@ -12017,11 +12019,13 @@ function SpiritCandidatesManager({ getToken, isDark, setTab }: { getToken: any; 
     else params.delete('level')
     if (adversarialFilter && adversarialFilter !== 'all') params.set('adv', adversarialFilter)
     else params.delete('adv')
+    if (variantsOnly) params.set('variants', '1')
+    else params.delete('variants')
     if (filter !== 'all') params.set('status', filter)
     else params.delete('status')
     const newSearch = params.toString()
     history.replaceState(null, '', newSearch ? `${window.location.pathname}?${newSearch}` : window.location.pathname)
-  }, [sourceFilter, hasL2Only, confBands, entityLevelFilter, adversarialFilter, filter])
+  }, [sourceFilter, hasL2Only, confBands, entityLevelFilter, adversarialFilter, variantsOnly, filter])
 
   useEffect(() => {
     loadCandidates()
@@ -12145,7 +12149,7 @@ function SpiritCandidatesManager({ getToken, isDark, setTab }: { getToken: any; 
   const sourcesInData = Array.from(new Set(candidates.map((c: any) => c.source_name).filter(Boolean))) as string[]
 
   // Apply all five new filters (client-side; status + search are server-side)
-  const activeFilters = sourceFilter !== 'all' || hasL2Only || confBands.length > 0 || entityLevelFilter !== 'all' || adversarialFilter !== 'all'
+  const activeFilters = sourceFilter !== 'all' || hasL2Only || confBands.length > 0 || entityLevelFilter !== 'all' || adversarialFilter !== 'all' || variantsOnly
   const filteredCandidates = candidates.filter((c: any) => {
     if (sourceFilter !== 'all' && c.source_name !== sourceFilter) return false
     if (hasL2Only && !c._hasLayer2) return false
@@ -12160,6 +12164,7 @@ function SpiritCandidatesManager({ getToken, isDark, setTab }: { getToken: any; 
     }
     if (adversarialFilter === 'true'  && !c.is_adversarial) return false
     if (adversarialFilter === 'false' &&  c.is_adversarial) return false
+    if (variantsOnly && !c.possible_duplicate_of) return false
     return true
   })
 
@@ -12276,6 +12281,14 @@ function SpiritCandidatesManager({ getToken, isDark, setTab }: { getToken: any; 
             >{label}</button>
           )
         })}
+
+        {/* Variants Only toggle */}
+        <button
+          type="button"
+          onClick={() => setVariantsOnly(v => !v)}
+          title="Show only candidates flagged as possible variants of existing spirits"
+          style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.05em', padding: '5px 10px', borderRadius: 4, border: `1px solid #F4D27A`, background: variantsOnly ? '#F4D27A' : 'transparent', color: variantsOnly ? '#1a1a1a' : '#F4D27A', cursor: 'pointer' }}
+        >~ Variants Only</button>
       </div>
 
       {/* Count + clear filters */}
@@ -12285,7 +12298,7 @@ function SpiritCandidatesManager({ getToken, isDark, setTab }: { getToken: any; 
         </span>
         {activeFilters && (
           <button
-            onClick={() => { setSourceFilter('all'); setHasL2Only(false); setConfBands([]); setEntityLevelFilter('all'); setAdversarialFilter('all') }}
+            onClick={() => { setSourceFilter('all'); setHasL2Only(false); setConfBands([]); setEntityLevelFilter('all'); setAdversarialFilter('all'); setVariantsOnly(false) }}
             style={{ fontFamily: cinzel, fontSize: 8, color: '#f87171', background: 'none', border: 'none', cursor: 'pointer', letterSpacing: '0.06em', padding: 0 }}
           >× Clear filters</button>
         )}
