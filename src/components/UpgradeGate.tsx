@@ -16,10 +16,11 @@ export interface UpgradeGateProps {
   description?: string
   requiredTier: string
   variant?: 'overlay' | 'banner' | 'screen'
+  isDark?: boolean
   children?: React.ReactNode
 }
 
-export function UpgradeGate({ featureName, description, requiredTier, variant = 'overlay', children }: UpgradeGateProps) {
+export function UpgradeGate({ featureName, description, requiredTier, variant = 'overlay', isDark = true, children }: UpgradeGateProps) {
   const { getToken } = useAuth()
   const { user } = useUser()
   const [upgradeMsg, setUpgradeMsg]       = useState<string | null>(null)
@@ -65,17 +66,17 @@ export function UpgradeGate({ featureName, description, requiredTier, variant = 
 
   const confirmDialog = confirmPending && (
     <div style={{ position: 'fixed', inset: 0, zIndex: 99999, background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
-      <div onClick={e => e.stopPropagation()} style={{ background: '#1a1726', border: '1px solid rgba(201,168,76,0.3)', borderRadius: 12, width: '100%', maxWidth: 420, padding: '28px 24px' }}>
+      <div onClick={e => e.stopPropagation()} style={{ background: isDark ? '#1a1726' : '#FFFFFF', border: '1px solid rgba(201,168,76,0.3)', borderRadius: 12, width: '100%', maxWidth: 420, padding: '28px 24px', boxShadow: isDark ? 'none' : '0 1px 2px rgba(60,45,15,.05), 0 4px 14px rgba(60,45,15,.04)' }}>
         <div style={{ fontFamily: cinzel, fontSize: 13, color: G, letterSpacing: '0.1em', marginBottom: 12 }}>
           {direction === 'upgrade' ? `UPGRADE TO ${requiredTier.toUpperCase()}` : `CHANGE TO ${requiredTier.toUpperCase()}`}
         </div>
-        <div style={{ fontFamily: crimson, fontSize: 14, color: '#c8bfa8', lineHeight: 1.6, marginBottom: 24 }}>
+        <div style={{ fontFamily: crimson, fontSize: 14, color: isDark ? '#c8bfa8' : '#352F22', lineHeight: 1.6, marginBottom: 24 }}>
           {direction === 'upgrade'
             ? `You'll be charged the prorated difference today and unlock all ${tierLabel}-tier features immediately.`
             : `Your plan changes to ${tierLabel} at the end of your current billing period. You keep your current access until then.`}
         </div>
         <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
-          <button onClick={() => setConfirmPending(false)} style={{ padding: '9px 20px', background: 'transparent', border: '1px solid rgba(201,168,76,0.3)', borderRadius: 6, color: '#a09080', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.06em', cursor: 'pointer' }}>Cancel</button>
+          <button onClick={() => setConfirmPending(false)} style={{ padding: '9px 20px', background: 'transparent', border: '1px solid rgba(201,168,76,0.3)', borderRadius: 6, color: isDark ? '#a09080' : '#574B33', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.06em', cursor: 'pointer' }}>Cancel</button>
           <button onClick={() => void executeUpgrade()} style={{ padding: '9px 20px', background: G, color: '#0D0B14', borderRadius: 6, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', fontWeight: 700, border: 'none', cursor: 'pointer' }}>
             {direction === 'upgrade' ? 'Confirm Upgrade' : 'Confirm Change'}
           </button>
@@ -86,7 +87,7 @@ export function UpgradeGate({ featureName, description, requiredTier, variant = 
 
   const noticeEl = upgradeMsg && (
     <div style={{ marginTop: 10, padding: '8px 12px', background: upgradeMsgErr ? 'rgba(239,68,68,0.1)' : 'rgba(201,168,76,0.08)', border: `1px solid ${upgradeMsgErr ? 'rgba(239,68,68,0.3)' : 'rgba(201,168,76,0.25)'}`, borderRadius: 6 }}>
-      <span style={{ fontFamily: crimson, fontSize: 13, color: upgradeMsgErr ? '#f87171' : '#e8e0d0' }}>{upgradeMsg}</span>
+      <span style={{ fontFamily: crimson, fontSize: 13, color: upgradeMsgErr ? '#f87171' : (isDark ? '#e8e0d0' : '#1F1B12') }}>{upgradeMsg}</span>
     </div>
   )
 
@@ -99,9 +100,9 @@ export function UpgradeGate({ featureName, description, requiredTier, variant = 
           <div style={{ filter: 'blur(4px)', userSelect: 'none' as const, pointerEvents: 'none' as const }}>
             {children}
           </div>
-          <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column' as const, alignItems: 'center', justifyContent: 'center', background: 'rgba(13,11,20,0.75)', borderRadius: 8 }}>
+          <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column' as const, alignItems: 'center', justifyContent: 'center', background: isDark ? 'rgba(13,11,20,0.75)' : 'rgba(237,235,226,0.82)', borderRadius: 8 }}>
             <div style={{ fontFamily: cinzel, fontSize: 12, color: G, letterSpacing: '0.1em', marginBottom: 8 }}>⚔ {requiredTier.toUpperCase()} INTEL</div>
-            <div style={{ fontFamily: crimson, fontSize: 14, color: '#e8e0d0', marginBottom: 16, textAlign: 'center' as const, padding: '0 20px', lineHeight: 1.5 }}>
+            <div style={{ fontFamily: crimson, fontSize: 14, color: isDark ? '#e8e0d0' : '#1F1B12', marginBottom: 16, textAlign: 'center' as const, padding: '0 20px', lineHeight: 1.5 }}>
               Upgrade to {tierLabel} to unlock this intelligence.
             </div>
             {noticeEl && <div style={{ marginBottom: 10, padding: '0 20px', width: '100%', boxSizing: 'border-box' as const }}>{noticeEl}</div>}
@@ -144,7 +145,7 @@ export function UpgradeGate({ featureName, description, requiredTier, variant = 
           {requiredTier.toUpperCase()} TIER REQUIRED
         </div>
         {description && (
-          <p style={{ fontFamily: crimson, fontSize: 15, color: '#9a8c74', lineHeight: 1.7, margin: '0 0 24px' }}>
+          <p style={{ fontFamily: crimson, fontSize: 15, color: isDark ? '#9a8c74' : '#574B33', lineHeight: 1.7, margin: '0 0 24px' }}>
             {description}
           </p>
         )}

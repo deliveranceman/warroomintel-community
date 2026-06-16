@@ -3883,6 +3883,7 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier, dem
   setFilterSheetOpen?: (v: boolean) => void
   setFilterCount?: (n: number) => void
 }) {
+  const isDark = theme !== 'light'
   const { getToken } = useAuth()
   const { user } = useUser()
   const [query, setQuery]         = useState('')
@@ -4977,7 +4978,7 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier, dem
 
               {/* TAB 2: INTELLIGENCE — Soldier+ */}
               {modalTab === 'intelligence' && (
-                <UpgradeGate variant="overlay" requiredTier="soldier" featureName="Soldier Intel">
+                <UpgradeGate variant="overlay" requiredTier="soldier" featureName="Soldier Intel" isDark={isDark}>
                   <FieldBlock label="Manifestations & Symptoms" value={entry.manifestation || entry.symptoms} />
                   <FieldBlock label="Entry Points" value={entry.entryPoints} />
                   <FieldBlock label="Scripture Reference" value={entry.scripture} color={G} />
@@ -5033,7 +5034,7 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier, dem
 
               {/* TAB 3: WARFARE — Commander+ */}
               {modalTab === 'warfare' && (
-                <UpgradeGate variant="overlay" requiredTier="commander" featureName="Commander Intel">
+                <UpgradeGate variant="overlay" requiredTier="commander" featureName="Commander Intel" isDark={isDark}>
                   <FieldBlock label="Session Indicators" value={entry.sessionIndicators} />
                   <FieldBlock label="Resistance Signature" value={entry.resistanceSignature} />
                   {entry.clusterSpirits && (
@@ -5127,7 +5128,7 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier, dem
 
               {/* TAB 4: RESEARCH — General+ */}
               {modalTab === 'scholarly' && (
-                <UpgradeGate variant="overlay" requiredTier="general" featureName="General Intel">
+                <UpgradeGate variant="overlay" requiredTier="general" featureName="General Intel" isDark={isDark}>
                   <FieldBlock label="Etymology & Name Analysis" value={entry.etymologyNotes} />
                   <FieldBlock label="Archaeological & ANE Context" value={entry.archaeologyNotes} />
                   <FieldBlock label="Scripture Context" value={entry.scriptureContext} />
@@ -5153,7 +5154,7 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier, dem
               {modalTab === 'protocol' && (
                 <div>
                   {!atLeast('commander') ? (
-                    <UpgradeGate variant="banner" featureName="Commander tier" requiredTier="commander" />
+                    <UpgradeGate variant="banner" featureName="Commander tier" requiredTier="commander" isDark={isDark} />
                   ) : !protocolResult ? (
                     <div>
                       <div style={{ marginBottom: 16 }}>
@@ -14540,7 +14541,7 @@ function CommunityPage() {
       {activeSection === 'investigate'    && (tierLevel >= 2
         ? <InvestigatorView theme={theme} userTier={tier} isMobile={isMobile} setSidebarOpen={setSidebarOpen} setActiveSection={setActiveSection} />
         : <div style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', background: isDark ? '#0D0B14' : '#FAF8F5', padding:'40px 20px' }}>
-            <UpgradeGate variant="screen" requiredTier="commander" featureName="Symptom Investigator" description="The Symptom Investigator is a SOL-powered operational intelligence tool available to Commander and General members." />
+            <UpgradeGate variant="screen" requiredTier="commander" featureName="Symptom Investigator" description="The Symptom Investigator is a SOL-powered operational intelligence tool available to Commander and General members." isDark={isDark} />
           </div>
       )}
       {activeSection === 'arsenal'        && <div style={{ position: 'relative', flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}><ArsenalView theme={theme} userTier={tier} isMobile={isMobile} setSidebarOpen={setSidebarOpen} filterSheetOpen={arsenalFilterSheetOpen} setFilterSheetOpen={setArsenalFilterSheetOpen} setFilterCount={setArsenalFilterCount} /><OnboardingOverlay storageKey="onboard_arsenal" icon="✦" title="ARSENAL — MINISTRY RESOURCES" points={['Download protocols, worksheets, and teaching documents','Access level is based on your membership tier','Use Topic and Function filters to find what you need','Spirit Tags show which demons each document addresses']} /></div>}
@@ -14555,7 +14556,7 @@ function CommunityPage() {
             <OnboardingOverlay storageKey="onboard_spirit_network" icon="⚔️" title="SPIRIT NETWORK COMMAND CENTER" points={['Search for any spirit to pull its full intelligence profile','The org chart shows where it sits in the demonic hierarchy','Click companion spirit chips to navigate the network','Use breadcrumbs at the top to trace back up the tree']} />
           </div>
         : <div style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', background: isDark ? '#0D0B14' : '#FAF8F5', padding:'40px 20px' }}>
-            <UpgradeGate variant="screen" requiredTier="commander" featureName="Spirit Network" description="The Spirit Network is an interactive demonic hierarchy map for Commander-tier ministers and above." />
+            <UpgradeGate variant="screen" requiredTier="commander" featureName="Spirit Network" description="The Spirit Network is an interactive demonic hierarchy map for Commander-tier ministers and above." isDark={isDark} />
           </div>
       )}
       {activeSection === 'gateway'        && (tierLevel >= 1
@@ -14564,7 +14565,7 @@ function CommunityPage() {
             <OnboardingOverlay storageKey="onboard_gateway" icon="🧱" title="GATEWAY INVESTIGATOR" points={['Enter a spirit name to get its full entry point analysis','Add cultural exposure context for a more targeted report','SOL cross-references legal grounds, trauma patterns, and generational ties','Use this before or during a live deliverance session']} />
           </div>
         : <div style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', background: isDark ? '#0D0B14' : '#FAF8F5', padding:'40px 20px' }}>
-            <UpgradeGate variant="screen" requiredTier="soldier" featureName="Gateway Investigator" description="The Gateway Investigator identifies cultural entry points for any spirit. Available to Soldier, Commander, and General members." />
+            <UpgradeGate variant="screen" requiredTier="soldier" featureName="Gateway Investigator" description="The Gateway Investigator identifies cultural entry points for any spirit. Available to Soldier, Commander, and General members." isDark={isDark} />
           </div>
       )}
       {activeSection === 'training'       && <TrainingView theme={theme} isMobile={isMobile} setSidebarOpen={setSidebarOpen} userId={user?.id || ''} userTier={tier} getToken={getToken} setActiveSection={setActiveSection} />}
@@ -14572,13 +14573,13 @@ function CommunityPage() {
       {activeSection === 'document-creator' && (tierLevel >= 2
         ? <DocumentCreatorView isMobile={isMobile} setSidebarOpen={setSidebarOpen} getToken={getToken} />
         : <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', background: isDark ? '#0D0B14' : '#FAF8F5', padding: '40px 20px' }}>
-            <UpgradeGate variant="screen" requiredTier="commander" featureName="Document Creator" description="Upgrade to Commander to create and manage ministry documents." />
+            <UpgradeGate variant="screen" requiredTier="commander" featureName="Document Creator" description="Upgrade to Commander to create and manage ministry documents." isDark={isDark} />
           </div>
       )}
       {activeSection === 'session-center' && (tierLevel >= 2
         ? <SessionCenterView theme={theme} isMobile={isMobile} setSidebarOpen={setSidebarOpen} userId={user?.id || ''} getToken={getToken} demons={demons} userTier={tier} onLaunch={(sessionId?: string, caseFile?: any) => { setActiveSessionId(sessionId); setActiveSessionCF(caseFile); setSessionOpen(true) }} />
         : <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', background: isDark ? '#0D0B14' : '#FAF8F5', padding: '40px 20px' }}>
-            <UpgradeGate variant="screen" requiredTier="commander" featureName="Session Center" description="The Session Center is a live deliverance operations tool for Commander-tier ministers and above." />
+            <UpgradeGate variant="screen" requiredTier="commander" featureName="Session Center" description="The Session Center is a live deliverance operations tool for Commander-tier ministers and above." isDark={isDark} />
           </div>
       )}
       {activeSection === 'events'         && <EventsView theme={theme} isMobile={isMobile} setSidebarOpen={setSidebarOpen} userTier={tier} getToken={getToken} />}
@@ -14687,7 +14688,7 @@ function CommunityPage() {
               </div>
             </div>
           : <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', background: isDark ? '#0D0B14' : '#FAF8F5', padding: '40px 20px' }}>
-              <UpgradeGate variant="screen" requiredTier="commander" featureName="Deliverance Protocol Engine" description="Upgrade to Commander to access the Protocol Engine." />
+              <UpgradeGate variant="screen" requiredTier="commander" featureName="Deliverance Protocol Engine" description="Upgrade to Commander to access the Protocol Engine." isDark={isDark} />
             </div>
       )}
     </>
@@ -15079,7 +15080,7 @@ function CommunityPage() {
         {activeSection === 'investigate' && (tierLevel >= 2
           ? <InvestigatorView theme={theme} userTier={tier} isMobile={isMobile} setSidebarOpen={setSidebarOpen} setActiveSection={setActiveSection} />
           : <div style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', background: isDark ? '#0D0B14' : '#FAF8F5', padding:'40px 20px' }}>
-              <UpgradeGate variant="screen" requiredTier="commander" featureName="Symptom Investigator" description="The Symptom Investigator is a SOL-powered operational intelligence tool available to Commander and General members." />
+              <UpgradeGate variant="screen" requiredTier="commander" featureName="Symptom Investigator" description="The Symptom Investigator is a SOL-powered operational intelligence tool available to Commander and General members." isDark={isDark} />
             </div>
         )}
         {activeSection === 'arsenal'     && (
@@ -15251,7 +15252,7 @@ function CommunityPage() {
               <OnboardingOverlay storageKey="onboard_spirit_network" icon="⚔️" title="SPIRIT NETWORK COMMAND CENTER" points={['Search for any spirit to pull its full intelligence profile','The org chart shows where it sits in the demonic hierarchy','Click companion spirit chips to navigate the network','Use breadcrumbs at the top to trace back up the tree']} />
             </div>
           : <div style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', background: isDark ? '#0D0B14' : '#FAF8F5', padding:'40px 20px' }}>
-              <UpgradeGate variant="screen" requiredTier="commander" featureName="Spirit Network" description="The Spirit Network is an interactive demonic hierarchy map for Commander-tier ministers and above." />
+              <UpgradeGate variant="screen" requiredTier="commander" featureName="Spirit Network" description="The Spirit Network is an interactive demonic hierarchy map for Commander-tier ministers and above." isDark={isDark} />
             </div>
         )}
         {activeSection === 'gateway' && (tierLevel >= 1
@@ -15260,7 +15261,7 @@ function CommunityPage() {
               <OnboardingOverlay storageKey="onboard_gateway" icon="🧱" title="GATEWAY INVESTIGATOR" points={['Enter a spirit name to get its full entry point analysis','Add cultural exposure context for a more targeted report','SOL cross-references legal grounds, trauma patterns, and generational ties','Use this before or during a live deliverance session']} />
             </div>
           : <div style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', background: isDark ? '#0D0B14' : '#FAF8F5', padding:'40px 20px' }}>
-              <UpgradeGate variant="screen" requiredTier="soldier" featureName="Gateway Investigator" description="The Gateway Investigator identifies cultural entry points for any spirit. Available to Soldier, Commander, and General members." />
+              <UpgradeGate variant="screen" requiredTier="soldier" featureName="Gateway Investigator" description="The Gateway Investigator identifies cultural entry points for any spirit. Available to Soldier, Commander, and General members." isDark={isDark} />
             </div>
         )}
         {activeSection === 'training'    && (
@@ -15280,7 +15281,7 @@ function CommunityPage() {
         {activeSection === 'document-creator' && (tierLevel >= 2
           ? <DocumentCreatorView isMobile={isMobile} setSidebarOpen={setSidebarOpen} getToken={getToken} />
           : <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', background: isDark ? '#0D0B14' : '#FAF8F5', padding: '40px 20px' }}>
-              <UpgradeGate variant="screen" requiredTier="commander" featureName="Document Creator" description="Upgrade to Commander to create and manage ministry documents." />
+              <UpgradeGate variant="screen" requiredTier="commander" featureName="Document Creator" description="Upgrade to Commander to create and manage ministry documents." isDark={isDark} />
             </div>
         )}
         {activeSection === 'session-center' && (tierLevel >= 2
@@ -15299,7 +15300,7 @@ function CommunityPage() {
               }}
             />
           : <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', background: isDark ? '#0D0B14' : '#FAF8F5', padding: '40px 20px' }}>
-              <UpgradeGate variant="screen" requiredTier="commander" featureName="Session Center" description="The Session Center is a live deliverance operations tool for Commander-tier ministers and above." />
+              <UpgradeGate variant="screen" requiredTier="commander" featureName="Session Center" description="The Session Center is a live deliverance operations tool for Commander-tier ministers and above." isDark={isDark} />
             </div>
         )}
         {activeSection === 'events'      && <EventsView theme={theme} isMobile={isMobile} setSidebarOpen={setSidebarOpen} userTier={tier} getToken={getToken} />}
