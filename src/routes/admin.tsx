@@ -11973,6 +11973,8 @@ function SpiritCandidatesManager({ getToken, isDark }: { getToken: any; isDark: 
   const [confBands, setConfBands]                 = useState<string[]>([])
   const [entityLevelFilter, setEntityLevelFilter] = useState<string>('all')
   const [adversarialFilter, setAdversarialFilter] = useState<string>('all')
+  const [runningLayer2Id, setRunningLayer2Id]     = useState<string | null>(null)
+  const [layer2Error, setLayer2Error]             = useState<{ id: string; msg: string } | null>(null)
 
   // Hydrate filter state from URL params on mount (enables deep-linking)
   useEffect(() => {
@@ -12028,6 +12030,29 @@ function SpiritCandidatesManager({ getToken, isDark }: { getToken: any; isDark: 
       }
     } catch { /* ignore */ }
     setLoading(false)
+  }
+
+  async function runLayer2(candidate: any) {
+    setRunningLayer2Id(candidate.id)
+    setLayer2Error(null)
+    try {
+      const token = await getToken()
+      const res = await fetch('/api/candidate-run-layer2', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ candidateId: candidate.id }),
+      })
+      const j = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        setLayer2Error({ id: candidate.id, msg: j.error || `HTTP ${res.status}` })
+        return
+      }
+      await loadCandidates()
+    } catch (err: any) {
+      setLayer2Error({ id: candidate.id, msg: err.message || 'Unknown error' })
+    } finally {
+      setRunningLayer2Id(null)
+    }
   }
 
   async function handleEnrich(id: string) {
@@ -12399,14 +12424,29 @@ function SpiritCandidatesManager({ getToken, isDark }: { getToken: any; isDark: 
                         {c.sub_kingdom && <span style={{ fontFamily: cinzel, fontSize: 7, color: SMUT, background: 'rgba(255,255,255,0.04)', border: `1px solid ${SBDR}`, borderRadius: 3, padding: '2px 7px', letterSpacing: '0.06em' }}>{c.sub_kingdom}</span>}
                       </div>
 
-                      {/* Run Layer 2 CTA (disabled placeholder) */}
+                      {/* Run Layer 2 CTA */}
                       <div style={{ marginBottom: 14, padding: '10px 14px', background: 'rgba(122,180,224,0.04)', border: '1px solid rgba(122,180,224,0.15)', borderRadius: 5 }}>
                         <div style={{ fontFamily: cinzel, fontSize: 8, color: '#7ab4e0', letterSpacing: '0.1em', marginBottom: 6 }}>NO LAYER 2 DATA</div>
                         <div style={{ fontFamily: crimson, fontSize: 12, color: SMUT, marginBottom: 8 }}>Run a full Layer 2 extraction to surface detailed gateways, manifestations, network, and counter-strategy fields from this source.</div>
                         <button
-                          disabled
-                          style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', color: '#7ab4e0', background: 'rgba(122,180,224,0.06)', border: '1px solid rgba(122,180,224,0.2)', borderRadius: 4, padding: '6px 14px', cursor: 'not-allowed', opacity: 0.5 }}
-                        >▶ Run Layer 2 (coming soon)</button>
+                          onClick={e => { e.stopPropagation(); runLayer2(c) }}
+                          disabled={runningLayer2Id === c.id}
+                          title="Run Sonnet 4.5 against this candidate's source chunks to extract 7-layer field data. ~$0.02 per run."
+                          style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', color: '#7ab4e0', background: runningLayer2Id === c.id ? 'rgba(122,180,224,0.04)' : 'rgba(122,180,224,0.1)', border: '1px solid rgba(122,180,224,0.3)', borderRadius: 4, padding: '6px 14px', cursor: runningLayer2Id === c.id ? 'wait' : 'pointer', opacity: runningLayer2Id === c.id ? 0.7 : 1 }}
+                        >{runningLayer2Id === c.id ? '✦ Extracting…' : '✦ Run Layer 2 Extraction'}</button>
+                        <div style={{ fontFamily: crimson, fontSize: 11, color: SMUT, fontStyle: 'italic', marginTop: 6 }}>Sonnet 4.5 · source-faithful · ~$0.02/run</div>
+                        {layer2Error?.id === c.id && (() => {
+                          const emsg = layer2Error!.msg
+                          return (
+                            <div style={{ fontFamily: crimson, fontSize: 12, color: '#f87171', marginTop: 8 }}>
+                              {emsg === 'refusal_detected'
+                                ? 'SOL refused this extraction. Check the source chunk and retry.'
+                                : emsg === 'no_chunks_found'
+                                ? 'No source chunks found for this candidate in the linked resource.'
+                                : emsg}
+                            </div>
+                          )
+                        })()}
                       </div>
                     </>
                   )}
