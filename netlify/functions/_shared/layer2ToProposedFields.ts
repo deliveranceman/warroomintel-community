@@ -81,5 +81,10 @@ export function layer2ToProposedFields(
   set('aftercareNotes',           output.layer7_counter_strategies.aftercare_notes)
   set('operationalNotes',         output.layer7_counter_strategies.operational_notes)
 
+  // spirit_identity.entity_level — not a FieldExtraction, read directly
+  if (output.spirit_identity?.entity_level) {
+    fields['entityLevel'] = output.spirit_identity.entity_level
+  }
+
   return fields
 }
