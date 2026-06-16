@@ -32,11 +32,12 @@ export default async function handler(req: Request) {
     const { data: candidates, error } = await query
     if (error) return new Response(JSON.stringify({ error: error.message }), { status: 500, headers: CORS })
 
-    // Merge enrichment suggestion data (281 rows total — lightweight full fetch)
+    // Join library_enrichment_suggestions by case-insensitive spirit_name match.
+    // Constrain to status='pending' — applied/rejected rows must not surface as live data.
     const { data: suggestions } = await client
       .from('library_enrichment_suggestions')
-      .select('spirit_name,proposed_fields,confidence,source_excerpt')
-      .in('status', ['pending', 'applied'])
+      .select('id,spirit_name,proposed_fields,confidence,source_excerpt')
+      .eq('status', 'pending')
 
     const suggMap: Record<string, any> = {}
     for (const s of suggestions || []) {
@@ -46,14 +47,13 @@ export default async function handler(req: Request) {
 
     const enrichedCandidates = (candidates || []).map((c: any) => {
       const sugg = suggMap[(c.name || '').toLowerCase()]
-      const hasLayer2 = sugg
-        ? (sugg.proposed_fields && typeof sugg.proposed_fields === 'object' && Object.keys(sugg.proposed_fields).length > 0)
-        : false
+      const hasLayer2 = !!(sugg?.proposed_fields && typeof sugg.proposed_fields === 'object' && Object.keys(sugg.proposed_fields).length > 0)
       return {
         ...c,
         _hasLayer2:            hasLayer2,
         _suggestionConfidence: sugg?.confidence ?? null,
-        _proposedFields:       hasLayer2 ? sugg!.proposed_fields : undefined,
+        _proposedFields:       hasLayer2 ? sugg!.proposed_fields : null,
+        _suggestionId:         sugg?.id ?? null,
         _sourceExcerpt:        sugg?.source_excerpt ?? null,
       }
     })
