@@ -32,8 +32,8 @@ export default async function handler(req: Request) {
 
   // ── 1. Resolve legacy_airtable_id → Supabase UUID ────────────────────────
   const [{ data: keepRow, error: keepErr }, { data: deleteRow, error: delErr }] = await Promise.all([
-    client.from('spirits').select('*').eq('legacy_airtable_id', keepId).single(),
-    client.from('spirits').select('id, name').eq('legacy_airtable_id', deleteId).single(),
+    client.from('spirits').select('*').eq('id', keepId).single(),
+    client.from('spirits').select('id, name').eq('id', deleteId).single(),
   ])
 
   if (keepErr || !keepRow) {

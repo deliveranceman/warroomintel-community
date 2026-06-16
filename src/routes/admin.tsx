@@ -2739,7 +2739,7 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
       const res = await fetch('/api/spirit-merge', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ keepId: mergeTarget.a.airtableId, deleteId: mergeTarget.b.airtableId, mergedFields }),
+        body: JSON.stringify({ keepId: mergeTarget.a.id, deleteId: mergeTarget.b.id, mergedFields }),
       })
       const data = await res.json()
       if (res.ok) {
@@ -2785,7 +2785,7 @@ function IntelArchive({ getToken, isDark = true }: { getToken: () => Promise<str
           await fetch('/api/spirit-merge', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-            body: JSON.stringify({ keepId: keeper.airtableId, deleteId: other.airtableId, mergedFields: mf }),
+            body: JSON.stringify({ keepId: keeper.id, deleteId: other.id, mergedFields: mf }),
           })
           resolved++
         } catch {}
