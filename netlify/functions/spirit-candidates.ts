@@ -23,7 +23,7 @@ export default async function handler(req: Request) {
 
     let query = client
       .from('spirit_candidates')
-      .select('id,name,name_normalized,also_known_as,function,manifestations,scripture_context,kingdom,biblical_rank,sub_kingdom,source_name,confidence,status,duplicate_of,ai_notes,enrichment_status,enrichment_error,ai_model_used,ai_generated_at,created_at,reviewed_at,reviewed_by,rejection_reason,airtable_record_id')
+      .select('id,name,name_normalized,also_known_as,function,manifestations,scripture_context,kingdom,biblical_rank,sub_kingdom,source_name,source_type,confidence,status,duplicate_of,ai_notes,enrichment_status,enrichment_error,ai_model_used,ai_generated_at,created_at,reviewed_at,reviewed_by,rejection_reason,airtable_record_id,is_adversarial')
       .order('created_at', { ascending: false })
 
     if (status !== 'all') query = query.eq('status', status)
@@ -31,6 +31,26 @@ export default async function handler(req: Request) {
 
     const { data: candidates, error } = await query
     if (error) return new Response(JSON.stringify({ error: error.message }), { status: 500, headers: CORS })
+
+    // Merge enrichment suggestion data (281 rows total — lightweight full fetch)
+    const { data: suggestions } = await client
+      .from('library_enrichment_suggestions')
+      .select('spirit_name,proposed_fields,confidence')
+      .in('status', ['pending', 'applied'])
+
+    const suggMap: Record<string, any> = {}
+    for (const s of suggestions || []) {
+      const key = (s.spirit_name || '').toLowerCase()
+      if (key && !suggMap[key]) suggMap[key] = s
+    }
+
+    const enrichedCandidates = (candidates || []).map((c: any) => {
+      const sugg = suggMap[(c.name || '').toLowerCase()]
+      const hasLayer2 = sugg
+        ? (sugg.proposed_fields && typeof sugg.proposed_fields === 'object' && Object.keys(sugg.proposed_fields).length > 0)
+        : false
+      return { ...c, _hasLayer2: hasLayer2, _suggestionConfidence: sugg?.confidence ?? null }
+    })
 
     let stats: any = null
     if (withStats) {
@@ -50,7 +70,7 @@ export default async function handler(req: Request) {
       }
     }
 
-    return new Response(JSON.stringify({ candidates: candidates || [], stats }), { status: 200, headers: CORS })
+    return new Response(JSON.stringify({ candidates: enrichedCandidates, stats }), { status: 200, headers: CORS })
   }
 
   // ── POST — reject or toggle duplicate status ───────────────────────────────

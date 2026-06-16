@@ -11967,6 +11967,47 @@ function SpiritCandidatesManager({ getToken, isDark }: { getToken: any; isDark: 
   const [rejectReason, setRejectReason]   = useState('')
   const [demonsTotal, setDemonsTotal]     = useState<number|null>(null)
 
+  // ── Five new filters ──────────────────────────────────────────────────────
+  const [sourceFilter, setSourceFilter]           = useState<string>('all')
+  const [hasL2Only, setHasL2Only]                 = useState(false)
+  const [confBands, setConfBands]                 = useState<string[]>([])
+  const [entityLevelFilter, setEntityLevelFilter] = useState<string>('all')
+  const [adversarialFilter, setAdversarialFilter] = useState<string>('all')
+
+  // Hydrate filter state from URL params on mount (enables deep-linking)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    if (params.has('source')) setSourceFilter(params.get('source') || 'all')
+    if (params.get('hasL2') === 'true') setHasL2Only(true)
+    if (params.has('conf')) setConfBands((params.get('conf') || '').split(',').filter(Boolean))
+    if (params.has('level')) setEntityLevelFilter(params.get('level') || 'all')
+    if (params.has('adv') && params.get('adv') !== 'all') setAdversarialFilter(params.get('adv') || 'all')
+    if (params.has('status')) {
+      const s = params.get('status') as any
+      if (['all','pending','approved','rejected','duplicate'].includes(s)) setFilter(s)
+    }
+  }, [])
+
+  // Sync filter state → URL params (replaceState keeps back-button clean)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    params.set('tab', 'spirit-candidates')
+    if (sourceFilter && sourceFilter !== 'all') params.set('source', sourceFilter)
+    else params.delete('source')
+    if (hasL2Only) params.set('hasL2', 'true')
+    else params.delete('hasL2')
+    if (confBands.length > 0 && confBands.length < 3) params.set('conf', confBands.join(','))
+    else params.delete('conf')
+    if (entityLevelFilter && entityLevelFilter !== 'all') params.set('level', entityLevelFilter)
+    else params.delete('level')
+    if (adversarialFilter && adversarialFilter !== 'all') params.set('adv', adversarialFilter)
+    else params.delete('adv')
+    if (filter !== 'all') params.set('status', filter)
+    else params.delete('status')
+    const newSearch = params.toString()
+    history.replaceState(null, '', newSearch ? `${window.location.pathname}?${newSearch}` : window.location.pathname)
+  }, [sourceFilter, hasL2Only, confBands, entityLevelFilter, adversarialFilter, filter])
+
   useEffect(() => {
     loadCandidates()
     getToken().then((token: string | null) => fetch('/api/demons', { headers: { Authorization: `Bearer ${token}` } }).then(r => r.json()).then(d => setDemonsTotal((d.demons || []).length)).catch(() => {}))
@@ -12058,6 +12099,32 @@ function SpiritCandidatesManager({ getToken, isDark }: { getToken: any; isDark: 
     } catch { /* ignore */ }
   }
 
+  function confToInt(c: string): number {
+    return c === 'high' ? 85 : c === 'medium' ? 60 : 30
+  }
+
+  // Derive filter options from loaded data
+  const sourcesInData = Array.from(new Set(candidates.map((c: any) => c.source_name).filter(Boolean))) as string[]
+
+  // Apply all five new filters (client-side; status + search are server-side)
+  const activeFilters = sourceFilter !== 'all' || hasL2Only || confBands.length > 0 || entityLevelFilter !== 'all' || adversarialFilter !== 'all'
+  const filteredCandidates = candidates.filter((c: any) => {
+    if (sourceFilter !== 'all' && c.source_name !== sourceFilter) return false
+    if (hasL2Only && !c._hasLayer2) return false
+    if (confBands.length > 0 && confBands.length < 3) {
+      const conf = c._suggestionConfidence != null ? c._suggestionConfidence : confToInt(c.confidence)
+      const band = conf >= 70 ? 'high' : conf >= 40 ? 'mid' : 'low'
+      if (!confBands.includes(band)) return false
+    }
+    if (entityLevelFilter !== 'all') {
+      const level = (c._entityLevel as string | null) ?? 'unset'
+      if (level !== entityLevelFilter) return false
+    }
+    if (adversarialFilter === 'true'  && !c.is_adversarial) return false
+    if (adversarialFilter === 'false' &&  c.is_adversarial) return false
+    return true
+  })
+
   const CONF_COLORS: Record<string, string> = { high: '#4ade80', medium: SG, low: SMUT }
   const STAT_COLORS: Record<string, { bg: string; border: string; text: string }> = {
     pending:   { bg: 'rgba(201,168,76,0.08)',  border: 'rgba(201,168,76,0.3)',  text: SG },
@@ -12083,8 +12150,8 @@ function SpiritCandidatesManager({ getToken, isDark }: { getToken: any; isDark: 
         ))}
       </div>
 
-      {/* Filter row */}
-      <div style={{ display: 'flex', gap: 6, marginBottom: 14, flexWrap: 'wrap' as const, alignItems: 'center' }}>
+      {/* Filter row 1 — status chips + search */}
+      <div style={{ display: 'flex', gap: 6, marginBottom: 8, flexWrap: 'wrap' as const, alignItems: 'center' }}>
         {(['all','pending','approved','rejected','duplicate'] as const).map(f => (
           <button key={f} onClick={() => setFilter(f)}
             style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', padding: '5px 12px', borderRadius: 4, border: `1px solid ${filter === f ? SG : SBDR}`, background: filter === f ? 'rgba(201,168,76,0.1)' : 'transparent', color: filter === f ? SG : SMUT, cursor: 'pointer', textTransform: 'capitalize' as const }}
@@ -12098,6 +12165,75 @@ function SpiritCandidatesManager({ getToken, isDark }: { getToken: any; isDark: 
         />
       </div>
 
+      {/* Filter row 2 — source, Layer 2, confidence, entity level, adversarial */}
+      <div style={{ display: 'flex', gap: 6, marginBottom: 6, flexWrap: 'wrap' as const, alignItems: 'center' }}>
+        {/* Source dropdown */}
+        <select
+          value={sourceFilter}
+          onChange={e => setSourceFilter(e.target.value)}
+          style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.06em', padding: '5px 10px', borderRadius: 4, border: `1px solid ${sourceFilter !== 'all' ? SG : SBDR}`, background: SSURF, color: sourceFilter !== 'all' ? SG : SMUT, cursor: 'pointer', outline: 'none' }}
+        >
+          <option value="all">All Sources</option>
+          {sourcesInData.map(s => <option key={s} value={s}>{s.length > 40 ? s.slice(0, 40) + '…' : s}</option>)}
+        </select>
+
+        {/* Has Layer 2 toggle */}
+        <button
+          onClick={() => setHasL2Only(v => !v)}
+          style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.06em', padding: '5px 12px', borderRadius: 4, border: `1px solid ${hasL2Only ? SG : SBDR}`, background: hasL2Only ? 'rgba(201,168,76,0.12)' : 'transparent', color: hasL2Only ? SG : SMUT, cursor: 'pointer' }}
+        >✦ Has Layer 2</button>
+
+        {/* Confidence band chips */}
+        {(['high','mid','low'] as const).map(band => {
+          const active = confBands.includes(band)
+          const label = band === 'high' ? '≥70%' : band === 'mid' ? '40–69%' : '<40%'
+          return (
+            <button key={band}
+              onClick={() => setConfBands(prev => active ? prev.filter(b => b !== band) : [...prev, band])}
+              style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.06em', padding: '5px 10px', borderRadius: 4, border: `1px solid ${active ? SG : SBDR}`, background: active ? 'rgba(201,168,76,0.12)' : 'transparent', color: active ? SG : SMUT, cursor: 'pointer' }}
+            >{band.toUpperCase()} {label}</button>
+          )
+        })}
+
+        {/* Entity level dropdown */}
+        <select
+          value={entityLevelFilter}
+          onChange={e => setEntityLevelFilter(e.target.value)}
+          style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.06em', padding: '5px 10px', borderRadius: 4, border: `1px solid ${entityLevelFilter !== 'all' ? SG : SBDR}`, background: SSURF, color: entityLevelFilter !== 'all' ? SG : SMUT, cursor: 'pointer', outline: 'none' }}
+        >
+          <option value="all">All Levels</option>
+          <option value="named">Named</option>
+          <option value="functional">Functional</option>
+          <option value="rank">Rank</option>
+          <option value="unset">Unset</option>
+        </select>
+
+        {/* Adversarial three-state */}
+        {(['all','false','true'] as const).map(v => {
+          const label = v === 'all' ? 'All' : v === 'true' ? 'Adversarial' : 'Non-adversarial'
+          const active = adversarialFilter === v
+          return (
+            <button key={v}
+              onClick={() => setAdversarialFilter(v)}
+              style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.06em', padding: '5px 10px', borderRadius: 4, border: `1px solid ${active ? SG : SBDR}`, background: active ? 'rgba(201,168,76,0.12)' : 'transparent', color: active ? SG : SMUT, cursor: 'pointer' }}
+            >{label}</button>
+          )
+        })}
+      </div>
+
+      {/* Count + clear filters */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10 }}>
+        <span style={{ fontFamily: cinzel, fontSize: 8, color: SMUT, letterSpacing: '0.1em' }}>
+          SHOWING {filteredCandidates.length} OF {candidates.length}
+        </span>
+        {activeFilters && (
+          <button
+            onClick={() => { setSourceFilter('all'); setHasL2Only(false); setConfBands([]); setEntityLevelFilter('all'); setAdversarialFilter('all') }}
+            style={{ fontFamily: cinzel, fontSize: 8, color: '#f87171', background: 'none', border: 'none', cursor: 'pointer', letterSpacing: '0.06em', padding: 0 }}
+          >× Clear filters</button>
+        )}
+      </div>
+
       {/* Table */}
       <div style={{ background: SSURF, border: `1px solid ${SBDR}`, borderRadius: 8, overflow: 'hidden' }}>
         {/* Header */}
@@ -12109,9 +12245,9 @@ function SpiritCandidatesManager({ getToken, isDark }: { getToken: any; isDark: 
 
         {loading ? (
           <div style={{ padding: 40, textAlign: 'center' as const, fontFamily: cinzel, fontSize: 10, color: SMUT, letterSpacing: '0.1em' }}>Loading...</div>
-        ) : candidates.length === 0 ? (
+        ) : filteredCandidates.length === 0 ? (
           <div style={{ padding: 40, textAlign: 'center' as const, fontFamily: crimson, fontSize: 14, color: SMUT, fontStyle: 'italic' }}>No candidates match the current filter.</div>
-        ) : candidates.map(c => {
+        ) : filteredCandidates.map((c: any) => {
           const isExpanded    = expandedId === c.id
           const sc            = STAT_COLORS[c.status] || STAT_COLORS['pending']
           const isConfirmed   = confirmedIds.has(c.id)
