@@ -84,12 +84,34 @@ export default async function handler(req: Request) {
 
   if (candidateErr) {
     console.error('[spirit-candidate-merge] candidate status update failed:', candidateErr.message)
-    // Non-fatal — spirit already updated; log but don't roll back
     console.warn('[spirit-candidate-merge] spirit updated but candidate status not updated')
   }
 
+  // ── 6. Fetch candidate name to key the LES update ────────────────────────
+  const { data: candidateRow } = await client
+    .from('spirit_candidates')
+    .select('name')
+    .eq('id', candidateId)
+    .single()
+
+  // ── 7. Mark related LES rows applied (non-blocking) ──────────────────────
+  if (candidateRow?.name) {
+    const { error: lesErr } = await client
+      .from('library_enrichment_suggestions')
+      .update({
+        status:             'applied',
+        applied_at:         new Date().toISOString(),
+        existing_record_id: targetRow.id as string,
+      })
+      .ilike('spirit_name', candidateRow.name as string)
+      .eq('status', 'pending')
+    if (lesErr) {
+      console.warn('[spirit-candidate-merge] LES update warning (non-blocking):', lesErr.message)
+    }
+  }
+
   console.log(
-    `[spirit-candidate-merge] candidate ${candidateId} merged into ${targetSlug} (${targetRow.id}) by ${userId}`
+    `[spirit-candidate-merge] candidate ${candidateId} (${candidateRow?.name}) merged into ${targetSlug} (${targetRow.id}) by ${userId}`
   )
 
   return json({
