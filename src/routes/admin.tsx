@@ -12049,24 +12049,63 @@ function SpiritCandidatesManager({ getToken, isDark, setTab }: { getToken: any; 
     setLoading(false)
   }
 
+  // INTERIM: 504-polling patch. Proper fix is Netlify background function +
+  // status endpoint (SOL Jobs spine, Bundle 3+).
   async function runLayer2(candidate: any) {
-    setRunningLayer2Id(candidate.id)
+    const candidateId = candidate.id as string
+    setRunningLayer2Id(candidateId)
     setLayer2Error(null)
+    console.log(`[runLayer2] start ${candidateId}`)
+
     try {
       const token = await getToken()
       const res = await fetch('/api/candidate-run-layer2', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ candidateId: candidate.id }),
+        body: JSON.stringify({ candidateId }),
       })
-      const j = await res.json().catch(() => ({}))
-      if (!res.ok) {
-        setLayer2Error({ id: candidate.id, msg: j.error || `HTTP ${res.status}` })
+
+      // ── 504/502: Netlify timed out the response but the server is still running.
+      //     The extraction usually completes within another 15-45 seconds.
+      if (res.status === 504 || res.status === 502) {
+        console.log(`[runLayer2] ${res.status} — polling for delayed completion`)
+
+        const POLL_ATTEMPTS    = 12
+        const POLL_INTERVAL_MS = 4000
+
+        for (let attempt = 0; attempt < POLL_ATTEMPTS; attempt++) {
+          await new Promise(r => setTimeout(r, POLL_INTERVAL_MS))
+          await loadCandidates()
+
+          const updated = candidates.find((c: any) => c.id === candidateId)
+          if (updated?._hasLayer2) {
+            alert('Layer 2 extraction completed (took longer than 30 seconds — Netlify proxy timed out but the server finished and the data has loaded).')
+            return
+          }
+        }
+
+        alert('Extraction has been running for over 48 seconds without completion. The background job may still be processing — refresh the page in a minute, or try Run Layer 2 again.')
         return
       }
+
+      // ── Non-timeout error path
+      if (!res.ok) {
+        let errPayload: any = {}
+        try { errPayload = await res.json() } catch {
+          errPayload = { error: await res.text().catch(() => res.statusText) }
+        }
+        const msg = errPayload.error || `HTTP ${res.status}`
+        setLayer2Error({ id: candidateId, msg })
+        return
+      }
+
+      // ── Success path
+      const data = await res.json()
+      console.log(`[runLayer2] success completeness=${data.completeness} fieldCount=${data.fieldCount} cost=$${data.costUsd?.toFixed(4)}`)
       await loadCandidates()
     } catch (err: any) {
-      setLayer2Error({ id: candidate.id, msg: err.message || 'Unknown error' })
+      console.error('[runLayer2] network error:', err)
+      setLayer2Error({ id: candidateId, msg: err.message || 'Unknown error' })
     } finally {
       setRunningLayer2Id(null)
     }
