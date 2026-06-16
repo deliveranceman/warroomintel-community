@@ -12094,6 +12094,9 @@ function SpiritVariantMergeModal({ candidate, allSpirits, getToken, isDark, onCl
   // Conflict resolutions
   const [conflictChoice, setConflictChoice] = useState<Record<string, 'existing' | 'candidate' | 'append' | 'edit'>>({})
   const [conflictCustom, setConflictCustom] = useState<Record<string, string>>({})
+  // autoFillCustom tracks picker-appended values for relational auto-fill fields separately
+  // so the original candidate value stays visible alongside the "(modified)" indicator.
+  const [autoFillCustom, setAutoFillCustom] = useState<Record<string, string>>({})
   const [pickerSearches, setPickerSearches] = useState<Record<string, string>>({})
 
   const [submitting, setSubmitting] = useState(false)
@@ -12110,9 +12113,9 @@ function SpiritVariantMergeModal({ candidate, allSpirits, getToken, isDark, onCl
     for (const f of autoFields) {
       if (autoChecked[f.camel] === false) continue
       if (f.kind !== 'auto') continue
-      // Relational auto fields may have been edited via the inline picker
-      merged[f.camel] = RELATIONAL_FIELDS.has(f.camel) && conflictCustom[f.camel] != null
-        ? conflictCustom[f.camel]
+      // Relational auto: picker appends into autoFillCustom — use that if set, else candidate value
+      merged[f.camel] = RELATIONAL_FIELDS.has(f.camel) && autoFillCustom[f.camel] != null
+        ? autoFillCustom[f.camel]
         : f.value
     }
     for (const f of conflictFields) {
@@ -12237,16 +12240,12 @@ function SpiritVariantMergeModal({ candidate, allSpirits, getToken, isDark, onCl
                           />
                           <div style={{ opacity: autoChecked[f.camel] === false ? 0.4 : 1, flex: 1 }}>
                             <div style={{ fontFamily: cinzel, fontSize: 7, color: SMUT, letterSpacing: '0.08em', marginBottom: 2 }}>{f.label.toUpperCase()}</div>
-                            {RELATIONAL_FIELDS.has(f.camel) ? (
-                              <textarea
-                                value={conflictCustom[f.camel] ?? (f.kind === 'auto' ? String(f.value ?? '') : '')}
-                                onChange={e => setConflictCustom(prev => ({ ...prev, [f.camel]: e.target.value }))}
-                                rows={2}
-                                style={{ width: '100%', boxSizing: 'border-box' as const, background: SINP, border: `1px solid ${SBDR}`, borderRadius: 4, padding: '5px 8px', color: STXT, fontFamily: crimson, fontSize: 13, outline: 'none', resize: 'vertical' as const }}
-                              />
-                            ) : (
-                              <div style={{ fontFamily: crimson, fontSize: 13, color: STXT, lineHeight: 1.45 }}>
-                                {f.kind === 'auto' ? (Array.isArray(f.value) ? f.value.join(', ') : String(f.value ?? '')) : ''}
+                            <div style={{ fontFamily: crimson, fontSize: 13, color: STXT, lineHeight: 1.45 }}>
+                              {f.kind === 'auto' ? (Array.isArray(f.value) ? f.value.join(', ') : String(f.value ?? '')) : ''}
+                            </div>
+                            {RELATIONAL_FIELDS.has(f.camel) && autoFillCustom[f.camel] && (
+                              <div style={{ fontSize: 11, color: '#806020', marginTop: 4, fontFamily: crimson, fontStyle: 'italic' }}>
+                                ✦ modified — will save: <code style={{ background: isDark ? 'rgba(244,210,122,0.1)' : '#FEF6E0', padding: '1px 4px', fontStyle: 'normal', fontSize: 11 }}>{autoFillCustom[f.camel]}</code>
                               </div>
                             )}
                           </div>
@@ -12257,8 +12256,8 @@ function SpiritVariantMergeModal({ candidate, allSpirits, getToken, isDark, onCl
                             allSpirits={allSpirits}
                             pickerSearches={pickerSearches}
                             setPickerSearches={setPickerSearches}
-                            currentValue={conflictCustom[f.camel] ?? (f.kind === 'auto' ? String(f.value ?? '') : '')}
-                            onAppend={name => setConflictCustom(prev => {
+                            currentValue={autoFillCustom[f.camel] ?? (f.kind === 'auto' ? String(f.value ?? '') : '')}
+                            onAppend={name => setAutoFillCustom(prev => {
                               const cur = prev[f.camel] ?? (f.kind === 'auto' ? String(f.value ?? '') : '')
                               return { ...prev, [f.camel]: cur ? `${cur}, ${name}` : name }
                             })}
@@ -12321,10 +12320,14 @@ function SpiritVariantMergeModal({ candidate, allSpirits, getToken, isDark, onCl
                             pickerSearches={pickerSearches}
                             setPickerSearches={setPickerSearches}
                             currentValue={conflictCustom[f.camel] || String(choice === 'candidate' ? f.candidate : f.existing || '')}
-                            onAppend={name => setConflictCustom(prev => {
-                              const cur = prev[f.camel] || String(choice === 'candidate' ? f.candidate : f.existing || '')
-                              return { ...prev, [f.camel]: cur ? `${cur}, ${name}` : name }
-                            })}
+                            onAppend={name => {
+                              // Auto-switch to 'edit' so the textarea appears and buildMergedFields reads the value
+                              setConflictChoice(prev => ({ ...prev, [f.camel]: 'edit' }))
+                              setConflictCustom(prev => {
+                                const cur = prev[f.camel] || String(choice === 'candidate' ? (f as any).candidate : (f as any).existing || '')
+                                return { ...prev, [f.camel]: cur ? `${cur}, ${name}` : name }
+                              })
+                            }}
                             isDark={isDark}
                           />
                         )}
