@@ -150,7 +150,7 @@ function extractName(fields: Record<string, any>): string {
 export type SnapshotMeta = {
   jobId:      string | null  // ai_jobs.id when AI-driven, null for manual edits
   appliedBy:  string         // verified Clerk userId from requireAdmin2
-  source:     'enrich' | 'library_enrich' | 'manual' | 'taxonomy' | 'merge'
+  source:     'enrich' | 'library_enrich' | 'manual' | 'taxonomy' | 'merge' | 'merge_from_candidate'
 }
 
 // Insert one snapshot row per changed column. Takes the already-fetched current
