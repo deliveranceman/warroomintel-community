@@ -5965,7 +5965,7 @@ function ArsenalView({ theme, userTier, isMobile, setSidebarOpen, filterSheetOpe
           {(ARSENAL_TIERS.find(t => t.tier === activeTierNum)?.categories ?? []).map(cat => (
             <button key={cat}
               onClick={() => setActiveCategory(activeCategory === cat ? null : cat)}
-              style={{ padding: '3px 10px', borderRadius: 999, border: `1px solid ${activeCategory === cat ? G : 'rgba(201,168,76,0.18)'}`, background: activeCategory === cat ? 'rgba(201,168,76,0.12)' : 'transparent', color: activeCategory === cat ? G : muted, fontFamily: cinzel, fontSize: 8, letterSpacing: '0.05em', cursor: 'pointer', whiteSpace: 'nowrap' as const }}
+              style={{ padding: '3px 10px', borderRadius: 999, border: `1px solid ${activeCategory === cat ? G : 'rgba(201,168,76,0.18)'}`, background: activeCategory === cat ? 'rgba(201,168,76,0.12)' : 'transparent', color: activeCategory === cat ? (isDark ? G : '#8B6914') : muted, fontFamily: cinzel, fontSize: 8, letterSpacing: '0.05em', cursor: 'pointer', whiteSpace: 'nowrap' as const }}
             >{cat}</button>
           ))}
         </div>
@@ -6010,8 +6010,8 @@ function ArsenalView({ theme, userTier, isMobile, setSidebarOpen, filterSheetOpe
                   onMouseEnter={e => { const el = e.currentTarget; el.style.borderColor = 'rgba(201,168,76,0.42)'; el.style.background = 'rgba(201,168,76,0.09)'; el.style.boxShadow = '0 4px 18px rgba(0,0,0,0.28), 0 0 0 1px rgba(201,168,76,0.08)' }}
                   onMouseLeave={e => { const el = e.currentTarget; el.style.borderColor = 'rgba(201,168,76,0.12)'; el.style.background = 'rgba(201,168,76,0.04)'; el.style.boxShadow = 'none' }}>
                   <span style={{ fontSize: 22, lineHeight: 1 }}>{ARSENAL_CATEGORY_ICONS[topic] || '📁'}</span>
-                  <span style={{ fontFamily: cinzel, fontSize: 10, color: G, letterSpacing: '0.08em', lineHeight: 1.3 }}>{topic}</span>
-                  <span style={{ fontFamily: crimson, fontSize: 12, color: 'rgba(240,232,216,0.38)' }}>{categoryCounts[topic]} resource{categoryCounts[topic] !== 1 ? 's' : ''}</span>
+                  <span style={{ fontFamily: cinzel, fontSize: 10, color: isDark ? G : '#8B6914', letterSpacing: '0.08em', lineHeight: 1.3 }}>{topic}</span>
+                  <span style={{ fontFamily: crimson, fontSize: 12, color: isDark ? 'rgba(240,232,216,0.38)' : '#574B33' }}>{categoryCounts[topic]} resource{categoryCounts[topic] !== 1 ? 's' : ''}</span>
                 </div>
               ))}
             </div>
@@ -6065,7 +6065,7 @@ function ArsenalView({ theme, userTier, isMobile, setSidebarOpen, filterSheetOpe
                 <div key={topic}
                   onClick={() => { setActiveCategory(topic); setQuery(''); setTierFilter('All'); setExpandedId(null) }}
                   style={{ padding: '7px 10px', borderRadius: 5, cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: activeCategory === topic ? 'rgba(201,168,76,0.1)' : 'transparent', borderLeft: `2px solid ${activeCategory === topic ? 'rgba(201,168,76,0.6)' : 'transparent'}`, marginBottom: 1 }}>
-                  <span style={{ fontFamily: cinzel, fontSize: 9, color: activeCategory === topic ? G : 'rgba(240,232,216,0.42)', letterSpacing: '0.04em', lineHeight: 1.35 }}>{topic}</span>
+                  <span style={{ fontFamily: cinzel, fontSize: 9, color: activeCategory === topic ? (isDark ? G : '#8B6914') : (isDark ? 'rgba(240,232,216,0.42)' : '#574B33'), letterSpacing: '0.04em', lineHeight: 1.35 }}>{topic}</span>
                   <span style={{ fontFamily: crimson, fontSize: 10, color: 'rgba(240,232,216,0.22)', flexShrink: 0, marginLeft: 4 }}>{categoryCounts[topic] || 0}</span>
                 </div>
               ))}
@@ -6089,7 +6089,7 @@ function ArsenalView({ theme, userTier, isMobile, setSidebarOpen, filterSheetOpe
                 {dynamicTopics.map(topic => (
                   <button key={topic}
                     onClick={() => { setActiveCategory(topic); setQuery(''); setTierFilter('All'); setExpandedId(null) }}
-                    style={{ flexShrink: 0, padding: '5px 12px', borderRadius: 20, border: `1px solid rgba(201,168,76,${activeCategory === topic ? '0.6' : '0.18'})`, background: activeCategory === topic ? 'rgba(201,168,76,0.15)' : 'transparent', color: activeCategory === topic ? G : 'rgba(240,232,216,0.48)', fontFamily: cinzel, fontSize: 8, cursor: 'pointer', letterSpacing: '0.04em', whiteSpace: 'nowrap' as const }}>
+                    style={{ flexShrink: 0, padding: '5px 12px', borderRadius: 20, border: `1px solid rgba(201,168,76,${activeCategory === topic ? '0.6' : '0.18'})`, background: activeCategory === topic ? 'rgba(201,168,76,0.15)' : 'transparent', color: activeCategory === topic ? (isDark ? G : '#8B6914') : (isDark ? 'rgba(240,232,216,0.48)' : '#574B33'), fontFamily: cinzel, fontSize: 8, cursor: 'pointer', letterSpacing: '0.04em', whiteSpace: 'nowrap' as const }}>
                     {topic}
                   </button>
                 ))}
