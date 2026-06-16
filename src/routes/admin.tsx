@@ -12294,7 +12294,7 @@ function SpiritCandidatesManager({ getToken, isDark, setTab }: { getToken: any; 
       {/* Table */}
       <div style={{ background: SSURF, border: `1px solid ${SBDR}`, borderRadius: 8, overflow: 'hidden' }}>
         {/* Header */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(120px,1.5fr) minmax(80px,1fr) 60px 80px 72px minmax(80px,1.5fr) 72px 20px', gap: 8, padding: '10px 14px', background: isDark ? '#1a1726' : '#f5f3ef', borderBottom: `1px solid ${SBDR}` }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(240px,2.2fr) 140px 70px 90px 80px minmax(160px,1.5fr) 50px 36px', gap: 8, padding: '10px 14px', background: isDark ? '#1a1726' : '#f5f3ef', borderBottom: `1px solid ${SBDR}` }}>
           {['NAME','SOURCE','CONF','STATUS','ENTITY','EXCERPT','ADV',''].map(h => (
             <div key={h} style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.12em', color: SMUT }}>{h}</div>
           ))}
@@ -12316,7 +12316,7 @@ function SpiritCandidatesManager({ getToken, isDark, setTab }: { getToken: any; 
           const levelStyle   = entityLevel ? (LEVEL_STYLES[entityLevel.toLowerCase()] || null) : null
           const excerptText  = c._sourceExcerpt as string | undefined
           const isMerged     = c.name?.includes('/')
-          const gridCols     = 'minmax(120px,1.5fr) minmax(80px,1fr) 60px 80px 72px minmax(80px,1.5fr) 72px 20px'
+          const gridCols     = 'minmax(240px,2.2fr) 140px 70px 90px 80px minmax(160px,1.5fr) 50px 36px'
 
           return (
             <div key={c.id} style={{ borderBottom: `1px solid ${SBDR}`, background: isConfirmed ? 'rgba(201,168,76,0.05)' : 'transparent' }}>
