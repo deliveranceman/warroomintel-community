@@ -3,6 +3,7 @@ import { useAuth, useUser } from '@clerk/tanstack-start'
 import { useState, useEffect } from 'react'
 import { CommunitySidebarShell } from '@/components/CommunitySidebarShell'
 import { UpgradeGate } from '@/components/UpgradeGate'
+import { useIsDark } from '@/lib/use-is-dark'
 
 const MobileSubpageNav = () => (
   <>
@@ -666,6 +667,7 @@ This is not magic words. It is the application of what was already done in the s
 function ModuleContent({ mod, hasAccess, completed, onMarkComplete, saving, isMobile }: {
   mod: Module; hasAccess: boolean; completed: boolean; onMarkComplete: () => void; saving: boolean; isMobile?: boolean
 }) {
+  const isDark = useIsDark()
   return (
     <div style={{ flex: 1, overflowY: 'auto', padding: isMobile ? '16px 12px calc(80px + env(safe-area-inset-bottom, 0px))' : '28px 36px 60px' }}>
       {/* Module header */}
@@ -690,6 +692,7 @@ function ModuleContent({ mod, hasAccess, completed, onMarkComplete, saving, isMo
           requiredTier={mod.tier}
           featureName="Field Manual Content"
           description={`This content is available to ${mod.tier.charAt(0).toUpperCase() + mod.tier.slice(1)} tier members and above. Upgrade your membership to unlock full access.`}
+          isDark={isDark}
         />
       ) : (
         <>
@@ -807,6 +810,7 @@ function ModuleTabView({ modules, progress, hasFullAccess, onMarkComplete, savin
 
 // ── FIELD NOTES TAB ───────────────────────────────────────────────────────────
 function FieldNotesTab({ hasAccess, isMobile }: { hasAccess: boolean; isMobile: boolean }) {
+  const isDark = useIsDark()
   const [selected, setSelected] = useState<Article | null>(null)
 
   if (selected) return (
@@ -823,7 +827,7 @@ function FieldNotesTab({ hasAccess, isMobile }: { hasAccess: boolean; isMobile: 
         <div style={{ fontFamily: crimson, fontSize: 15, color: DIM, lineHeight: 1.7, fontStyle: 'italic' }}>{selected.intro}</div>
       </div>
 
-      {!hasAccess ? <UpgradeGate variant="screen" requiredTier="soldier" featureName="Field Notes" description="This content is available to Soldier tier members and above. Upgrade your membership to unlock full access." /> : (
+      {!hasAccess ? <UpgradeGate variant="screen" requiredTier="soldier" featureName="Field Notes" description="This content is available to Soldier tier members and above. Upgrade your membership to unlock full access." isDark={isDark} /> : (
         <>
           {selected.sections.map((sec, i) => (
             <div key={i} style={{ marginBottom: 32 }}>

@@ -7,6 +7,7 @@ import { TacticalCard, ClassBadge, HUDChip, GoldButton, SectionLabel, MonoTime }
 import type { ClassLevel } from '@/components/primitives'
 import { CommunitySidebarShell } from '@/components/CommunitySidebarShell'
 import { UpgradeGate } from '@/components/UpgradeGate'
+import { useIsDark } from '@/lib/use-is-dark'
 
 export const Route = createFileRoute('/arsenal')({
   component: ArsenalPage,
@@ -148,6 +149,7 @@ function FileCard({
   onDownload: (r: Resource) => void
   downloading: string | null
 }) {
+  const isDark        = useIsDark()
   const isLocked      = resource.locked === true
   const memberLevel   = getTierLevel(memberTier)
   const fileLevel     = getTierLevel(resource.tier)
@@ -191,6 +193,7 @@ function FileCard({
           variant="banner"
           featureName={`${normalizeTier(resource.tier)} resource`}
           requiredTier={normalizeTier(resource.tier).toLowerCase()}
+          isDark={isDark}
         />
       </TacticalCard>
     )
@@ -248,6 +251,7 @@ function FileCard({
           variant="banner"
           featureName={`${resource.tier} resource`}
           requiredTier={resource.tier.toLowerCase()}
+          isDark={isDark}
         />
       )}
     </TacticalCard>
