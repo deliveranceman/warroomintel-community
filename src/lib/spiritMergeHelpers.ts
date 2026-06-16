@@ -3,12 +3,14 @@
 
 export type FieldState =
   | { kind: 'auto';      camel: string; label: string; value: any }
+  | { kind: 'match';     camel: string; label: string; value: any }
+  | { kind: 'preserved'; camel: string; label: string; value: any }
   | { kind: 'conflict';  camel: string; label: string; existing: any; candidate: any }
-  | { kind: 'relational'; camel: string; label: string; existing: any; candidate: any }
   | { kind: 'empty';     camel: string; label: string; value: any }
 
-// Fields that have their own structured sub-table and should not be clobbered
-// by raw text from a candidate — show side-by-side but never auto-fill.
+// Fields that have their own structured sub-table. Classified normally for
+// state (auto/conflict/match/preserved) — the UI layer adds an inline spirit
+// picker for these regardless of state.
 export const RELATIONAL_FIELDS = new Set([
   'companionSpirits',
   'parentStrongman',
@@ -115,20 +117,25 @@ function isEmpty(v: any): boolean {
   return false
 }
 
-export function appendSeparator(existing: string, candidate: string): string {
-  const a = existing.trim()
-  const b = candidate.trim()
-  if (!a) return b
-  if (!b) return a
-  return `${a}\n\n---\n\n${b}`
+export function appendSeparator(a: string, b: string): string {
+  const ta = a.trim()
+  const tb = b.trim()
+  if (!ta) return tb
+  if (!tb) return ta
+  return `${ta}\n\n---\n\n${tb}`
 }
 
-// Pre-populated merge value for a long-form field where both sides have content.
 export function appendMerge(existing: string, candidate: string): string {
   return appendSeparator(existing, candidate)
 }
 
 // Classify a single field given existing spirit value and candidate value.
+// Five possible kinds:
+//   empty     — both sides have no value (hide entirely)
+//   auto      — existing blank, candidate has value (offer to fill)
+//   preserved — existing has value, candidate blank (show for confidence, no action)
+//   match     — both have identical values (show for confidence, no action)
+//   conflict  — both have different values (human decides)
 export function classifyField(
   camel: string,
   existingValue: any,
@@ -138,31 +145,15 @@ export function classifyField(
   const existEmpty = isEmpty(existingValue)
   const candEmpty  = isEmpty(candidateValue)
 
-  // Nothing from either side — skip
-  if (existEmpty && candEmpty) return { kind: 'empty', camel, label, value: existingValue }
+  if (existEmpty && candEmpty)  return { kind: 'empty',     camel, label, value: existingValue }
+  if (existEmpty && !candEmpty) return { kind: 'auto',      camel, label, value: candidateValue }
+  if (!existEmpty && candEmpty) return { kind: 'preserved', camel, label, value: existingValue }
 
-  // Relational fields — always show side-by-side, never auto-fill
-  if (RELATIONAL_FIELDS.has(camel)) {
-    return { kind: 'relational', camel, label, existing: existingValue, candidate: candidateValue }
-  }
+  // Both have data — compare normalised strings
+  const existStr = typeof existingValue === 'string' ? existingValue.trim().toLowerCase() : JSON.stringify(existingValue)
+  const candStr  = typeof candidateValue === 'string' ? candidateValue.trim().toLowerCase() : JSON.stringify(candidateValue)
 
-  // Candidate adds new info, existing is blank — auto-fill
-  if (existEmpty && !candEmpty) {
-    return { kind: 'auto', camel, label, value: candidateValue }
-  }
+  if (existStr === candStr) return { kind: 'match', camel, label, value: existingValue }
 
-  // Existing has data, candidate is blank — skip (no contribution)
-  if (!existEmpty && candEmpty) {
-    return { kind: 'empty', camel, label, value: existingValue }
-  }
-
-  // Both have data
-  const existStr = typeof existingValue === 'string' ? existingValue.trim() : JSON.stringify(existingValue)
-  const candStr  = typeof candidateValue === 'string' ? candidateValue.trim() : JSON.stringify(candidateValue)
-
-  // Identical — no conflict, keep existing
-  if (existStr === candStr) return { kind: 'empty', camel, label, value: existingValue }
-
-  // Conflict — human decides
   return { kind: 'conflict', camel, label, existing: existingValue, candidate: candidateValue }
 }
