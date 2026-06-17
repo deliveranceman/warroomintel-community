@@ -3934,6 +3934,8 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier, dem
   )
   const [spiritStack, setSpiritStack] = useState<any[]>([])
   const speechVoicesRef = useRef<SpeechSynthesisVoice[]>([])
+  const protocolPollRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  useEffect(() => () => { if (protocolPollRef.current) clearInterval(protocolPollRef.current) }, [])
   useEffect(() => {
     if (typeof window === 'undefined' || !('speechSynthesis' in window)) return
     const load = () => { speechVoicesRef.current = window.speechSynthesis.getVoices() }
@@ -4121,12 +4123,32 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier, dem
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Protocol generation failed')
-      setProtocolResult(data)
-      setActiveProtocolSection(0)
-      setCheckedGrounds({})
+
+      const jobId: string = data.jobId
+      if (protocolPollRef.current) clearInterval(protocolPollRef.current)
+      protocolPollRef.current = setInterval(async () => {
+        try {
+          const pollToken = await getToken()
+          const pollRes = await fetch(`/api/job-status?jobId=${jobId}`, {
+            headers: { Authorization: `Bearer ${pollToken}` },
+          })
+          if (!pollRes.ok) return
+          const job = await pollRes.json()
+          if (job.status === 'complete') {
+            clearInterval(protocolPollRef.current!); protocolPollRef.current = null
+            const result = job.result_json
+            if (result?.protocol) { setProtocolResult(result); setActiveProtocolSection(0); setCheckedGrounds({}) }
+            else { setProtocolError('Protocol generation returned no result') }
+            setProtocolLoading(false)
+          } else if (job.status === 'failed') {
+            clearInterval(protocolPollRef.current!); protocolPollRef.current = null
+            setProtocolError(job.error_message || 'Protocol generation failed')
+            setProtocolLoading(false)
+          }
+        } catch { /* network hiccup — keep polling */ }
+      }, 3000)
     } catch (e: any) {
       setProtocolError(e.message || 'Protocol generation failed')
-    } finally {
       setProtocolLoading(false)
     }
   }
@@ -12914,6 +12936,8 @@ function CommunityPage() {
   const [stpError, setStpError]                   = useState<string | null>(null)
   const [stpTab, setStpTab]                       = useState<'intel' | 'legal' | 'renunciation' | 'command' | 'post'>('intel')
   const [stpChecked, setStpChecked]               = useState<Record<string, boolean>>({})
+  const stpPollRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  useEffect(() => () => { if (stpPollRef.current) clearInterval(stpPollRef.current) }, [])
 
   // ── SOL drag effect ──
   useEffect(() => {
@@ -13450,12 +13474,32 @@ function CommunityPage() {
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Protocol generation failed')
-      setStpResult(data)
-      setStpTab('intel')
-      setStpChecked({})
+
+      const jobId: string = data.jobId
+      if (stpPollRef.current) clearInterval(stpPollRef.current)
+      stpPollRef.current = setInterval(async () => {
+        try {
+          const pollToken = await getToken()
+          const pollRes = await fetch(`/api/job-status?jobId=${jobId}`, {
+            headers: { Authorization: `Bearer ${pollToken}` },
+          })
+          if (!pollRes.ok) return
+          const job = await pollRes.json()
+          if (job.status === 'complete') {
+            clearInterval(stpPollRef.current!); stpPollRef.current = null
+            const result = job.result_json
+            if (result?.protocol) { setStpResult(result); setStpTab('intel'); setStpChecked({}) }
+            else { setStpError('Protocol generation returned no result') }
+            setStpLoading(false)
+          } else if (job.status === 'failed') {
+            clearInterval(stpPollRef.current!); stpPollRef.current = null
+            setStpError(job.error_message || 'Protocol generation failed')
+            setStpLoading(false)
+          }
+        } catch { /* network hiccup — keep polling */ }
+      }, 3000)
     } catch (e: any) {
       setStpError(e.message || 'Protocol generation failed')
-    } finally {
       setStpLoading(false)
     }
   }

@@ -1,11 +1,14 @@
 import { requireTier } from './_shared/access'
 import { checkAndIncrementUsage, getUpgradeMessage } from '../lib/ai-rate-limit'
+import { createClient } from '@supabase/supabase-js'
 
 const HEADERS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'Content-Type, Authorization',
   'Content-Type': 'application/json',
 }
+
+const { url: sbUrl, serviceRoleKey: sbKey } = JSON.parse(process.env.SUPABASE || '{}')
 
 export default async function handler(req: Request) {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: HEADERS })
@@ -32,100 +35,56 @@ export default async function handler(req: Request) {
     manifestationCandidates = [],
   } = body
 
-  const primaryName = spiritData?.name || bodySpitName || manifestationCandidates?.[0]?.name || 'Unknown Spirit'
-
-  const contextBlock = mode === 'spirit'
-    ? `Spirit: "${primaryName}"
-${includeCluster && spiritNames.length ? `Cluster spirits: ${spiritNames.join(', ')}` : ''}
-${spiritData?.description ? `Description: ${spiritData.description}` : ''}
-${spiritData?.manifestation ? `Manifestations: ${spiritData.manifestation}` : ''}`
-    : `Symptom investigation — probable spirits: ${(manifestationCandidates as any[]).map((s: any) => s.name).join(', ')}
-Symptoms presented: ${manifestationDescription}`
-
-  const userPrompt = `Generate a complete deliverance session protocol.
-
-${contextBlock}
-
-Respond with ONLY this JSON structure (no markdown, no explanation):
-{
-  "preSessionIntel": {
-    "summary": "2-3 sentence operational overview for the minister",
-    "keyLegalGrounds": ["ground 1", "ground 2", "ground 3"],
-    "keyScriptures": ["Book X:Y — brief quote", "Book X:Y — brief quote"],
-    "warningFlags": ["warning 1", "warning 2"]
-  },
-  "legalGroundChecklist": [
-    {"ground": "Ground name", "question": "Diagnostic question to ask", "scripture": "Book X:Y"}
-  ],
-  "renunciationPrayers": [
-    {"title": "Prayer title", "prayer": "Full prayer text (first person — I renounce...)", "notes": "Brief minister notes"}
-  ],
-  "commandPrayers": [
-    {"target": "Spirit name", "command": "Full command prayer (authoritative minister voice)", "authority": "Scripture reference"}
-  ],
-  "aftercare": {
-    "initialSteps": ["Step 1", "Step 2", "Step 3"],
-    "dailyPractices": ["Practice 1", "Practice 2"],
-    "warningSignsToWatch": ["Sign 1"],
-    "followUpQuestions": ["Question 1"]
-  }
-}
-
-Requirements: 3-5 legal grounds, 2-3 renunciation prayers, 2-3 command prayers, practical aftercare.`
-
   try {
-    const aiRes = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': process.env.ANTHROPIC_API_KEY ?? '',
-        'anthropic-version': '2023-06-01',
+    const client = createClient(sbUrl!, sbKey!)
+
+    const { data: job, error: insertErr } = await client.from('ai_jobs').insert({
+      job_type:     'deliverance_protocol',
+      status:       'queued',
+      progress:     0,
+      stage:        'queued',
+      user_id:      auth.userId,
+      tier:         auth.tier,
+      input_params: {
+        mode,
+        spiritData:               spiritData || null,
+        spiritName:               bodySpitName,
+        spiritNames,
+        includeCluster,
+        manifestationDescription,
+        manifestationCandidates,
       },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-5',
-        max_tokens: 2500,
-        system: 'You are a seasoned deliverance ministry protocol generator. Generate scripture-grounded, minister-ready protocols. Respond with valid JSON only — no markdown, no explanation.',
-        messages: [{ role: 'user', content: userPrompt }],
-      }),
-      signal: AbortSignal.timeout(180_000),
-    })
+    }).select('id').single()
 
-    if (!aiRes.ok) {
-      const err = await aiRes.text()
-      console.error('[deliverance-protocol] Anthropic error:', aiRes.status, err.slice(0, 200))
-      return new Response(JSON.stringify({ error: 'AI call failed', detail: err.slice(0, 200) }), { status: 502, headers: HEADERS })
+    if (insertErr || !job?.id) {
+      console.error('[deliverance-protocol] job insert failed:', insertErr?.message)
+      return new Response(JSON.stringify({ error: 'Failed to queue protocol job' }), { status: 500, headers: HEADERS })
     }
 
-    const aiData = await aiRes.json() as any
-    const rawText = aiData.content?.find((b: any) => b.type === 'text')?.text ?? ''
+    const jobId = job.id as string
 
-    // Strip ```json ... ``` fences, normalize smart quotes, then extract the JSON object.
-    const stripped = rawText
-      .replace(/^```json\s*/i, '')
-      .replace(/^```\s*/i, '')
-      .replace(/\s*```\s*$/, '')
-      .replace(/[‘’]/g, "'")
-      .replace(/[“”]/g, '"')
-      .trim()
-
-    const jsonMatch = stripped.match(/\{[\s\S]*\}/)
-    if (!jsonMatch) {
-      console.error('[deliverance-protocol] No JSON object found. Raw prefix:', rawText.slice(0, 300))
-      throw new Error('No JSON in response')
-    }
-
-    let protocol: any
+    // Trigger background worker immediately — cron is the fallback safety net.
+    const reqUrl  = new URL(req.url)
+    const baseUrl = `${reqUrl.protocol}//${reqUrl.host}`
     try {
-      protocol = JSON.parse(jsonMatch[0])
-    } catch (parseErr: any) {
-      console.error('[deliverance-protocol] JSON.parse failed:', parseErr.message, '— raw prefix:', rawText.slice(0, 300))
-      throw new Error(`JSON parse failed: ${parseErr.message}`)
+      await fetch(`${baseUrl}/api/job-worker-background`, {
+        method: 'POST',
+        headers: {
+          'Content-Type':  'application/json',
+          'x-internal-key': process.env.INTERNAL_API_KEY ?? '',
+        },
+        body: JSON.stringify({ jobId }),
+        signal: AbortSignal.timeout(5000),
+      })
+    } catch (dispatchErr: any) {
+      console.warn('[deliverance-protocol] worker dispatch failed:', dispatchErr.message, 'jobId:', jobId)
+      // Non-fatal — cron picks it up within 1 minute.
     }
 
-    return new Response(JSON.stringify({ protocol, arsenalResources: [], spiritData: spiritData || null }), { headers: HEADERS })
+    return new Response(JSON.stringify({ jobId }), { status: 202, headers: HEADERS })
   } catch (e: any) {
     console.error('[deliverance-protocol] Error:', e.message)
-    return new Response(JSON.stringify({ error: e.message || 'Protocol generation failed' }), { status: 500, headers: HEADERS })
+    return new Response(JSON.stringify({ error: e.message || 'Failed to start protocol job' }), { status: 500, headers: HEADERS })
   }
 }
 
