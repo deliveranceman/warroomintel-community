@@ -3918,6 +3918,12 @@ function DatabaseView({ theme, isMobile, isTablet, userTier, demons: demonsProp 
   const speechVoicesRef = useRef<SpeechSynthesisVoice[]>([])
   const protocolPollRef = useRef<ReturnType<typeof setInterval> | null>(null)
   useEffect(() => () => { if (protocolPollRef.current) clearInterval(protocolPollRef.current) }, [])
+  const [protocolPrintMode, setProtocolPrintMode] = useState(false)
+  useEffect(() => {
+    if (!protocolPrintMode) return
+    const id = setTimeout(() => { window.print(); setProtocolPrintMode(false) }, 100)
+    return () => clearTimeout(id)
+  }, [protocolPrintMode])
   useEffect(() => {
     if (typeof window === 'undefined' || !('speechSynthesis' in window)) return
     const load = () => { speechVoicesRef.current = window.speechSynthesis.getVoices() }
@@ -5245,15 +5251,15 @@ function DatabaseView({ theme, isMobile, isTablet, userTier, demons: demonsProp 
                       </button>
                     </div>
                   ) : (
-                    <div>
+                    <div className="protocol-print-area">
                       {/* Protocol header + print + regenerate */}
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
+                      <div className="protocol-print-hide" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
                         <div>
                           <div style={{ fontFamily: cinzel, fontSize: 13, color: dbIsDark ? G : '#8B6914', letterSpacing: '0.1em', marginBottom: 4 }}>⚔ SESSION PROTOCOL</div>
                           <div style={{ fontFamily: cinzel, fontSize: 9, color: mut, letterSpacing: '0.08em' }}>{entry.name}</div>
                         </div>
                         <div style={{ display: 'flex', gap: 6 }}>
-                          <button onClick={() => window.print()}
+                          <button onClick={() => setProtocolPrintMode(true)}
                             style={{ background: 'transparent', border: `1px solid rgba(201,168,76,0.3)`, borderRadius: 4, color: (dbIsDark ? G : '#8B6914') + '99', fontFamily: cinzel, fontSize: 8, letterSpacing: '0.08em', cursor: 'pointer', padding: '4px 10px' }}>
                             🖨 PRINT
                           </button>
@@ -5265,6 +5271,7 @@ function DatabaseView({ theme, isMobile, isTablet, userTier, demons: demonsProp 
                       </div>
 
                       {/* Section nav pills */}
+                      {!protocolPrintMode && (
                       <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' as const, marginBottom: 20 }}>
                         {['Pre-Session Intel', 'Legal Grounds', 'Renunciation', 'Intercession', 'Command Prayers', 'Aftercare', 'Resources'].map((sec, i) => (
                           <button key={i} onClick={() => setActiveProtocolSection(i)}
@@ -5273,12 +5280,14 @@ function DatabaseView({ theme, isMobile, isTablet, userTier, demons: demonsProp 
                           </button>
                         ))}
                       </div>
+                      )}
 
                       {/* Section 0: Pre-Session Intel */}
-                      {activeProtocolSection === 0 && protocolResult.protocol?.preSessionIntel && (() => {
+                      {(protocolPrintMode || activeProtocolSection === 0) && protocolResult.protocol?.preSessionIntel && (() => {
                         const intel = protocolResult.protocol.preSessionIntel
                         return (
                           <div>
+                            <div className="protocol-section-header">PRE-SESSION INTEL</div>
                             <div style={{ background: 'rgba(201,168,76,0.06)', border: '1px solid rgba(201,168,76,0.2)', borderLeft: `3px solid ${G}`, borderRadius: 8, padding: '16px 18px', marginBottom: 16 }}>
                               <div style={{ fontFamily: crimson, fontSize: 15, color: txt, lineHeight: 1.7 }}>{intel.summary}</div>
                             </div>
@@ -5314,8 +5323,9 @@ function DatabaseView({ theme, isMobile, isTablet, userTier, demons: demonsProp 
                       })()}
 
                       {/* Section 1: Legal Ground Checklist */}
-                      {activeProtocolSection === 1 && (
+                      {(protocolPrintMode || activeProtocolSection === 1) && (
                         <div>
+                          <div className="protocol-section-header">LEGAL GROUND CHECKLIST</div>
                           <div style={{ fontFamily: crimson, fontSize: 14, color: mut, lineHeight: 1.6, marginBottom: 16 }}>
                             Go through each ground with the person. Check off what applies — this forms the basis for renunciation.
                           </div>
@@ -5336,8 +5346,9 @@ function DatabaseView({ theme, isMobile, isTablet, userTier, demons: demonsProp 
                       )}
 
                       {/* Section 2: Renunciation Prayers */}
-                      {activeProtocolSection === 2 && (
+                      {(protocolPrintMode || activeProtocolSection === 2) && (
                         <div>
+                          <div className="protocol-section-header">RENUNCIATION PRAYERS</div>
                           {(protocolResult.protocol?.renunciationPrayers || []).map((prayer: any, i: number) => (
                             <div key={i} style={{ marginBottom: 20, background: 'rgba(255,255,255,0.02)', border: `1px solid ${bdr}`, borderRadius: 10, padding: '16px 18px' }}>
                               <div style={{ fontFamily: cinzel, fontSize: 10, color: dbIsDark ? G : '#8B6914', letterSpacing: '0.08em', marginBottom: 10 }}>{prayer.title}</div>
@@ -5355,10 +5366,11 @@ function DatabaseView({ theme, isMobile, isTablet, userTier, demons: demonsProp 
                       )}
 
                       {/* Section 3: Intercession */}
-                      {activeProtocolSection === 3 && protocolResult.protocol?.intercession && (() => {
+                      {(protocolPrintMode || activeProtocolSection === 3) && protocolResult.protocol?.intercession && (() => {
                         const ic = protocolResult.protocol.intercession
                         return (
                           <div>
+                            <div className="protocol-section-header">INTERCESSION</div>
                             {ic.opening && (
                               <div style={{ marginBottom: 20 }}>
                                 <div style={{ fontFamily: cinzel, fontSize: 9, color: color + 'BB', letterSpacing: '0.12em', textTransform: 'uppercase' as const, marginBottom: 8 }}>Opening Intercession</div>
@@ -5384,8 +5396,9 @@ function DatabaseView({ theme, isMobile, isTablet, userTier, demons: demonsProp 
                       })()}
 
                       {/* Section 4: Command Prayers */}
-                      {activeProtocolSection === 4 && (
+                      {(protocolPrintMode || activeProtocolSection === 4) && (
                         <div>
+                          <div className="protocol-section-header">COMMAND PRAYERS</div>
                           {(protocolResult.protocol?.commandPrayers || []).map((prayer: any, i: number) => (
                             <div key={i} style={{ marginBottom: 20, background: 'rgba(220,38,38,0.04)', border: '1px solid rgba(220,38,38,0.15)', borderLeft: '3px solid rgba(220,38,38,0.5)', borderRadius: 10, padding: '16px 18px' }}>
                               <div style={{ fontFamily: cinzel, fontSize: 10, color: '#f87171', letterSpacing: '0.08em', marginBottom: 10 }}>TARGET: {prayer.target}</div>
@@ -5401,10 +5414,11 @@ function DatabaseView({ theme, isMobile, isTablet, userTier, demons: demonsProp 
                       )}
 
                       {/* Section 5: Aftercare */}
-                      {activeProtocolSection === 5 && protocolResult.protocol?.aftercare && (() => {
+                      {(protocolPrintMode || activeProtocolSection === 5) && protocolResult.protocol?.aftercare && (() => {
                         const ac = protocolResult.protocol.aftercare
                         return (
                           <div>
+                            <div className="protocol-section-header">AFTERCARE</div>
                             {ac.initialSteps?.length > 0 && (
                               <div style={{ marginBottom: 16 }}>
                                 <div style={{ fontFamily: cinzel, fontSize: 9, color: color + 'BB', letterSpacing: '0.12em', textTransform: 'uppercase' as const, marginBottom: 8 }}>Immediate Steps</div>
@@ -5445,8 +5459,9 @@ function DatabaseView({ theme, isMobile, isTablet, userTier, demons: demonsProp 
                       })()}
 
                       {/* Section 6: Arsenal Resources */}
-                      {activeProtocolSection === 6 && (
+                      {(protocolPrintMode || activeProtocolSection === 6) && (
                         <div>
+                          <div className="protocol-section-header">ARSENAL RESOURCES</div>
                           {protocolResult.arsenalResources?.length > 0 ? (
                             <div>
                               <div style={{ fontFamily: crimson, fontSize: 14, color: mut, lineHeight: 1.6, marginBottom: 16 }}>
@@ -5735,6 +5750,22 @@ function ArsenalView({ theme, userTier, isMobile, filterSheetOpen, setFilterShee
     load()
   }, [])
 
+  // ARSENAL SHELVES — three compact teaser rows from /api/arsenal-shelves (recent / for-your-tier / featured)
+  // Separate endpoint from arsenal-resources; pre-signs file_url server-side just like the main list.
+  const [shelves, setShelves] = useState<{ recent: any[]; forYourWatch: any[]; pinned: any[] }>({ recent: [], forYourWatch: [], pinned: [] })
+  useEffect(() => {
+    async function loadShelves() {
+      try {
+        const token = await getToken()
+        const res = await fetch('/api/arsenal-shelves', { headers: { Authorization: `Bearer ${token}` } })
+        if (!res.ok) return
+        const data = await res.json()
+        setShelves({ recent: data.recent || [], forYourWatch: data.forYourWatch || [], pinned: data.pinned || [] })
+      } catch { /* silent — shelves are a non-critical enhancement */ }
+    }
+    loadShelves()
+  }, [])
+
   useEffect(() => {
     const n = [activeTierNum !== null, tierFilter !== 'All'].filter(Boolean).length
     setFilterCount?.(n)
@@ -5849,10 +5880,6 @@ function ArsenalView({ theme, userTier, isMobile, filterSheetOpen, setFilterShee
     return matchSearch && matchTier && matchTopic && matchContentTier
   })
 
-  const recent = [...arsenalItems]
-    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-    .slice(0, 6)
-
   const sortedItems = [...filtered].sort((a, b) => {
     if (arsenalSort === 'az')   return (a.title || '').localeCompare(b.title || '')
     if (arsenalSort === 'tier') return (TIER_ORDER[(b.tier || '').toLowerCase()] ?? 0) - (TIER_ORDER[(a.tier || '').toLowerCase()] ?? 0)
@@ -5959,6 +5986,57 @@ function ArsenalView({ theme, userTier, isMobile, filterSheetOpen, setFilterShee
     )
   }
 
+  // Compact file card for the horizontal-scroll shelves. Tap-anywhere → open (unlocked) or upgrade (locked).
+  const FileShelfCard = ({ file }: { file: any }) => {
+    const tc        = getTierColor(file.tier, isDark)
+    const tierLabel = (file.tier === 'free' || file.tier === 'Free') ? 'Watchman' : file.tier
+    const cardBg    = isDark ? '#13111e' : '#FFFFFF'
+    const cardBdr   = isDark ? '#2a2540' : '#D8D1BE'
+    const titleCol  = isDark ? '#E8D5B0' : '#1F1B12'
+    const descCol   = isDark ? '#8B7355' : '#574B33'
+    return (
+      <div
+        onClick={() => {
+          if (file.locked) { beginUpgrade(file.tier); return }
+          if (file.file_url) window.open(file.file_url, '_blank', 'noopener,noreferrer')
+        }}
+        style={{ flexShrink: 0, width: 200, minHeight: 124, background: cardBg, border: `1px solid ${cardBdr}`, borderLeft: `3px solid ${tc}`, borderRadius: 10, padding: '12px 14px', cursor: 'pointer', display: 'flex', flexDirection: 'column' as const, gap: 8, boxSizing: 'border-box' as const, whiteSpace: 'normal' as const, boxShadow: isDark ? 'none' : '0 1px 2px rgba(60,45,15,.05), 0 4px 14px rgba(60,45,15,.04)', WebkitTapHighlightColor: 'transparent' }}
+      >
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
+          <span style={{ fontSize: 20, flexShrink: 0 }}>{file.locked ? '🔒' : (FILE_ICONS[file.file_type] || '📄')}</span>
+          <span style={{ fontFamily: cinzel, fontSize: 7, padding: '2px 7px', borderRadius: 20, background: `${tc}18`, color: tc, border: `1px solid ${tc}35`, letterSpacing: '0.06em', textTransform: 'uppercase' as const, flexShrink: 0, whiteSpace: 'nowrap' as const }}>{tierLabel}</span>
+        </div>
+        <div style={{ fontFamily: cinzel, fontSize: 11, color: file.locked ? muted : titleCol, lineHeight: 1.4, overflow: 'hidden', display: '-webkit-box' as any, WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' as any, textOverflow: 'ellipsis' }}>
+          {cleanArsenalTitle(file.title || '')}
+        </div>
+        {file.locked
+          ? <div style={{ fontFamily: cinzel, fontSize: 8, color: isDark ? G : '#8B6914', opacity: 0.7, marginTop: 'auto' }}>Upgrade to {tierLabel}</div>
+          : (file.topic || file.category)
+            ? <div style={{ fontFamily: crimson, fontSize: 11, color: descCol, marginTop: 'auto', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{file.topic || file.category}</div>
+            : null}
+      </div>
+    )
+  }
+
+  // Horizontal-scroll shelf. Empty array → renders nothing.
+  const FileShelfRow = ({ title, icon, files }: { title: string; icon: string; files: any[] }) => {
+    if (!files || files.length === 0) return null
+    return (
+      <div style={{ marginBottom: 24 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+          <div style={{ fontFamily: cinzel, fontSize: 11, letterSpacing: '0.12em', color: isDark ? '#C9A84C' : '#8B6914', textTransform: 'uppercase' as const, display: 'flex', alignItems: 'center', gap: 7 }}>
+            <span style={{ fontSize: 13 }}>{icon}</span>{title}
+          </div>
+          <button onClick={() => { setActiveCategory('__search__'); setQuery('') }}
+            style={{ background: 'transparent', border: 'none', fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', color: muted, cursor: 'pointer', textTransform: 'uppercase' as const }}>See all →</button>
+        </div>
+        <div style={{ display: 'flex', gap: 10, overflowX: 'auto', paddingBottom: 4, WebkitOverflowScrolling: 'touch' }}>
+          {files.map((f: any) => <FileShelfCard key={f.id} file={f} />)}
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div style={{ flex: 1, overflowY: 'auto', background: bg, padding: isMobile ? '12px' : '24px 32px', minHeight: 0 }}>
       {/* Header */}
@@ -6022,6 +6100,11 @@ function ArsenalView({ theme, userTier, isMobile, filterSheetOpen, setFilterShee
         <div style={{ background: 'rgba(220,38,38,0.1)', border: '1px solid rgba(220,38,38,0.3)', borderRadius: 6, padding: '12px 16px', color: '#f87171', marginBottom: 24, fontFamily: crimson }}>{arsenalError}</div>
       ) : activeCategory === null && activeTierNum === null ? (
         <>
+          {/* File shelves — compact horizontal-scroll teasers (recent / for-your-tier / featured) */}
+          <FileShelfRow title="Recently Added" icon="🆕" files={shelves.recent} />
+          <FileShelfRow title="For Your Watch" icon="🎯" files={shelves.forYourWatch} />
+          <FileShelfRow title="Pinned" icon="📌" files={shelves.pinned} />
+
           {/* Mobile: Browse Topics button */}
           {isMobile && (
             <button onClick={() => setShowCategorySheet(true)}
@@ -6044,16 +6127,6 @@ function ArsenalView({ theme, userTier, isMobile, filterSheetOpen, setFilterShee
                   <span style={{ fontFamily: crimson, fontSize: 12, color: isDark ? 'rgba(240,232,216,0.38)' : 'rgba(31,27,18,0.78)' }}>{categoryCounts[topic]} resource{categoryCounts[topic] !== 1 ? 's' : ''}</span>
                 </div>
               ))}
-            </div>
-          )}
-
-          {/* Recently added */}
-          {recent.length > 0 && (
-            <div>
-              <div style={{ fontFamily: cinzel, fontSize: 10, letterSpacing: '0.15em', color: muted, textTransform: 'uppercase' as const, marginBottom: 10 }}>Recently Added</div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                {recent.map(r => <ResourceRow key={r.id} resource={r} showDescription />)}
-              </div>
             </div>
           )}
 
@@ -12891,6 +12964,12 @@ function CommunityPage() {
   const [stpChecked, setStpChecked]               = useState<Record<string, boolean>>({})
   const stpPollRef = useRef<ReturnType<typeof setInterval> | null>(null)
   useEffect(() => () => { if (stpPollRef.current) clearInterval(stpPollRef.current) }, [])
+  const [stpPrintMode, setStpPrintMode] = useState(false)
+  useEffect(() => {
+    if (!stpPrintMode) return
+    const id = setTimeout(() => { window.print(); setStpPrintMode(false) }, 100)
+    return () => clearTimeout(id)
+  }, [stpPrintMode])
 
   // ── SOL drag effect ──
   useEffect(() => {
@@ -14711,19 +14790,21 @@ function CommunityPage() {
                 </button>
               </div>
             ) : (
-              <div style={{ maxWidth: 780, margin: '0 auto' }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20, flexWrap: 'wrap', gap: 10 }}>
+              <div className="protocol-print-area" style={{ maxWidth: 780, margin: '0 auto' }}>
+                <div className="protocol-print-hide" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20, flexWrap: 'wrap', gap: 10 }}>
                   <div style={{ fontFamily: cinzel, fontSize: 13, color: G, letterSpacing: '0.08em' }}>⚔ SESSION PROTOCOL</div>
                   <div style={{ display: 'flex', gap: 10 }}>
-                    <button onClick={() => window.print()} style={{ background: 'transparent', border: `1px solid rgba(201,168,76,0.3)`, borderRadius: 6, padding: '6px 14px', color: G, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: 'pointer' }}>🖨 PRINT</button>
+                    <button onClick={() => setStpPrintMode(true)} style={{ background: 'transparent', border: `1px solid rgba(201,168,76,0.3)`, borderRadius: 6, padding: '6px 14px', color: G, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: 'pointer' }}>🖨 PRINT</button>
                     <button onClick={() => { setStpResult(null); setStpError(null) }} style={{ background: 'transparent', border: `1px solid rgba(201,168,76,0.3)`, borderRadius: 6, padding: '6px 14px', color: isDark ? '#9a8874' : '#5C5248', fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: 'pointer' }}>↩ NEW PROTOCOL</button>
                   </div>
                 </div>
+                {!stpPrintMode && (
                 <div style={{ display: 'flex', gap: 0, borderBottom: `1px solid rgba(201,168,76,0.18)`, marginBottom: 24, overflowX: 'auto' as const }}>
                   {([{ key: 'intel', label: 'PRE-SESSION INTEL' }, { key: 'legal', label: 'LEGAL GROUND' }, { key: 'renunciation', label: 'RENUNCIATIONS' }, { key: 'command', label: 'COMMAND PRAYERS' }, { key: 'post', label: 'POST-SESSION' }] as const).map(t => (
                     <button key={t.key} onClick={() => setStpTab(t.key)} style={{ padding: '8px 14px', background: 'none', border: 'none', borderBottom: stpTab === t.key ? `2px solid ${G}` : '2px solid transparent', color: stpTab === t.key ? G : isDark ? '#9a8874' : '#5C5248', fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: 'pointer', whiteSpace: 'nowrap' as const, marginBottom: -1 }}>{t.label}</button>
                   ))}
                 </div>
+                )}
               </div>
             )}
               </div>
@@ -14921,7 +15002,18 @@ function CommunityPage() {
   // ── FULL LAYOUT ────────────────────────────────────────────
   return (
     <UpgradeFlowCtx.Provider value={{ beginUpgrade }}>
-    <div style={{
+    <style>{`
+      .protocol-section-header { display: none; }
+      @media print {
+        body * { visibility: hidden; }
+        .protocol-print-area, .protocol-print-area * { visibility: visible; }
+        .protocol-print-area { position: absolute; top: 0; left: 0; width: 100%; background: #fff; color: #111; padding: 0; }
+        .protocol-print-hide { display: none !important; }
+        .protocol-section-header { display: block !important; visibility: visible; font-size: 13pt; font-weight: 700; letter-spacing: 0.12em; margin: 18pt 0 6pt; page-break-after: avoid; color: #8B6914; }
+        @page { margin: 0.75in; }
+      }
+    `}</style>
+    <div className="protocol-print-root" style={{
       height: '100dvh',
       display: isMobile ? 'block' : 'flex',
       background: V.bg,
@@ -15200,31 +15292,35 @@ function CommunityPage() {
                   </button>
                 </div>
               ) : (
-                <div style={{ maxWidth: 780, margin: '0 auto' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20, flexWrap: 'wrap', gap: 10 }}>
+                <div className="protocol-print-area" style={{ maxWidth: 780, margin: '0 auto' }}>
+                  <div className="protocol-print-hide" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20, flexWrap: 'wrap', gap: 10 }}>
                     <div style={{ fontFamily: cinzel, fontSize: 13, color: G, letterSpacing: '0.08em' }}>⚔ SESSION PROTOCOL</div>
                     <div style={{ display: 'flex', gap: 10 }}>
-                      <button onClick={() => window.print()} style={{ background: 'transparent', border: `1px solid rgba(201,168,76,0.3)`, borderRadius: 6, padding: '6px 14px', color: G, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: 'pointer' }}>🖨 PRINT</button>
+                      <button onClick={() => setStpPrintMode(true)} style={{ background: 'transparent', border: `1px solid rgba(201,168,76,0.3)`, borderRadius: 6, padding: '6px 14px', color: G, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: 'pointer' }}>🖨 PRINT</button>
                       <button onClick={() => { setStpResult(null); setStpError(null) }} style={{ background: 'transparent', border: `1px solid rgba(201,168,76,0.3)`, borderRadius: 6, padding: '6px 14px', color: isDark ? '#9a8874' : '#5C5248', fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: 'pointer' }}>↩ NEW PROTOCOL</button>
                     </div>
                   </div>
+                  {!stpPrintMode && (
                   <div style={{ display: 'flex', gap: 0, borderBottom: `1px solid rgba(201,168,76,0.18)`, marginBottom: 24, overflowX: 'auto' as const }}>
                     {([{ key: 'intel', label: 'PRE-SESSION INTEL' }, { key: 'legal', label: 'LEGAL GROUND' }, { key: 'renunciation', label: 'RENUNCIATIONS' }, { key: 'command', label: 'COMMAND PRAYERS' }, { key: 'post', label: 'POST-SESSION' }] as const).map(t => (
                       <button key={t.key} onClick={() => setStpTab(t.key)} style={{ padding: '8px 14px', background: 'none', border: 'none', borderBottom: stpTab === t.key ? `2px solid ${G}` : '2px solid transparent', color: stpTab === t.key ? G : isDark ? '#9a8874' : '#5C5248', fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: 'pointer', whiteSpace: 'nowrap' as const, marginBottom: -1 }}>{t.label}</button>
                     ))}
                   </div>
-                  {stpTab === 'intel' && stpResult.protocol?.preSessionIntel && (() => {
+                  )}
+                  {(stpPrintMode || stpTab === 'intel') && stpResult.protocol?.preSessionIntel && (() => {
                     const intel = stpResult.protocol.preSessionIntel
                     return (
                       <div>
+                        <div className="protocol-section-header">PRE-SESSION INTEL</div>
                         <p style={{ fontFamily: crimson, fontSize: 15, color: isDark ? '#c8b99a' : '#2D2924', lineHeight: 1.8, marginBottom: 20 }}>{intel.summary}</p>
                         {intel.keyLegalGrounds?.length > 0 && <div style={{ marginBottom: 18 }}><div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.12em', color: isDark ? 'rgba(201,168,76,0.6)' : '#8B6914', marginBottom: 8 }}>SPIRITS COVERED</div><div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>{intel.keyLegalGrounds.map((g: string, i: number) => <span key={i} style={{ background: 'rgba(201,168,76,0.1)', border: `1px solid rgba(201,168,76,0.3)`, borderRadius: 20, padding: '3px 10px', fontFamily: crimson, fontSize: 13, color: G }}>{g}</span>)}</div></div>}
                         {intel.warningFlags?.length > 0 && <div><div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.12em', color: '#ef4444', marginBottom: 8 }}>WARNING FLAGS</div>{intel.warningFlags.map((f: string, i: number) => <div key={i} style={{ border: '1px solid rgba(239,68,68,0.3)', borderRadius: 6, padding: '8px 12px', marginBottom: 8, fontFamily: crimson, fontSize: 14, color: isDark ? '#c8b99a' : '#2D2924', display: 'flex', gap: 8 }}><span style={{ color: '#ef4444', flexShrink: 0 }}>⚠</span>{f}</div>)}</div>}
                       </div>
                     )
                   })()}
-                  {stpTab === 'legal' && (
+                  {(stpPrintMode || stpTab === 'legal') && (
                     <div>
+                      <div className="protocol-section-header">LEGAL GROUND CHECKLIST</div>
                       {(stpResult.protocol?.legalGroundChecklist || []).map((item: any, i: number) => (
                         <label key={i} style={{ display: 'flex', gap: 12, alignItems: 'flex-start', padding: '12px 14px', background: isDark ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)', border: `1px solid ${stpChecked[`lg-${i}`] ? 'rgba(201,168,76,0.4)' : 'rgba(201,168,76,0.12)'}`, borderRadius: 6, marginBottom: 8, cursor: 'pointer' }}>
                           <input type="checkbox" checked={!!stpChecked[`lg-${i}`]} onChange={e => setStpChecked(prev => ({ ...prev, [`lg-${i}`]: e.target.checked }))} style={{ accentColor: G, marginTop: 3, flexShrink: 0 }} />
@@ -15233,8 +15329,9 @@ function CommunityPage() {
                       ))}
                     </div>
                   )}
-                  {stpTab === 'renunciation' && (
+                  {(stpPrintMode || stpTab === 'renunciation') && (
                     <div>
+                      <div className="protocol-section-header">RENUNCIATION PRAYERS</div>
                       {(stpResult.protocol?.renunciationPrayers || []).map((p: any, i: number) => (
                         <div key={i} style={{ marginBottom: 20 }}>
                           <div style={{ fontFamily: cinzel, fontSize: 10, color: G, letterSpacing: '0.08em', marginBottom: 8 }}>{p.title}</div>
@@ -15244,8 +15341,9 @@ function CommunityPage() {
                       ))}
                     </div>
                   )}
-                  {stpTab === 'command' && (
+                  {(stpPrintMode || stpTab === 'command') && (
                     <div>
+                      <div className="protocol-section-header">COMMAND PRAYERS</div>
                       {(stpResult.protocol?.commandPrayers || []).map((p: any, i: number) => (
                         <div key={i} style={{ marginBottom: 20 }}>
                           <div style={{ fontFamily: cinzel, fontSize: 10, color: G, letterSpacing: '0.08em', marginBottom: 8 }}>{p.target}</div>
@@ -15256,10 +15354,11 @@ function CommunityPage() {
                       {stpResult.protocol?.intercession && <div style={{ marginTop: 28 }}><div style={{ fontFamily: cinzel, fontSize: 10, letterSpacing: '0.15em', color: G, marginBottom: 16 }}>INTERCESSION</div>{stpResult.protocol.intercession.opening && <blockquote style={{ margin: '0 0 16px', paddingLeft: 14, borderLeft: `3px solid rgba(201,168,76,0.4)`, fontFamily: crimson, fontSize: 15, color: isDark ? '#c8b99a' : '#2D2924', fontStyle: 'italic', lineHeight: 1.8 }}>{stpResult.protocol.intercession.opening}</blockquote>}{(stpResult.protocol.intercession.declarations || []).map((d: string, i: number) => <div key={i} style={{ fontFamily: crimson, fontSize: 14, color: isDark ? '#a89878' : '#5C5248', paddingLeft: 14, borderLeft: '2px solid rgba(201,168,76,0.2)', marginBottom: 8 }}>{d}</div>)}</div>}
                     </div>
                   )}
-                  {stpTab === 'post' && stpResult.protocol?.aftercare && (() => {
+                  {(stpPrintMode || stpTab === 'post') && stpResult.protocol?.aftercare && (() => {
                     const ac = stpResult.protocol.aftercare
                     return (
                       <div>
+                        <div className="protocol-section-header">POST-SESSION AFTERCARE</div>
                         {ac.initialSteps?.length > 0 && <div style={{ marginBottom: 20 }}><div style={{ fontFamily: cinzel, fontSize: 9, color: isDark ? 'rgba(201,168,76,0.6)' : '#8B6914', letterSpacing: '0.1em', marginBottom: 8 }}>INITIAL STEPS</div>{ac.initialSteps.map((s: string, i: number) => <div key={i} style={{ fontFamily: crimson, fontSize: 14, color: isDark ? '#c8b99a' : '#2D2924', padding: '6px 0', borderBottom: `1px solid rgba(201,168,76,0.08)` }}>⚔ {s}</div>)}</div>}
                         {ac.dailyPractices?.length > 0 && <div style={{ marginBottom: 20 }}><div style={{ fontFamily: cinzel, fontSize: 9, color: isDark ? 'rgba(201,168,76,0.6)' : '#8B6914', letterSpacing: '0.1em', marginBottom: 8 }}>DAILY PRACTICES</div>{ac.dailyPractices.map((s: string, i: number) => <div key={i} style={{ fontFamily: crimson, fontSize: 14, color: isDark ? '#c8b99a' : '#2D2924', padding: '6px 0', borderBottom: `1px solid rgba(201,168,76,0.08)` }}>• {s}</div>)}</div>}
                         {ac.warningSignsToWatch?.length > 0 && <div style={{ marginBottom: 20 }}><div style={{ fontFamily: cinzel, fontSize: 9, color: '#ef4444', letterSpacing: '0.1em', marginBottom: 8 }}>WARNING SIGNS TO WATCH</div>{ac.warningSignsToWatch.map((s: string, i: number) => <div key={i} style={{ fontFamily: crimson, fontSize: 14, color: isDark ? '#c8b99a' : '#2D2924', padding: '6px 0', borderBottom: `1px solid rgba(239,68,68,0.12)` }}>⚠ {s}</div>)}</div>}
