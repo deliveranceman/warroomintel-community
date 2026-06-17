@@ -963,7 +963,7 @@ interface PrayerViewProps {
   isMinister?: boolean
   userLevel?: number
 }
-function PrayerView({ streamToken, apiKey, userId, isMobile, isDark, setSidebarOpen, founderIds, isMinister = false, userLevel = 0 }: PrayerViewProps) {
+function PrayerView({ streamToken, apiKey, userId, isDark, founderIds, isMinister = false, userLevel = 0 }: PrayerViewProps) {
   const { beginUpgrade } = useContext(UpgradeFlowCtx)
   const V = {
     bg: isDark ? '#0D0B14' : '#FAF8F5', surf: isDark ? '#1a1714' : '#FFFFFF',
@@ -1041,12 +1041,6 @@ function PrayerView({ streamToken, apiKey, userId, isMobile, isDark, setSidebarO
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <div style={{ padding: '16px 20px', borderBottom: `1px solid ${V.bdr}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          {!isMobile && (
-            <button onClick={() => setSidebarOpen(o => !o)}
-              style={{ background: 'none', border: 'none', color: isDark ? G : '#8B6914', fontSize: 22, cursor: 'pointer', padding: '4px 8px', marginRight: 4, lineHeight: 1 }}>
-              ☰
-            </button>
-          )}
           <div>
             <span style={{ fontFamily: cinzel, fontSize: 18, color: isDark ? G : '#8B6914' }}>🙏 Prayer Wall</span>
             {warriorCount > 0 && (
@@ -1199,7 +1193,7 @@ function PrayerView({ streamToken, apiKey, userId, isMobile, isDark, setSidebarO
 }
 
 // ── TESTIMONY WALL VIEW ────────────────────────────────────
-function TestimonyWallView({ theme, isMobile, setSidebarOpen, userId: _userId, userName: _userName, userTier: _userTier, userImage: _userImage }: any) {
+function TestimonyWallView({ theme, isMobile, userId: _userId, userName: _userName, userTier: _userTier, userImage: _userImage }: any) {
   const isDark = theme !== 'light'
   const { getToken } = useAuth()
   const { beginUpgrade } = useContext(UpgradeFlowCtx)
@@ -1284,7 +1278,6 @@ function TestimonyWallView({ theme, isMobile, setSidebarOpen, userId: _userId, u
     <div style={{ flex: 1, overflowY: 'auto', minHeight: 0, background: bg, padding: isMobile ? '16px' : '24px 32px' }}>
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
-        {!isMobile && <button onClick={() => setSidebarOpen(true)} style={{ background: 'none', border: 'none', color: GG, fontSize: 22, cursor: 'pointer', padding: '4px 8px', marginRight: 4, lineHeight: 1 }}>☰</button>}
         <div>
           <h2 style={{ fontFamily: cinzel, color: GG, fontSize: isMobile ? 18 : 22, margin: 0, letterSpacing: '0.08em' }}>✝ Testimony Wall</h2>
           <p style={{ color: mut, fontSize: 13, margin: '4px 0 0', fontFamily: crimson }}>What God has done — shared for His glory</p>
@@ -1461,7 +1454,7 @@ function stripMdPreview(raw: string, maxChars = 120): string {
 }
 
 // ── DAILY DEVOTION VIEW ────────────────────────────────────
-function DailyDevotionView({ theme, isMobile, setSidebarOpen, userTier, userId: _userId }: any) {
+function DailyDevotionView({ theme, isMobile, userTier, userId: _userId }: any) {
   const isDark = theme !== 'light'
   const bg   = isDark ? '#0D0B14' : '#FAF8F5'
   const surf = isDark ? 'rgba(201,168,76,0.04)' : '#FFFFFF'
@@ -1634,7 +1627,6 @@ function DailyDevotionView({ theme, isMobile, setSidebarOpen, userTier, userId: 
       {/* Header */}
       <div style={{ marginBottom: 24, display: 'flex', alignItems: isMobile ? 'flex-start' : 'center', justifyContent: 'space-between', flexDirection: isMobile ? 'column' : 'row' as const, gap: 12 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          {!isMobile && <button onClick={() => setSidebarOpen(true)} style={{ background: 'none', border: 'none', color: GD, fontSize: 22, cursor: 'pointer', padding: '4px 8px', marginRight: 4, lineHeight: 1 }}>☰</button>}
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <div style={{ fontFamily: cinzel, fontSize: isMobile ? 18 : 22, color: GD, letterSpacing: '0.08em', fontWeight: 700 }}>☀️ Daily Brief</div>
@@ -2084,7 +2076,7 @@ function DailyDevotionView({ theme, isMobile, setSidebarOpen, userTier, userId: 
 }
 
 // ── OPS DASHBOARD VIEW ─────────────────────────────────────
-function OpsDashboardView({ theme, isMobile, setSidebarOpen, userId: _userId, getToken, setActiveSection }: any) {
+function OpsDashboardView({ theme, isMobile, userId: _userId, getToken, setActiveSection }: any) {
   const isDark = theme !== 'light'
   const bg   = isDark ? '#0D0B14' : '#FAF8F5'
   const surf = isDark ? 'rgba(201,168,76,0.04)' : '#FFFFFF'
@@ -2140,7 +2132,6 @@ function OpsDashboardView({ theme, isMobile, setSidebarOpen, userId: _userId, ge
   return (
     <div style={{ flex: 1, overflowY: 'auto', background: bg, padding: isMobile ? '16px' : '24px 32px', minHeight: 0 }}>
       <div style={{ marginBottom: 24, display: 'flex', alignItems: 'center', gap: 10 }}>
-        {!isMobile && <button onClick={() => setSidebarOpen(true)} style={{ background: 'none', border: 'none', color: GD, fontSize: 22, cursor: 'pointer', padding: '4px 8px', lineHeight: 1 }}>☰</button>}
         <div>
           <div style={{ fontFamily: cinzel, fontSize: isMobile ? 18 : 22, color: GD, letterSpacing: '0.08em', fontWeight: 700 }}>⚡ Ops Dashboard</div>
           {!isMobile && <div style={{ fontFamily: crimson, fontSize: 13, color: mut, marginTop: 2 }}>Adjutant command center</div>}
@@ -2241,7 +2232,7 @@ function OpsDashboardView({ theme, isMobile, setSidebarOpen, userId: _userId, ge
 }
 
 // ── TRAINING VIEW ──────────────────────────────────────────
-function TrainingView({ theme, isMobile, setSidebarOpen, userId, userTier, getToken, setActiveSection }: any) {
+function TrainingView({ theme, isMobile, userId, userTier, getToken, setActiveSection }: any) {
   const { user } = useUser()
   const { beginUpgrade } = useContext(UpgradeFlowCtx)
   const isDark = theme !== 'light'
@@ -2346,7 +2337,6 @@ function TrainingView({ theme, isMobile, setSidebarOpen, userId, userTier, getTo
   if (view === 'list') return (
     <div style={{ flex: 1, overflowY: 'auto', minHeight: 0, background: bg, padding: isMobile ? '16px' : '24px 32px', paddingBottom: isMobile ? 'calc(64px + env(safe-area-inset-bottom, 0px))' : undefined }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 28 }}>
-        {!isMobile && <button onClick={() => setSidebarOpen(true)} style={{ background: 'none', border: 'none', color: G, fontSize: 22, cursor: 'pointer', padding: '4px 8px', lineHeight: 1 }}>☰</button>}
         <div>
           <h2 style={{ fontFamily: cinzel, color: G, fontSize: isMobile ? 18 : 22, margin: 0, letterSpacing: '0.08em' }}>🎬 Training</h2>
           <p style={{ color: mut, fontSize: 13, margin: '4px 0 0', fontFamily: crimson }}>Courses, protocols, and quick-hit teachings</p>
@@ -2799,7 +2789,7 @@ interface WarRoomChatViewProps {
   setSidebarOpen: React.Dispatch<React.SetStateAction<boolean>>
 }
 
-function WarRoomChatView({ streamToken, apiKey, userId, isDark, isMobile, setSidebarOpen }: WarRoomChatViewProps) {
+function WarRoomChatView({ streamToken, apiKey, userId, isDark }: WarRoomChatViewProps) {
   const [messages, setMessages] = useState<StreamMsg[]>([])
   const [draft, setDraft] = useState('')
   const [sending, setSending] = useState(false)
@@ -2858,9 +2848,6 @@ function WarRoomChatView({ streamToken, apiKey, userId, isDark, isMobile, setSid
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: V.bg }}>
       {/* Header */}
       <div style={{ padding: '14px 20px', borderBottom: `1px solid ${V.bdr}`, display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0, background: V.surf }}>
-        {!isMobile && (
-          <button onClick={() => setSidebarOpen(o => !o)} style={{ background: 'none', border: 'none', color: isDark ? '#C9A84C' : '#8B6914', fontSize: 22, cursor: 'pointer', padding: '4px 8px', marginRight: 4, lineHeight: 1 }}>☰</button>
-        )}
         <span style={{ fontFamily: "'Cinzel', serif", fontSize: 14, color: isDark ? '#C9A84C' : '#8B6914', letterSpacing: '0.1em', flex: 1 }}>⚔ War Room Chat</span>
         <span style={{ fontFamily: "'Crimson Pro', Georgia, serif", fontSize: 12, color: V.mut, fontStyle: 'italic' }}>All members</span>
       </div>
@@ -3120,7 +3107,7 @@ function getYouTubeId(url: string): string {
 }
 
 // ── FIELD MINISTRY VIEW ──────────────────────────────────────────────────────
-function FieldMinistryView({ theme, userTier: _userTier, isMobile, setSidebarOpen }: {
+function FieldMinistryView({ theme, userTier: _userTier, isMobile }: {
   theme: string; userTier: string; isMobile: boolean; setSidebarOpen: (v: boolean) => void
 }) {
   const { getToken } = useAuth()
@@ -3186,10 +3173,6 @@ function FieldMinistryView({ theme, userTier: _userTier, isMobile, setSidebarOpe
     }}>
       {/* Header */}
       <div style={{ padding: '16px 16px 10px', borderBottom: `1px solid ${navBdr}`, display: 'flex', alignItems: 'center', gap: 8 }}>
-        {!isMobile && (
-          <button onClick={() => setSidebarOpen(true)}
-            style={{ background: 'none', border: 'none', color: GG, fontSize: 20, cursor: 'pointer', padding: '2px 6px', lineHeight: 1 }}>☰</button>
-        )}
         <div style={{ fontFamily: "'Cinzel', serif", fontSize: 11, letterSpacing: '0.14em', color: GG, fontWeight: 700 }}>📖 FIELD MINISTRY</div>
       </div>
 
@@ -3350,7 +3333,7 @@ function FieldMinistryView({ theme, userTier: _userTier, isMobile, setSidebarOpe
 }
 
 // ── WEEKLY INTEL VIEW ────────────────────────────────────────────────────────
-function WeeklyIntelView({ theme, userTier, isMobile, setSidebarOpen, setActiveSection }: {
+function WeeklyIntelView({ theme, userTier, isMobile, setActiveSection }: {
   theme: string; userTier: string; isMobile: boolean; setSidebarOpen: (v: boolean) => void; setActiveSection: (s: string) => void; demons?: any[]
 }) {
   const { user }     = useUser()
@@ -3480,7 +3463,6 @@ function WeeklyIntelView({ theme, userTier, isMobile, setSidebarOpen, setActiveS
       {/* Header */}
       <div style={{ marginBottom: 28, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          {!isMobile && <button onClick={() => setSidebarOpen(true)} style={{ background: 'none', border: 'none', color: GG, fontSize: 22, cursor: 'pointer', padding: '4px 8px', marginRight: 4, lineHeight: 1 }}>☰</button>}
           <h2 style={{ fontFamily: cinzel, color: GG, fontSize: isMobile ? 18 : 22, margin: 0, letterSpacing: '0.08em' }}>⚡ Weekly Intel</h2>
         </div>
         {!isMobile && <p style={{ color: mut, fontSize: 13, margin: 0, fontFamily: crimson, textAlign: 'right' as const }}>Operational briefings, field intelligence, and ministry resources</p>}
@@ -3886,7 +3868,7 @@ function parseSpiritNames(text: string): string[] {
     .filter((p, i, arr) => arr.indexOf(p) === i)
 }
 
-function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier, demons: demonsProp = [], setActiveSection, setDossierTabBarHidden, filterSheetOpen, setFilterSheetOpen, setFilterCount }: {
+function DatabaseView({ theme, isMobile, isTablet, userTier, demons: demonsProp = [], setActiveSection, setDossierTabBarHidden, filterSheetOpen, setFilterSheetOpen, setFilterCount }: {
   theme: string
   isMobile: boolean
   isTablet: boolean
@@ -4159,13 +4141,6 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier, dem
       {/* Header + search */}
       <div style={{ padding: isMobile ? '12px 12px 10px' : '14px 20px 12px', borderBottom: `1px solid ${dbBorder}`, background: dbSurf, flexShrink: 0, overflow: 'visible' }}>
         <div style={{ display: 'flex', alignItems: 'center', marginBottom: 12 }}>
-          {!isMobile && (
-            <button
-              onClick={() => setSidebarOpen(true)}
-              style={{ minWidth: '44px', minHeight: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'transparent', border: 'none', cursor: 'pointer', WebkitTapHighlightColor: 'transparent', color: dbIsDark ? G : '#8B6914', fontSize: '20px', flexShrink: 0 }}
-              aria-label="Open navigation"
-            >☰</button>
-          )}
           <span style={{ fontFamily: cinzel, fontSize: 11, letterSpacing: '0.2em', color: dbIsDark ? G : '#8B6914' }}>⚔ INTEL DATABASE</span>
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
@@ -5673,7 +5648,7 @@ const ARSENAL_TIERS = [
 const ACCESS_TIERS_ORDER: Record<string, number> = { watchman: 0, free: 0, soldier: 1, commander: 2, general: 3, minister: 4, commandant: 5 }
 
 // ── ARSENAL VIEW ──────────────────────────────────────────
-function ArsenalView({ theme, userTier, isMobile, setSidebarOpen, filterSheetOpen, setFilterSheetOpen, setFilterCount }: {
+function ArsenalView({ theme, userTier, isMobile, filterSheetOpen, setFilterSheetOpen, setFilterCount }: {
   theme: string; userTier: string; isMobile: boolean; setSidebarOpen: (v: boolean) => void
   filterSheetOpen?: boolean; setFilterSheetOpen?: (v: boolean) => void; setFilterCount?: (n: number) => void
 }) {
@@ -5989,9 +5964,6 @@ function ArsenalView({ theme, userTier, isMobile, setSidebarOpen, filterSheetOpe
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, marginBottom: 20 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          {!isMobile && (
-            <button onClick={() => setSidebarOpen(true)} style={{ background: 'none', border: 'none', color: isDark ? G : '#8B6914', fontSize: 22, cursor: 'pointer', padding: '4px 8px', marginRight: 4, lineHeight: 1 }}>☰</button>
-          )}
           <div>
             <div style={{ fontFamily: cinzel, fontSize: isMobile ? 18 : 22, color: isDark ? G : '#8B6914', fontWeight: 700 }}>✦ Arsenal</div>
             {!isMobile && <div style={{ fontFamily: crimson, fontSize: 11, color: muted, fontStyle: 'italic', marginTop: 2 }}>"For we wrestle not against flesh and blood..." — Eph 6:12</div>}
@@ -6344,7 +6316,7 @@ const CONFIDENCE_COLORS = {
 }
 
 // ── INVESTIGATOR VIEW ──────────────────────────────────────
-function InvestigatorView({ theme, userTier: _userTier, isMobile, setSidebarOpen, setActiveSection }: {
+function InvestigatorView({ theme, userTier: _userTier, isMobile, setActiveSection }: {
   theme: string; userTier: string; isMobile: boolean; setSidebarOpen: (v: boolean) => void; setActiveSection?: (s: string) => void
 }) {
   const isDark = theme !== 'light'
@@ -6403,7 +6375,6 @@ function InvestigatorView({ theme, userTier: _userTier, isMobile, setSidebarOpen
       <div style={{ maxWidth: 760, margin: '0 auto' }}>
         {!isMobile && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
-            <button onClick={() => setSidebarOpen(true)} style={{ background: 'none', border: 'none', color: isDark ? G : '#8B6914', fontSize: 22, cursor: 'pointer', padding: '4px 8px', marginRight: 4, lineHeight: 1 }}>☰</button>
             <span style={{ fontFamily: cinzel, fontSize: 13, color: isDark ? G : '#8B6914', letterSpacing: '0.1em' }}>Symptom Investigator</span>
           </div>
         )}
@@ -6785,7 +6756,7 @@ function GatewayInvestigatorView({ theme, userTier: _userTier, isMobile, setSide
 }
 
 // ── FRINGE INTEL VIEW ─────────────────────────────────────
-function FringeIntelView({ theme, isMobile, setSidebarOpen, userTier }: any) {
+function FringeIntelView({ theme, isMobile, userTier }: any) {
   const { user } = useUser()
   const { beginUpgrade } = useContext(UpgradeFlowCtx)
   const isDark  = theme !== 'light'
@@ -6909,7 +6880,6 @@ function FringeIntelView({ theme, isMobile, setSidebarOpen, userTier }: any) {
 
       {/* HEADER */}
       <div style={{ marginBottom:24 }}>
-        {!isMobile && <button onClick={()=>setSidebarOpen(true)} style={{background:'none',border:'none',color:G2,cursor:'pointer',padding:'0 0 12px',fontSize:20}}>☰</button>}
         <div style={{display:'flex',alignItems:'flex-start',justifyContent:'space-between',flexWrap:'wrap' as const,gap:12,marginBottom:6}}>
           <div>
             <div style={{fontFamily:cinzel,fontSize:isMobile?18:22,color:G2,letterSpacing:'0.06em',marginBottom:4}}>⬛ FRINGE INTELLIGENCE</div>
@@ -7295,7 +7265,7 @@ function EventCard({ event, userTier, isDark, getToken: _getToken }: { event: an
 
 const TIER_COLORS: Record<string, string> = { watchman: '#9a8c74', free: '#9a8c74', soldier: '#7a9e7e', commander: '#8B9DCA', general: '#C9A84C' }
 
-function EventsView({ theme, isMobile, setSidebarOpen, userTier, getToken }: {
+function EventsView({ theme, isMobile, userTier, getToken }: {
   theme: string; isMobile: boolean; setSidebarOpen: (v: boolean) => void; userTier: string; getToken: any
 }) {
   const isDark = theme !== 'light'
@@ -7332,7 +7302,6 @@ function EventsView({ theme, isMobile, setSidebarOpen, userTier, getToken }: {
   return (
     <div style={{ flex: 1, overflowY: 'auto' as const, overflowX: 'hidden' as const, touchAction: 'pan-y', background: bg, padding: isMobile ? '16px' : '24px 32px', minHeight: 0 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
-        {!isMobile && <button onClick={() => setSidebarOpen(true)} style={{ background: 'none', border: 'none', color: G, fontSize: 22, cursor: 'pointer', padding: '4px 8px', marginRight: 4, lineHeight: 1 }}>☰</button>}
         <div>
           <div style={{ fontFamily: cinzel, fontSize: isMobile ? 18 : 22, color: G, fontWeight: 700 }}>📅 Events</div>
           <div style={{ fontSize: 12, color: muted, marginTop: 2, fontFamily: crimson }}>Live sessions, training calls, and special gatherings</div>
@@ -7376,7 +7345,7 @@ function EventsView({ theme, isMobile, setSidebarOpen, userTier, getToken }: {
 }
 
 // ── FEEDBACK VIEW ──────────────────────────────────────────
-function FeedbackView({ theme, userTier, isMobile, setSidebarOpen, userId: _userId, userName: _userName }: {
+function FeedbackView({ theme, userTier, isMobile, userId: _userId, userName: _userName }: {
   theme: string; userTier: string; isMobile: boolean; setSidebarOpen: (v: boolean) => void; userId: string; userName: string
 }) {
   const { getToken } = useAuth()
@@ -7449,7 +7418,6 @@ function FeedbackView({ theme, userTier, isMobile, setSidebarOpen, userId: _user
         {/* Header */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 20, flexWrap: 'wrap' as const }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            {!isMobile && <button onClick={() => setSidebarOpen(true)} style={{ background: 'none', border: 'none', color: G, fontSize: 22, cursor: 'pointer', padding: '4px 8px', lineHeight: 1 }}>☰</button>}
             <div>
               <div style={{ fontFamily: cinzel, fontSize: isMobile ? 18 : 22, color: G, fontWeight: 700 }}>💬 Feedback & Requests</div>
               <div style={{ fontSize: 12, color: muted, marginTop: 2, fontFamily: crimson }}>Vote on features, report bugs — all tiers can submit</div>
@@ -8319,7 +8287,7 @@ function extractIntelPreview(response: string): string {
   return clean.replace(/^```\w*\s*/gm, '').replace(/```\s*$/gm, '').trim()
 }
 
-function MyIntelView({ theme, isMobile, setSidebarOpen, getToken }: any) {
+function MyIntelView({ theme, isMobile, getToken }: any) {
   const isDark = theme !== 'light'
   const { beginUpgrade } = useContext(UpgradeFlowCtx)
   const [entries,         setEntries]         = useState<any[]>([])
@@ -8384,7 +8352,6 @@ function MyIntelView({ theme, isMobile, setSidebarOpen, getToken }: any) {
       <div style={{ maxWidth: 860, margin: '0 auto' }}>
         {!isMobile && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
-            <button onClick={() => setSidebarOpen(true)} style={{ background: 'none', border: 'none', color: isDark ? G : '#8B6914', fontSize: 22, cursor: 'pointer', padding: '4px 8px', lineHeight: 1 }}>☰</button>
             <span style={{ fontFamily: cinzel, fontSize: 13, color: isDark ? G : '#8B6914', letterSpacing: '0.1em' }}>My Intel</span>
           </div>
         )}
@@ -9407,7 +9374,7 @@ function urlBase64ToUint8Array(base64String: string) {
   return Uint8Array.from([...raw].map(c => c.charCodeAt(0)))
 }
 
-function AssessmentUploadView({ theme, isMobile, setSidebarOpen, tier: _tier, tierLevel: _tierLevel, user, getToken }: {
+function AssessmentUploadView({ theme, isMobile, tier: _tier, tierLevel: _tierLevel, user, getToken }: {
   theme: string; isMobile: boolean; setSidebarOpen: (v: boolean) => void;
   tier: string; tierLevel: number; user: any; getToken: () => Promise<string | null>
 }) {
@@ -9491,7 +9458,6 @@ function AssessmentUploadView({ theme, isMobile, setSidebarOpen, tier: _tier, ti
 
   return (
     <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden' as const, touchAction: 'pan-y', background: isDark ? '#0D0B14' : '#EDEBE2', padding: isMobile ? '16px' : '28px 32px' }}>
-      {!isMobile && <button onClick={() => setSidebarOpen(true)} style={{ background: 'none', border: 'none', color: isDark ? G : '#8B6914', fontSize: 20, cursor: 'pointer', marginBottom: 16, padding: 0 }}>☰</button>}
 
       <div style={{ maxWidth: 700, margin: '0 auto' }}>
         {/* Header */}
@@ -9715,7 +9681,7 @@ const COMM_DOC_TEMPLATES = [
   },
 ]
 
-function DocumentCreatorView({ theme, isMobile, setSidebarOpen, getToken }: any) {
+function DocumentCreatorView({ theme, isMobile, getToken }: any) {
   const isDark = theme !== 'light'
   const GC = '#C9A84C'
   const [selectedIdx, setSelectedIdx] = useState(0)
@@ -9755,9 +9721,6 @@ function DocumentCreatorView({ theme, isMobile, setSidebarOpen, getToken }: any)
       <div style={{ padding: isMobile ? '16px 16px' : '24px 28px', maxWidth: 800, margin: '0 auto' }}>
         {/* Header */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 24, flexShrink: 0 }}>
-          {!isMobile && (
-            <button onClick={() => setSidebarOpen(true)} style={{ background: 'none', border: 'none', color: isDark ? GC : '#8B6914', fontSize: 22, cursor: 'pointer', padding: '4px 8px', lineHeight: 1 }}>☰</button>
-          )}
           <div>
             <div style={{ fontFamily: cinzel, fontSize: isMobile ? 14 : 18, color: isDark ? GC : '#8B6914', letterSpacing: '0.1em' }}>DOCUMENT CREATOR</div>
             <div style={{ fontFamily: crimson, fontSize: 12, color: isDark ? '#6a5f4f' : '#574B33', marginTop: 2 }}>SOL-generated ministry documents with WRI context</div>
@@ -9839,7 +9802,7 @@ function DocumentCreatorView({ theme, isMobile, setSidebarOpen, getToken }: any)
   )
 }
 
-function WarRoomView({ isMobile, isDark, streamToken, apiKey, user, initials, posts, draft, setDraft, sending, sendPost, fetchPosts, bottomRef, setSidebarOpen }: {
+function WarRoomView({ isMobile, isDark, streamToken, apiKey, user, initials, posts, draft, setDraft, sending, sendPost, fetchPosts, bottomRef }: {
   isMobile: boolean; isDark: boolean; streamToken: string; apiKey: string
   user: any; initials: string; posts: StreamMsg[]; draft: string
   setDraft: (v: string) => void; sending: boolean
@@ -9887,13 +9850,6 @@ function WarRoomView({ isMobile, isDark, streamToken, apiKey, user, initials, po
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
       <div style={{ padding: '14px 20px', borderBottom: `1px solid ${V2.bdr}`, background: V2.surf, display: 'flex', alignItems: 'center', flexShrink: 0 }}>
-        {!isMobile && (
-          <button
-            onClick={() => setSidebarOpen(true)}
-            style={{ minWidth: '44px', minHeight: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'transparent', border: 'none', cursor: 'pointer', WebkitTapHighlightColor: 'transparent', color: G2, fontSize: '20px', flexShrink: 0 }}
-            aria-label="Open navigation"
-          >☰</button>
-        )}
         <span style={{ fontFamily: cinzel, fontSize: 14, color: G2, letterSpacing: '0.1em', flex: 1 }}>⚔ War Room Community</span>
         <button onClick={() => setShowComposer(true)} style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.1em', color: '#0e0c09', background: G2, border: 'none', borderRadius: 3, padding: '5px 12px', cursor: 'pointer' }}>+ New Post</button>
       </div>
@@ -12242,7 +12198,7 @@ function SitrepCard({
   )
 }
 
-function SitrepView({ theme, isMobile, setSidebarOpen, getToken, userId: _userId, userTier }: {
+function SitrepView({ theme, isMobile, getToken, userId: _userId, userTier }: {
   theme: string; isMobile: boolean; setSidebarOpen: (v: boolean) => void
   getToken: () => Promise<string | null>; userId: string; userTier: string
 }) {
@@ -12379,9 +12335,6 @@ function SitrepView({ theme, isMobile, setSidebarOpen, getToken, userId: _userId
       {/* Header */}
       <div style={{ padding: '12px 16px 10px', borderBottom: `1px solid rgba(201,168,76,0.15)`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          {!isMobile && (
-            <button type="button" onClick={() => setSidebarOpen(true)} style={{ background: 'none', border: 'none', color: GC, fontSize: 20, cursor: 'pointer', padding: '2px 6px', lineHeight: 1, WebkitTapHighlightColor: 'transparent', flexShrink: 0 }}>☰</button>
-          )}
           <div>
             <div style={{ fontFamily: cinzel, fontSize: 14, color: GC, letterSpacing: '0.15em', fontWeight: 700 }}>SITREP</div>
             <div style={{ fontFamily: cinzel, fontSize: 8, color: isDark ? '#6b5e45' : '#9a8874', letterSpacing: '0.12em', marginTop: 1 }}>SHARE WHAT GOD IS DOING</div>
@@ -14722,7 +14675,6 @@ function CommunityPage() {
         tierLevel >= 2
           ? <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: isDark ? '#0D0B14' : '#FAF8F5', overflow: 'hidden' }}>
               <div style={{ borderBottom: `1px solid rgba(201,168,76,0.18)`, padding: isMobile ? '12px 16px' : '16px 28px', flexShrink: 0, display: 'flex', alignItems: 'center', gap: 12 }}>
-                {!isMobile && <button onClick={() => setSidebarOpen(true)} style={{ background: 'none', border: 'none', color: G, fontSize: 22, cursor: 'pointer', lineHeight: 1, padding: 0, flexShrink: 0 }}>☰</button>}
                 <div style={{ flex: 1 }}>
                   <div style={{ fontFamily: cinzel, fontSize: isMobile ? 14 : 18, color: G, fontWeight: 700, letterSpacing: '0.08em' }}>DELIVERANCE PROTOCOL ENGINE</div>
                   <div style={{ fontFamily: cinzel, fontSize: 9, color: isDark ? 'rgba(201,168,76,0.5)' : '#8B6914', letterSpacing: '0.2em', marginTop: 2 }}>COMMANDER TIER · INTEL ARCHIVE</div>
@@ -15205,7 +15157,6 @@ function CommunityPage() {
         {activeSection === 'deliverance-protocol' && (
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: isDark ? '#0D0B14' : '#FAF8F5', overflow: 'hidden' }}>
             <div style={{ borderBottom: `1px solid rgba(201,168,76,0.18)`, padding: isMobile ? '12px 16px' : '16px 28px', flexShrink: 0, display: 'flex', alignItems: 'center', gap: 12 }}>
-              {!isMobile && <button onClick={() => setSidebarOpen(true)} style={{ background: 'none', border: 'none', color: G, fontSize: 22, cursor: 'pointer', lineHeight: 1, padding: 0, flexShrink: 0 }}>☰</button>}
               <div style={{ flex: 1 }}>
                 <div style={{ fontFamily: cinzel, fontSize: isMobile ? 14 : 18, color: G, fontWeight: 700, letterSpacing: '0.08em' }}>DELIVERANCE PROTOCOL ENGINE</div>
                 <div style={{ fontFamily: cinzel, fontSize: 9, color: isDark ? 'rgba(201,168,76,0.5)' : '#8B6914', letterSpacing: '0.2em', marginTop: 2 }}>COMMANDER TIER · INTEL ARCHIVE</div>
