@@ -5643,10 +5643,10 @@ function ArsenalView({ theme, userTier, isMobile, setSidebarOpen, filterSheetOpe
   const { user } = useUser()
   const { beginUpgrade } = useContext(UpgradeFlowCtx)
   const isDark = theme !== 'light'
-  const bg      = isDark ? '#0D0B14' : '#FAF8F5'
+  const bg      = isDark ? '#0D0B14' : '#EDEBE2'
   const border  = isDark ? 'rgba(201,168,76,0.15)' : 'rgba(139,105,20,0.25)'
-  const text    = isDark ? '#E8D5B0' : '#2D2924'
-  const muted   = isDark ? '#8B7355' : '#5C5248'
+  const text    = isDark ? '#E8D5B0' : '#1F1B12'
+  const muted   = isDark ? '#8B7355' : '#574B33'
 
   // ARSENAL ONLY — reads from resources table via /api/arsenal-resources (source_type='arsenal')
   // DO NOT merge this state with any library state — these are separate features with separate DB rows
@@ -5796,7 +5796,7 @@ function ArsenalView({ theme, userTier, isMobile, setSidebarOpen, filterSheetOpe
       General:   { b: 'rgba(167,139,250,0.50)', bg: 'rgba(167,139,250,0.12)',  fg: 'rgba(167,139,250,0.90)' },
     }
     const c = C[tier] || C.All
-    return { border: `1px solid ${active ? c.b : 'rgba(201,168,76,0.18)'}`, background: active ? c.bg : 'transparent', color: active ? c.fg : 'rgba(201,168,76,0.42)' }
+    return { border: `1px solid ${active ? c.b : 'rgba(201,168,76,0.18)'}`, background: active ? c.bg : 'transparent', color: active ? c.fg : (isDark ? 'rgba(201,168,76,0.42)' : '#8B6914') }
   }
 
   const categoryCounts = arsenalItems.reduce((acc, item) => {
@@ -5850,16 +5850,16 @@ function ArsenalView({ theme, userTier, isMobile, setSidebarOpen, filterSheetOpe
             <span style={{ fontSize: 18, flexShrink: 0, paddingTop: 2 }}>{FILE_ICONS[resource.file_type] || '📄'}</span>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, marginBottom: resource.description ? 4 : 0 }}>
-                <div style={{ fontFamily: cinzel, fontSize: 11, color: hasAccess ? '#f0e8d8' : muted, lineHeight: 1.4, overflow: 'hidden', display: '-webkit-box' as any, WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' as any, textOverflow: 'ellipsis', flex: 1, minWidth: 0 }}>
+                <div style={{ fontFamily: cinzel, fontSize: 11, color: hasAccess ? (isDark ? '#f0e8d8' : '#1F1B12') : muted, lineHeight: 1.4, overflow: 'hidden', display: '-webkit-box' as any, WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' as any, textOverflow: 'ellipsis', flex: 1, minWidth: 0 }}>
                   {cleanArsenalTitle(resource.title || '')}
                 </div>
                 <span style={{ fontFamily: cinzel, fontSize: 7, padding: '2px 7px', borderRadius: 20, background: `${tc}18`, color: tc, border: `1px solid ${tc}35`, letterSpacing: '0.06em', textTransform: 'uppercase' as const, flexShrink: 0, whiteSpace: 'nowrap' as const }}>{tierLabel}</span>
               </div>
               {resource.description && (
-                <div style={{ fontFamily: crimson, fontSize: 12, color: 'rgba(240,232,216,0.45)', lineHeight: 1.4, overflow: 'hidden', display: '-webkit-box' as any, WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' as any, textOverflow: 'ellipsis' }}>{resource.description}</div>
+                <div style={{ fontFamily: crimson, fontSize: 12, color: isDark ? 'rgba(240,232,216,0.45)' : 'rgba(31,27,18,0.85)', lineHeight: 1.4, overflow: 'hidden', display: '-webkit-box' as any, WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' as any, textOverflow: 'ellipsis' }}>{resource.description}</div>
               )}
               {!hasAccess && (
-                <div style={{ marginTop: 6, fontFamily: cinzel, fontSize: 8, color: G, opacity: 0.6 }}>🔒 Upgrade to {tierLabel}</div>
+                <div style={{ marginTop: 6, fontFamily: cinzel, fontSize: 8, color: isDark ? G : '#8B6914', opacity: 0.6 }}>🔒 Upgrade to {tierLabel}</div>
               )}
             </div>
           </div>
@@ -5881,7 +5881,7 @@ function ArsenalView({ theme, userTier, isMobile, setSidebarOpen, filterSheetOpe
           )}
           <span style={{ fontSize: 15, flexShrink: 0 }}>{FILE_ICONS[resource.file_type] || '📄'}</span>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontFamily: cinzel, fontSize: 11, color: hasAccess ? '#f0e8d8' : muted, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>
+            <div style={{ fontFamily: cinzel, fontSize: 11, color: hasAccess ? (isDark ? '#f0e8d8' : '#1F1B12') : muted, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>
               {cleanArsenalTitle(resource.title || '')}
             </div>
           </div>
@@ -5890,17 +5890,17 @@ function ArsenalView({ theme, userTier, isMobile, setSidebarOpen, filterSheetOpe
             {hasAccess
               ? resource.file_url
                 ? <a href={resource.file_url} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()}
-                    style={{ background: 'rgba(201,168,76,0.12)', border: '1px solid rgba(201,168,76,0.3)', borderRadius: 5, padding: '4px 10px', fontFamily: cinzel, fontSize: 8, color: G, textDecoration: 'none', letterSpacing: '0.06em', whiteSpace: 'nowrap' as const }}>View</a>
+                    style={{ background: 'rgba(201,168,76,0.12)', border: '1px solid rgba(201,168,76,0.3)', borderRadius: 5, padding: '4px 10px', fontFamily: cinzel, fontSize: 8, color: isDark ? G : '#8B6914', textDecoration: 'none', letterSpacing: '0.06em', whiteSpace: 'nowrap' as const }}>View</a>
                 : null
               : <button onClick={e => { e.stopPropagation(); beginUpgrade(resource.tier) }}
-                  style={{ background: 'transparent', border: `1px solid rgba(201,168,76,0.3)`, borderRadius: 5, padding: '4px 10px', fontFamily: cinzel, fontSize: 8, color: G, cursor: 'pointer', letterSpacing: '0.06em', whiteSpace: 'nowrap' as const }}>🔒</button>
+                  style={{ background: 'transparent', border: `1px solid rgba(201,168,76,0.3)`, borderRadius: 5, padding: '4px 10px', fontFamily: cinzel, fontSize: 8, color: isDark ? G : '#8B6914', cursor: 'pointer', letterSpacing: '0.06em', whiteSpace: 'nowrap' as const }}>🔒</button>
             }
           </div>
         </div>
         {isExp && (resource.description || resource.topic) && (
           <div style={{ paddingTop: 8, paddingLeft: onToggle ? 58 : 42 }}>
             {resource.description && (
-              <div style={{ fontFamily: crimson, fontSize: 12, color: 'rgba(240,232,216,0.55)', lineHeight: 1.5, fontStyle: 'italic', marginBottom: resource.topic ? 4 : 0 }}>{resource.description}</div>
+              <div style={{ fontFamily: crimson, fontSize: 12, color: isDark ? 'rgba(240,232,216,0.55)' : 'rgba(31,27,18,0.95)', lineHeight: 1.5, fontStyle: 'italic', marginBottom: resource.topic ? 4 : 0 }}>{resource.description}</div>
             )}
             {resource.topic && (
               <span style={{ fontFamily: cinzel, fontSize: 8, color: muted, letterSpacing: '0.06em' }}>{resource.topic}</span>
@@ -5909,7 +5909,7 @@ function ArsenalView({ theme, userTier, isMobile, setSidebarOpen, filterSheetOpe
               <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' as const, marginTop: 4 }}>
                 {resource.tags.map((tag: string) => (
                   <button key={tag} onClick={e => { e.stopPropagation(); setQuery(tag); setActiveCategory('__search__') }}
-                    style={{ background: 'rgba(201,168,76,0.07)', border: '1px solid rgba(201,168,76,0.22)', borderRadius: 999, padding: '1px 7px', fontFamily: cinzel, fontSize: 7, color: G, cursor: 'pointer', letterSpacing: '0.05em' }}>
+                    style={{ background: 'rgba(201,168,76,0.07)', border: '1px solid rgba(201,168,76,0.22)', borderRadius: 999, padding: '1px 7px', fontFamily: cinzel, fontSize: 7, color: isDark ? G : '#8B6914', cursor: 'pointer', letterSpacing: '0.05em' }}>
                     {tag}
                   </button>
                 ))}
@@ -5919,7 +5919,7 @@ function ArsenalView({ theme, userTier, isMobile, setSidebarOpen, filterSheetOpe
         )}
         {!isExp && showDescription && resource.description && (
           <div style={{ paddingTop: 4, paddingLeft: 42 }}>
-            <div style={{ fontFamily: crimson, fontSize: 12, color: 'rgba(240,232,216,0.45)', lineHeight: 1.4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{resource.description}</div>
+            <div style={{ fontFamily: crimson, fontSize: 12, color: isDark ? 'rgba(240,232,216,0.45)' : 'rgba(31,27,18,0.85)', lineHeight: 1.4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{resource.description}</div>
           </div>
         )}
       </div>
@@ -5932,10 +5932,10 @@ function ArsenalView({ theme, userTier, isMobile, setSidebarOpen, filterSheetOpe
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, marginBottom: 20 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           {!isMobile && (
-            <button onClick={() => setSidebarOpen(true)} style={{ background: 'none', border: 'none', color: G, fontSize: 22, cursor: 'pointer', padding: '4px 8px', marginRight: 4, lineHeight: 1 }}>☰</button>
+            <button onClick={() => setSidebarOpen(true)} style={{ background: 'none', border: 'none', color: isDark ? G : '#8B6914', fontSize: 22, cursor: 'pointer', padding: '4px 8px', marginRight: 4, lineHeight: 1 }}>☰</button>
           )}
           <div>
-            <div style={{ fontFamily: cinzel, fontSize: isMobile ? 18 : 22, color: G, fontWeight: 700 }}>✦ Arsenal</div>
+            <div style={{ fontFamily: cinzel, fontSize: isMobile ? 18 : 22, color: isDark ? G : '#8B6914', fontWeight: 700 }}>✦ Arsenal</div>
             {!isMobile && <div style={{ fontFamily: crimson, fontSize: 11, color: muted, fontStyle: 'italic', marginTop: 2 }}>"For we wrestle not against flesh and blood..." — Eph 6:12</div>}
           </div>
         </div>
@@ -5947,13 +5947,13 @@ function ArsenalView({ theme, userTier, isMobile, setSidebarOpen, filterSheetOpe
         <div style={{ display: 'flex', gap: 5, overflowX: 'auto', scrollbarWidth: 'none' as any, paddingBottom: 4, marginBottom: 14 }}>
           <button
             onClick={() => { setActiveTierNum(null); setActiveCategory(null) }}
-            style={{ flexShrink: 0, padding: '5px 12px', borderRadius: 999, border: `1px solid ${activeTierNum === null ? G : 'rgba(201,168,76,0.2)'}`, background: activeTierNum === null ? 'rgba(201,168,76,0.15)' : 'transparent', color: activeTierNum === null ? G : muted, fontFamily: cinzel, fontSize: 8, letterSpacing: '0.06em', cursor: 'pointer', whiteSpace: 'nowrap' as const }}
+            style={{ flexShrink: 0, padding: '5px 12px', borderRadius: 999, border: `1px solid ${activeTierNum === null ? G : 'rgba(201,168,76,0.2)'}`, background: activeTierNum === null ? 'rgba(201,168,76,0.15)' : 'transparent', color: activeTierNum === null ? (isDark ? G : '#8B6914') : muted, fontFamily: cinzel, fontSize: 8, letterSpacing: '0.06em', cursor: 'pointer', whiteSpace: 'nowrap' as const }}
           >All</button>
           {ARSENAL_TIERS.map(t => (
             <button key={t.tier}
               onClick={() => { setActiveTierNum(activeTierNum === t.tier ? null : t.tier); setActiveCategory(null) }}
               title={t.description}
-              style={{ flexShrink: 0, padding: '5px 12px', borderRadius: 999, border: `1px solid ${activeTierNum === t.tier ? G : 'rgba(201,168,76,0.2)'}`, background: activeTierNum === t.tier ? 'rgba(201,168,76,0.15)' : 'transparent', color: activeTierNum === t.tier ? G : muted, fontFamily: cinzel, fontSize: 8, letterSpacing: '0.06em', cursor: 'pointer', whiteSpace: 'nowrap' as const }}
+              style={{ flexShrink: 0, padding: '5px 12px', borderRadius: 999, border: `1px solid ${activeTierNum === t.tier ? G : 'rgba(201,168,76,0.2)'}`, background: activeTierNum === t.tier ? 'rgba(201,168,76,0.15)' : 'transparent', color: activeTierNum === t.tier ? (isDark ? G : '#8B6914') : muted, fontFamily: cinzel, fontSize: 8, letterSpacing: '0.06em', cursor: 'pointer', whiteSpace: 'nowrap' as const }}
             >{t.icon} {t.label}</button>
           ))}
         </div>
@@ -5995,7 +5995,7 @@ function ArsenalView({ theme, userTier, isMobile, setSidebarOpen, filterSheetOpe
           {/* Mobile: Browse Topics button */}
           {isMobile && (
             <button onClick={() => setShowCategorySheet(true)}
-              style={{ width: '100%', background: 'rgba(201,168,76,0.06)', border: '1px solid rgba(201,168,76,0.18)', borderRadius: 8, padding: '12px 16px', color: G, fontFamily: cinzel, fontSize: 11, letterSpacing: '0.07em', cursor: 'pointer', marginBottom: 16, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              style={{ width: '100%', background: 'rgba(201,168,76,0.06)', border: '1px solid rgba(201,168,76,0.18)', borderRadius: 8, padding: '12px 16px', color: isDark ? G : '#8B6914', fontFamily: cinzel, fontSize: 11, letterSpacing: '0.07em', cursor: 'pointer', marginBottom: 16, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <span>📚 Browse by Topic</span>
               <span style={{ opacity: 0.45, fontSize: 10 }}>{dynamicTopics.length} categories →</span>
             </button>
@@ -6011,7 +6011,7 @@ function ArsenalView({ theme, userTier, isMobile, setSidebarOpen, filterSheetOpe
                   onMouseLeave={e => { const el = e.currentTarget; el.style.borderColor = 'rgba(201,168,76,0.12)'; el.style.background = 'rgba(201,168,76,0.04)'; el.style.boxShadow = 'none' }}>
                   <span style={{ fontSize: 22, lineHeight: 1 }}>{ARSENAL_CATEGORY_ICONS[topic] || '📁'}</span>
                   <span style={{ fontFamily: cinzel, fontSize: 10, color: isDark ? G : '#8B6914', letterSpacing: '0.08em', lineHeight: 1.3 }}>{topic}</span>
-                  <span style={{ fontFamily: crimson, fontSize: 12, color: isDark ? 'rgba(240,232,216,0.38)' : '#574B33' }}>{categoryCounts[topic]} resource{categoryCounts[topic] !== 1 ? 's' : ''}</span>
+                  <span style={{ fontFamily: crimson, fontSize: 12, color: isDark ? 'rgba(240,232,216,0.38)' : 'rgba(31,27,18,0.78)' }}>{categoryCounts[topic]} resource{categoryCounts[topic] !== 1 ? 's' : ''}</span>
                 </div>
               ))}
             </div>
@@ -6037,7 +6037,7 @@ function ArsenalView({ theme, userTier, isMobile, setSidebarOpen, filterSheetOpe
             const upgradeLabel = upgradeTier.charAt(0).toUpperCase() + upgradeTier.slice(1)
             return (
               <div style={{ marginTop: 20, padding: '16px', border: '1px solid rgba(201,168,76,0.15)', borderRadius: 8, background: 'rgba(201,168,76,0.04)', textAlign: 'center' as const }}>
-                <div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.15em', color: 'rgba(201,168,76,0.6)', marginBottom: 6 }}>
+                <div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.15em', color: isDark ? 'rgba(201,168,76,0.6)' : '#8B6914', marginBottom: 6 }}>
                   🔒 {lockedCount} MORE RESOURCE{lockedCount !== 1 ? 'S' : ''} AVAILABLE
                 </div>
                 <div style={{ fontFamily: crimson, fontSize: 13, color: muted, marginBottom: 12, lineHeight: 1.5 }}>
@@ -6045,7 +6045,7 @@ function ArsenalView({ theme, userTier, isMobile, setSidebarOpen, filterSheetOpe
                 </div>
                 <button
                   onClick={() => beginUpgrade(upgradeTier)}
-                  style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.12em', padding: '8px 18px', background: 'rgba(201,168,76,0.15)', border: '1px solid #C9A84C', color: '#C9A84C', borderRadius: 4, cursor: 'pointer' }}
+                  style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.12em', padding: '8px 18px', background: 'rgba(201,168,76,0.15)', border: '1px solid #C9A84C', color: isDark ? '#C9A84C' : '#8B6914', borderRadius: 4, cursor: 'pointer' }}
                 >
                   UPGRADE TO {upgradeLabel.toUpperCase()} →
                 </button>
@@ -6060,17 +6060,17 @@ function ArsenalView({ theme, userTier, isMobile, setSidebarOpen, filterSheetOpe
           {/* Desktop sidebar */}
           {!isMobile && activeCategory !== '__search__' && (
             <div style={{ width: 188, flexShrink: 0 }}>
-              <div style={{ fontFamily: cinzel, fontSize: 9, color: 'rgba(201,168,76,0.4)', letterSpacing: '0.1em', marginBottom: 10, textTransform: 'uppercase' as const }}>Browse by Topic</div>
+              <div style={{ fontFamily: cinzel, fontSize: 9, color: isDark ? 'rgba(201,168,76,0.4)' : '#8B6914', letterSpacing: '0.1em', marginBottom: 10, textTransform: 'uppercase' as const }}>Browse by Topic</div>
               {dynamicTopics.map(topic => (
                 <div key={topic}
                   onClick={() => { setActiveCategory(topic); setQuery(''); setTierFilter('All'); setExpandedId(null) }}
                   style={{ padding: '7px 10px', borderRadius: 5, cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: activeCategory === topic ? 'rgba(201,168,76,0.1)' : 'transparent', borderLeft: `2px solid ${activeCategory === topic ? 'rgba(201,168,76,0.6)' : 'transparent'}`, marginBottom: 1 }}>
-                  <span style={{ fontFamily: cinzel, fontSize: 9, color: activeCategory === topic ? (isDark ? G : '#8B6914') : (isDark ? 'rgba(240,232,216,0.42)' : '#574B33'), letterSpacing: '0.04em', lineHeight: 1.35 }}>{topic}</span>
-                  <span style={{ fontFamily: crimson, fontSize: 10, color: 'rgba(240,232,216,0.22)', flexShrink: 0, marginLeft: 4 }}>{categoryCounts[topic] || 0}</span>
+                  <span style={{ fontFamily: cinzel, fontSize: 9, color: activeCategory === topic ? (isDark ? G : '#8B6914') : (isDark ? 'rgba(240,232,216,0.42)' : 'rgba(31,27,18,0.82)'), letterSpacing: '0.04em', lineHeight: 1.35 }}>{topic}</span>
+                  <span style={{ fontFamily: crimson, fontSize: 10, color: isDark ? 'rgba(240,232,216,0.22)' : 'rgba(31,27,18,0.62)', flexShrink: 0, marginLeft: 4 }}>{categoryCounts[topic] || 0}</span>
                 </div>
               ))}
               <div onClick={() => { setActiveCategory(null); setQuery(''); setTierFilter('All') }}
-                style={{ marginTop: 10, padding: '7px 10px', borderRadius: 5, cursor: 'pointer', fontFamily: cinzel, fontSize: 9, color: 'rgba(201,168,76,0.38)', letterSpacing: '0.06em' }}>
+                style={{ marginTop: 10, padding: '7px 10px', borderRadius: 5, cursor: 'pointer', fontFamily: cinzel, fontSize: 9, color: isDark ? 'rgba(201,168,76,0.38)' : '#8B6914', letterSpacing: '0.06em' }}>
                 ← All Categories
               </div>
             </div>
@@ -6083,13 +6083,13 @@ function ArsenalView({ theme, userTier, isMobile, setSidebarOpen, filterSheetOpe
             {isMobile && activeCategory !== '__search__' && (
               <div style={{ display: 'flex', gap: 6, overflowX: 'auto', scrollbarWidth: 'none' as any, WebkitOverflowScrolling: 'touch' as any, paddingBottom: 6, marginBottom: 12 }}>
                 <button onClick={() => { setActiveCategory(null); setQuery(''); setTierFilter('All') }}
-                  style={{ flexShrink: 0, padding: '5px 12px', borderRadius: 20, border: '1px solid rgba(201,168,76,0.22)', background: 'transparent', color: 'rgba(201,168,76,0.45)', fontFamily: cinzel, fontSize: 8, cursor: 'pointer', letterSpacing: '0.05em' }}>
+                  style={{ flexShrink: 0, padding: '5px 12px', borderRadius: 20, border: '1px solid rgba(201,168,76,0.22)', background: 'transparent', color: isDark ? 'rgba(201,168,76,0.45)' : '#8B6914', fontFamily: cinzel, fontSize: 8, cursor: 'pointer', letterSpacing: '0.05em' }}>
                   ← All
                 </button>
                 {dynamicTopics.map(topic => (
                   <button key={topic}
                     onClick={() => { setActiveCategory(topic); setQuery(''); setTierFilter('All'); setExpandedId(null) }}
-                    style={{ flexShrink: 0, padding: '5px 12px', borderRadius: 20, border: `1px solid rgba(201,168,76,${activeCategory === topic ? '0.6' : '0.18'})`, background: activeCategory === topic ? 'rgba(201,168,76,0.15)' : 'transparent', color: activeCategory === topic ? (isDark ? G : '#8B6914') : (isDark ? 'rgba(240,232,216,0.48)' : '#574B33'), fontFamily: cinzel, fontSize: 8, cursor: 'pointer', letterSpacing: '0.04em', whiteSpace: 'nowrap' as const }}>
+                    style={{ flexShrink: 0, padding: '5px 12px', borderRadius: 20, border: `1px solid rgba(201,168,76,${activeCategory === topic ? '0.6' : '0.18'})`, background: activeCategory === topic ? 'rgba(201,168,76,0.15)' : 'transparent', color: activeCategory === topic ? (isDark ? G : '#8B6914') : (isDark ? 'rgba(240,232,216,0.48)' : 'rgba(31,27,18,0.88)'), fontFamily: cinzel, fontSize: 8, cursor: 'pointer', letterSpacing: '0.04em', whiteSpace: 'nowrap' as const }}>
                     {topic}
                   </button>
                 ))}
@@ -6099,7 +6099,7 @@ function ArsenalView({ theme, userTier, isMobile, setSidebarOpen, filterSheetOpe
             {/* Search mode back */}
             {activeCategory === '__search__' && (
               <button onClick={() => { setActiveCategory(null); setQuery('') }}
-                style={{ background: 'transparent', border: '1px solid rgba(201,168,76,0.28)', borderRadius: 4, padding: '5px 12px', color: G, fontFamily: cinzel, fontSize: 9, cursor: 'pointer', letterSpacing: '0.06em', marginBottom: 12 }}>
+                style={{ background: 'transparent', border: '1px solid rgba(201,168,76,0.28)', borderRadius: 4, padding: '5px 12px', color: isDark ? G : '#8B6914', fontFamily: cinzel, fontSize: 9, cursor: 'pointer', letterSpacing: '0.06em', marginBottom: 12 }}>
                 ← All Categories
               </button>
             )}
@@ -6111,7 +6111,7 @@ function ArsenalView({ theme, userTier, isMobile, setSidebarOpen, filterSheetOpe
                   ? `${ARSENAL_CATEGORY_ICONS[activeCategory!] || ''} ${activeCategory}`
                   : `"${query}"`}
               </span>
-              <span style={{ fontFamily: crimson, fontSize: 12, color: 'rgba(240,232,216,0.3)' }}>
+              <span style={{ fontFamily: crimson, fontSize: 12, color: isDark ? 'rgba(240,232,216,0.3)' : 'rgba(31,27,18,0.7)' }}>
                 · {sortedItems.length} resource{sortedItems.length !== 1 ? 's' : ''}
               </span>
               <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 5 }}>
@@ -6159,15 +6159,15 @@ function ArsenalView({ theme, userTier, isMobile, setSidebarOpen, filterSheetOpe
 
       {/* Minister floating action bar */}
       {isMinister && selectedArsenalIds.size > 0 && (
-        <div style={{ position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)', zIndex: 9999, background: '#1A1626', border: '1px solid rgba(201,168,76,0.5)', borderRadius: 10, padding: '10px 16px', display: 'flex', alignItems: 'center', gap: 10, boxShadow: '0 8px 32px rgba(0,0,0,0.6)', flexWrap: 'wrap' as const, maxWidth: '90vw' }}>
-          <span style={{ fontFamily: cinzel, fontSize: 10, color: G, letterSpacing: '0.08em', whiteSpace: 'nowrap' as const }}>{selectedArsenalIds.size} SELECTED</span>
+        <div style={{ position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)', zIndex: 9999, background: isDark ? '#1A1626' : '#FFFFFF', border: '1px solid rgba(201,168,76,0.5)', borderRadius: 10, padding: '10px 16px', display: 'flex', alignItems: 'center', gap: 10, boxShadow: '0 8px 32px rgba(0,0,0,0.6)', flexWrap: 'wrap' as const, maxWidth: '90vw' }}>
+          <span style={{ fontFamily: cinzel, fontSize: 10, color: isDark ? G : '#8B6914', letterSpacing: '0.08em', whiteSpace: 'nowrap' as const }}>{selectedArsenalIds.size} SELECTED</span>
           <button onClick={() => setSelectedArsenalIds(new Set(arsenalItems.map((r: any) => r.id)))} style={{ background: 'none', border: `1px solid rgba(201,168,76,0.3)`, borderRadius: 4, padding: '5px 10px', fontFamily: cinzel, fontSize: 9, color: muted, cursor: 'pointer' }}>Select All</button>
           <button onClick={() => setSelectedArsenalIds(new Set())} style={{ background: 'none', border: `1px solid rgba(201,168,76,0.3)`, borderRadius: 4, padding: '5px 10px', fontFamily: cinzel, fontSize: 9, color: muted, cursor: 'pointer' }}>Deselect All</button>
-          <select value={massEditTier} onChange={e => setMassEditTier(e.target.value)} style={{ background: '#0D0B14', border: `1px solid rgba(201,168,76,0.3)`, borderRadius: 4, padding: '5px 8px', color: massEditTier ? '#E8D5B0' : '#8B7355', fontFamily: cinzel, fontSize: 9, outline: 'none' }}>
+          <select value={massEditTier} onChange={e => setMassEditTier(e.target.value)} style={{ background: isDark ? '#0D0B14' : '#FFFFFF', border: `1px solid rgba(201,168,76,0.3)`, borderRadius: 4, padding: '5px 8px', color: massEditTier ? (isDark ? '#E8D5B0' : '#1F1B12') : (isDark ? '#8B7355' : '#574B33'), fontFamily: cinzel, fontSize: 9, outline: 'none' }}>
             <option value=''>Tier...</option>
             {['watchman','soldier','commander','general'].map(t => <option key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1)}</option>)}
           </select>
-          <select value={massEditTopic} onChange={e => setMassEditTopic(e.target.value)} style={{ background: '#0D0B14', border: `1px solid rgba(201,168,76,0.3)`, borderRadius: 4, padding: '5px 8px', color: massEditTopic ? '#E8D5B0' : '#8B7355', fontFamily: cinzel, fontSize: 9, outline: 'none' }}>
+          <select value={massEditTopic} onChange={e => setMassEditTopic(e.target.value)} style={{ background: isDark ? '#0D0B14' : '#FFFFFF', border: `1px solid rgba(201,168,76,0.3)`, borderRadius: 4, padding: '5px 8px', color: massEditTopic ? (isDark ? '#E8D5B0' : '#1F1B12') : (isDark ? '#8B7355' : '#574B33'), fontFamily: cinzel, fontSize: 9, outline: 'none' }}>
             <option value=''>Topic...</option>
             {ARSENAL_TOPICS.map(t => <option key={t} value={t}>{t}</option>)}
           </select>
@@ -6184,16 +6184,16 @@ function ArsenalView({ theme, userTier, isMobile, setSidebarOpen, filterSheetOpe
       {/* Mass delete confirmation modal */}
       {showMassDeleteConfirm && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div style={{ background: '#1A1626', border: '1px solid rgba(220,38,38,0.5)', borderRadius: 12, padding: 32, maxWidth: 400, width: '90%', textAlign: 'center' as const }}>
+          <div style={{ background: isDark ? '#1A1626' : '#FFFFFF', border: '1px solid rgba(220,38,38,0.5)', borderRadius: 12, padding: 32, maxWidth: 400, width: '90%', textAlign: 'center' as const }}>
             <div style={{ fontFamily: cinzel, fontSize: 15, color: '#f87171', marginBottom: 12, letterSpacing: '0.1em' }}>⚠ DELETE {selectedArsenalIds.size} ARSENAL ITEM{selectedArsenalIds.size !== 1 ? 'S' : ''}?</div>
-            <div style={{ fontFamily: crimson, fontSize: 14, color: '#8B7355', marginBottom: 24, lineHeight: 1.6 }}>
+            <div style={{ fontFamily: crimson, fontSize: 14, color: isDark ? '#8B7355' : '#574B33', marginBottom: 24, lineHeight: 1.6 }}>
               This permanently deletes {selectedArsenalIds.size} file{selectedArsenalIds.size !== 1 ? 's' : ''} from Arsenal and storage. This cannot be undone.
             </div>
             <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
               <button onClick={handleMassDelete} disabled={massDeleting} style={{ background: 'rgba(220,38,38,0.2)', border: '1px solid rgba(220,38,38,0.5)', borderRadius: 6, padding: '10px 24px', color: '#f87171', fontFamily: cinzel, fontSize: 11, letterSpacing: '0.08em', cursor: massDeleting ? 'wait' : 'pointer', fontWeight: 700 }}>
                 {massDeleting ? 'Deleting...' : 'Confirm Delete'}
               </button>
-              <button onClick={() => setShowMassDeleteConfirm(false)} style={{ background: 'transparent', border: `1px solid ${G}`, borderRadius: 6, padding: '10px 24px', color: G, fontFamily: cinzel, fontSize: 11, cursor: 'pointer', letterSpacing: '0.06em' }}>Cancel</button>
+              <button onClick={() => setShowMassDeleteConfirm(false)} style={{ background: 'transparent', border: `1px solid ${G}`, borderRadius: 6, padding: '10px 24px', color: isDark ? G : '#8B6914', fontFamily: cinzel, fontSize: 11, cursor: 'pointer', letterSpacing: '0.06em' }}>Cancel</button>
             </div>
           </div>
         </div>
@@ -6203,28 +6203,28 @@ function ArsenalView({ theme, userTier, isMobile, setSidebarOpen, filterSheetOpe
       {isMobile && filterSheetOpen && (
         <>
           <div onClick={() => setFilterSheetOpen?.(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', zIndex: 5000 }} />
-          <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 5001, background: isDark ? '#13111e' : '#FAF8F5', borderRadius: '16px 16px 0 0', paddingBottom: 'calc(env(safe-area-inset-bottom) + 16px)', display: 'flex', flexDirection: 'column' as const, maxHeight: '80dvh' }}>
+          <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 5001, background: isDark ? '#13111e' : '#FFFFFF', borderRadius: '16px 16px 0 0', paddingBottom: 'calc(env(safe-area-inset-bottom) + 16px)', display: 'flex', flexDirection: 'column' as const, maxHeight: '80dvh' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px 12px', borderBottom: `1px solid ${border}`, flexShrink: 0 }}>
-              <span style={{ fontFamily: cinzel, fontSize: 11, color: G, letterSpacing: '0.14em' }}>FILTERS</span>
+              <span style={{ fontFamily: cinzel, fontSize: 11, color: isDark ? G : '#8B6914', letterSpacing: '0.14em' }}>FILTERS</span>
               <button onClick={() => setFilterSheetOpen?.(false)} style={{ background: 'none', border: 'none', color: muted, fontSize: 22, cursor: 'pointer', padding: 4, lineHeight: 1 }}>×</button>
             </div>
             <div style={{ overflowY: 'auto' as const, flex: 1, padding: '16px 20px' }}>
-              <div style={{ fontFamily: cinzel, fontSize: 9, color: G, letterSpacing: '0.16em', marginBottom: 10 }}>CATEGORY</div>
+              <div style={{ fontFamily: cinzel, fontSize: 9, color: isDark ? G : '#8B6914', letterSpacing: '0.16em', marginBottom: 10 }}>CATEGORY</div>
               <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 8, marginBottom: 20 }}>
                 <button onClick={() => { setActiveTierNum(null); setActiveCategory(null) }}
-                  style={{ padding: '5px 14px', borderRadius: 999, fontSize: 10, cursor: 'pointer', fontFamily: cinzel, letterSpacing: '0.04em', border: `1px solid ${activeTierNum === null ? G : 'rgba(201,168,76,0.2)'}`, background: activeTierNum === null ? 'rgba(201,168,76,0.15)' : 'transparent', color: activeTierNum === null ? G : muted, whiteSpace: 'nowrap' as const }}>All</button>
+                  style={{ padding: '5px 14px', borderRadius: 999, fontSize: 10, cursor: 'pointer', fontFamily: cinzel, letterSpacing: '0.04em', border: `1px solid ${activeTierNum === null ? G : 'rgba(201,168,76,0.2)'}`, background: activeTierNum === null ? 'rgba(201,168,76,0.15)' : 'transparent', color: activeTierNum === null ? (isDark ? G : '#8B6914') : muted, whiteSpace: 'nowrap' as const }}>All</button>
                 {ARSENAL_TIERS.map(t => (
                   <button key={t.tier} onClick={() => { setActiveTierNum(activeTierNum === t.tier ? null : t.tier); setActiveCategory(null) }}
-                    style={{ padding: '5px 14px', borderRadius: 999, fontSize: 10, cursor: 'pointer', fontFamily: cinzel, letterSpacing: '0.04em', border: `1px solid ${activeTierNum === t.tier ? G : 'rgba(201,168,76,0.2)'}`, background: activeTierNum === t.tier ? 'rgba(201,168,76,0.15)' : 'transparent', color: activeTierNum === t.tier ? G : muted, whiteSpace: 'nowrap' as const }}>
+                    style={{ padding: '5px 14px', borderRadius: 999, fontSize: 10, cursor: 'pointer', fontFamily: cinzel, letterSpacing: '0.04em', border: `1px solid ${activeTierNum === t.tier ? G : 'rgba(201,168,76,0.2)'}`, background: activeTierNum === t.tier ? 'rgba(201,168,76,0.15)' : 'transparent', color: activeTierNum === t.tier ? (isDark ? G : '#8B6914') : muted, whiteSpace: 'nowrap' as const }}>
                     {t.icon} {t.label}
                   </button>
                 ))}
               </div>
-              <div style={{ fontFamily: cinzel, fontSize: 9, color: G, letterSpacing: '0.16em', marginBottom: 10 }}>TIER</div>
+              <div style={{ fontFamily: cinzel, fontSize: 9, color: isDark ? G : '#8B6914', letterSpacing: '0.16em', marginBottom: 10 }}>TIER</div>
               <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 8 }}>
                 {['All', 'Watchman', 'Soldier', 'Commander', 'General'].map(tier => (
                   <button key={tier} onClick={() => setTierFilter(tier)}
-                    style={{ padding: '5px 14px', borderRadius: 20, fontSize: 10, cursor: 'pointer', fontFamily: cinzel, letterSpacing: '0.04em', border: `1px solid rgba(201,168,76,${tierFilter === tier ? '0.55' : '0.18'})`, background: tierFilter === tier ? 'rgba(201,168,76,0.13)' : 'transparent', color: tierFilter === tier ? G : 'rgba(201,168,76,0.42)', whiteSpace: 'nowrap' as const }}>{tier}</button>
+                    style={{ padding: '5px 14px', borderRadius: 20, fontSize: 10, cursor: 'pointer', fontFamily: cinzel, letterSpacing: '0.04em', border: `1px solid rgba(201,168,76,${tierFilter === tier ? '0.55' : '0.18'})`, background: tierFilter === tier ? 'rgba(201,168,76,0.13)' : 'transparent', color: tierFilter === tier ? (isDark ? G : '#8B6914') : (isDark ? 'rgba(201,168,76,0.42)' : '#8B6914'), whiteSpace: 'nowrap' as const }}>{tier}</button>
                 ))}
               </div>
             </div>
@@ -6246,9 +6246,9 @@ function ArsenalView({ theme, userTier, isMobile, setSidebarOpen, filterSheetOpe
       {showCategorySheet && (
         <>
           <div onClick={() => setShowCategorySheet(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', zIndex: 10000 }} />
-          <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 10001, background: '#13111e', border: '1px solid rgba(201,168,76,0.18)', borderRadius: '16px 16px 0 0', paddingBottom: 40, maxHeight: '72vh', overflowY: 'auto' }}>
+          <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 10001, background: isDark ? '#13111e' : '#FFFFFF', border: '1px solid rgba(201,168,76,0.18)', borderRadius: '16px 16px 0 0', paddingBottom: 40, maxHeight: '72vh', overflowY: 'auto' }}>
             <div style={{ padding: '16px 20px 10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(201,168,76,0.1)' }}>
-              <span style={{ fontFamily: cinzel, fontSize: 10, letterSpacing: '0.15em', color: 'rgba(201,168,76,0.55)', textTransform: 'uppercase' as const }}>Browse by Topic</span>
+              <span style={{ fontFamily: cinzel, fontSize: 10, letterSpacing: '0.15em', color: isDark ? 'rgba(201,168,76,0.55)' : '#8B6914', textTransform: 'uppercase' as const }}>Browse by Topic</span>
               <button onClick={() => setShowCategorySheet(false)} style={{ background: 'none', border: 'none', color: muted, fontSize: 18, cursor: 'pointer', lineHeight: 1, padding: 0 }}>✕</button>
             </div>
             {dynamicTopics.map(topic => (
@@ -6257,9 +6257,9 @@ function ArsenalView({ theme, userTier, isMobile, setSidebarOpen, filterSheetOpe
                 style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '13px 20px', cursor: 'pointer', borderBottom: '1px solid rgba(201,168,76,0.06)' }}>
                 <span style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                   <span style={{ fontSize: 18 }}>{ARSENAL_CATEGORY_ICONS[topic] || '📁'}</span>
-                  <span style={{ fontFamily: cinzel, fontSize: 11, color: '#f0e8d8', letterSpacing: '0.04em' }}>{topic}</span>
+                  <span style={{ fontFamily: cinzel, fontSize: 11, color: isDark ? '#f0e8d8' : '#1F1B12', letterSpacing: '0.04em' }}>{topic}</span>
                 </span>
-                <span style={{ fontFamily: crimson, fontSize: 12, color: 'rgba(240,232,216,0.32)' }}>{categoryCounts[topic]}</span>
+                <span style={{ fontFamily: crimson, fontSize: 12, color: isDark ? 'rgba(240,232,216,0.32)' : 'rgba(31,27,18,0.72)' }}>{categoryCounts[topic]}</span>
               </div>
             ))}
           </div>
@@ -8260,7 +8260,8 @@ function extractIntelPreview(response: string): string {
   return clean.replace(/^```\w*\s*/gm, '').replace(/```\s*$/gm, '').trim()
 }
 
-function MyIntelView({ isMobile, setSidebarOpen, getToken }: any) {
+function MyIntelView({ theme, isMobile, setSidebarOpen, getToken }: any) {
+  const isDark = theme !== 'light'
   const { beginUpgrade } = useContext(UpgradeFlowCtx)
   const [entries,         setEntries]         = useState<any[]>([])
   const [loading,         setLoading]         = useState(true)
@@ -8320,26 +8321,26 @@ function MyIntelView({ isMobile, setSidebarOpen, getToken }: any) {
   })
 
   return (
-    <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden' as const, touchAction: 'pan-y', padding: isMobile ? '16px' : '24px 32px', background: '#0D0B14', minHeight: 0 }}>
+    <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden' as const, touchAction: 'pan-y', padding: isMobile ? '16px' : '24px 32px', background: isDark ? '#0D0B14' : '#EDEBE2', minHeight: 0 }}>
       <div style={{ maxWidth: 860, margin: '0 auto' }}>
         {!isMobile && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
-            <button onClick={() => setSidebarOpen(true)} style={{ background: 'none', border: 'none', color: G, fontSize: 22, cursor: 'pointer', padding: '4px 8px', lineHeight: 1 }}>☰</button>
-            <span style={{ fontFamily: cinzel, fontSize: 13, color: G, letterSpacing: '0.1em' }}>My Intel</span>
+            <button onClick={() => setSidebarOpen(true)} style={{ background: 'none', border: 'none', color: isDark ? G : '#8B6914', fontSize: 22, cursor: 'pointer', padding: '4px 8px', lineHeight: 1 }}>☰</button>
+            <span style={{ fontFamily: cinzel, fontSize: 13, color: isDark ? G : '#8B6914', letterSpacing: '0.1em' }}>My Intel</span>
           </div>
         )}
 
         <div style={{ marginBottom: 24 }}>
-          <h2 style={{ fontFamily: cinzel, color: G, fontSize: isMobile ? 18 : 22, margin: '0 0 4px', letterSpacing: '0.08em' }}>My Intel</h2>
-          <p style={{ color: '#8B7355', fontSize: 13, margin: 0, fontFamily: crimson }}>Your SOL intelligence history across all tools</p>
+          <h2 style={{ fontFamily: cinzel, color: isDark ? G : '#8B6914', fontSize: isMobile ? 18 : 22, margin: '0 0 4px', letterSpacing: '0.08em' }}>My Intel</h2>
+          <p style={{ color: isDark ? '#8B7355' : '#574B33', fontSize: 13, margin: 0, fontFamily: crimson }}>Your SOL intelligence history across all tools</p>
         </div>
 
         {/* AI Usage Today widget */}
         {aiUsage && (
           <div style={{ background: 'rgba(201,168,76,0.04)', border: '1px solid rgba(201,168,76,0.15)', borderRadius: 10, padding: '16px 18px', marginBottom: 24 }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-              <span style={{ fontFamily: cinzel, fontSize: 9, color: G, letterSpacing: '0.12em' }}>SOL USAGE TODAY</span>
-              <span style={{ fontFamily: cinzel, fontSize: 8, color: '#5a4f3a', letterSpacing: '0.08em', textTransform: 'uppercase' as const }}>{aiUsage.tier}</span>
+              <span style={{ fontFamily: cinzel, fontSize: 9, color: isDark ? G : '#8B6914', letterSpacing: '0.12em' }}>SOL USAGE TODAY</span>
+              <span style={{ fontFamily: cinzel, fontSize: 8, color: isDark ? '#5a4f3a' : '#574B33', letterSpacing: '0.08em', textTransform: 'uppercase' as const }}>{aiUsage.tier}</span>
             </div>
             {(() => {
               const unlimited = aiUsage.unlimited === true || aiUsage.cap === -1
@@ -8350,13 +8351,13 @@ function MyIntelView({ isMobile, setSidebarOpen, getToken }: any) {
               return (
                 <div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-                    <span style={{ fontFamily: crimson, fontSize: 12, color: '#9a8c74' }}>AI calls across all tools</span>
-                    <span style={{ fontFamily: cinzel, fontSize: 11, color: unlimited ? '#5fae6f' : pct >= 1 ? '#c84a4a' : '#9a8c74', letterSpacing: '0.04em' }}>
+                    <span style={{ fontFamily: crimson, fontSize: 12, color: isDark ? '#9a8c74' : '#574B33' }}>AI calls across all tools</span>
+                    <span style={{ fontFamily: cinzel, fontSize: 11, color: unlimited ? '#5fae6f' : pct >= 1 ? '#c84a4a' : (isDark ? '#9a8c74' : '#574B33'), letterSpacing: '0.04em' }}>
                       {unlimited ? '∞ Unlimited' : `${used}/${cap}`}
                     </span>
                   </div>
                   {!unlimited && (
-                    <div style={{ height: 4, background: 'rgba(255,255,255,0.05)', borderRadius: 2, overflow: 'hidden' }}>
+                    <div style={{ height: 4, background: isDark ? 'rgba(255,255,255,0.05)' : '#EEE9DA', borderRadius: 2, overflow: 'hidden' }}>
                       <div style={{ height: '100%', width: `${Math.min(100, pct * 100)}%`, background: barColor, borderRadius: 2, transition: 'width 0.3s' }} />
                     </div>
                   )}
@@ -8367,7 +8368,7 @@ function MyIntelView({ isMobile, setSidebarOpen, getToken }: any) {
               <div style={{ marginTop: 12, padding: '6px 10px', background: 'rgba(200,74,74,0.08)', border: '1px solid rgba(200,74,74,0.2)', borderRadius: 6 }}>
                 <span style={{ fontFamily: crimson, fontSize: 12, color: '#c84a4a' }}>
                   You've reached today's AI limit.{' '}
-                  <button onClick={() => { const t = aiUsage?.tier?.toLowerCase() || 'watchman'; const next = t === 'watchman' || t === 'free' ? 'soldier' : t === 'soldier' ? 'commander' : t === 'commander' ? 'general' : null; if (next) beginUpgrade(next) }} style={{ color: G, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.06em', background: 'none', border: 'none', cursor: 'pointer', padding: 0, textDecoration: 'underline' }}>Upgrade</button> for more calls.
+                  <button onClick={() => { const t = aiUsage?.tier?.toLowerCase() || 'watchman'; const next = t === 'watchman' || t === 'free' ? 'soldier' : t === 'soldier' ? 'commander' : t === 'commander' ? 'general' : null; if (next) beginUpgrade(next) }} style={{ color: isDark ? G : '#8B6914', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.06em', background: 'none', border: 'none', cursor: 'pointer', padding: 0, textDecoration: 'underline' }}>Upgrade</button> for more calls.
                 </span>
               </div>
             )}
@@ -8380,7 +8381,7 @@ function MyIntelView({ isMobile, setSidebarOpen, getToken }: any) {
             value={searchQ}
             onChange={e => setSearchQ(e.target.value)}
             placeholder="Search across all history..."
-            style={{ width: '100%', boxSizing: 'border-box' as const, background: 'rgba(201,168,76,0.04)', border: '1px solid rgba(201,168,76,0.2)', borderRadius: 6, padding: '10px 14px', color: '#E8D5B0', fontFamily: crimson, fontSize: 14, outline: 'none' }}
+            style={{ width: '100%', boxSizing: 'border-box' as const, background: 'rgba(201,168,76,0.04)', border: '1px solid rgba(201,168,76,0.2)', borderRadius: 6, padding: '10px 14px', color: isDark ? '#E8D5B0' : '#1F1B12', fontFamily: crimson, fontSize: 14, outline: 'none' }}
           />
         </div>
 
@@ -8392,7 +8393,7 @@ function MyIntelView({ isMobile, setSidebarOpen, getToken }: any) {
                 padding: '5px 12px', borderRadius: 20,
                 background: filter === f ? 'rgba(201,168,76,0.15)' : 'transparent',
                 border: `1px solid ${filter === f ? G : 'rgba(201,168,76,0.2)'}`,
-                color: filter === f ? G : '#8B7355',
+                color: filter === f ? (isDark ? G : '#8B6914') : (isDark ? '#8B7355' : '#574B33'),
                 fontFamily: cinzel, fontSize: 9, letterSpacing: '0.1em', cursor: 'pointer',
                 textTransform: 'uppercase' as const,
               }}>
@@ -8402,12 +8403,12 @@ function MyIntelView({ isMobile, setSidebarOpen, getToken }: any) {
         </div>
 
         {loading ? (
-          <div style={{ textAlign: 'center' as const, padding: 40, color: '#8B7355', fontFamily: crimson, fontStyle: 'italic' }}>Loading history...</div>
+          <div style={{ textAlign: 'center' as const, padding: 40, color: isDark ? '#8B7355' : '#574B33', fontFamily: crimson, fontStyle: 'italic' }}>Loading history...</div>
         ) : filtered.length === 0 ? (
           <div style={{ background: 'rgba(201,168,76,0.04)', border: '1px solid rgba(201,168,76,0.15)', borderRadius: 12, padding: '48px 24px', textAlign: 'center' as const }}>
             <div style={{ fontSize: 36, marginBottom: 12 }}>📋</div>
-            <div style={{ fontFamily: cinzel, fontSize: 13, color: G, letterSpacing: '0.06em', marginBottom: 6 }}>No Intel Found</div>
-            <div style={{ fontFamily: crimson, fontSize: 13, color: '#8B7355', fontStyle: 'italic' }}>
+            <div style={{ fontFamily: cinzel, fontSize: 13, color: isDark ? G : '#8B6914', letterSpacing: '0.06em', marginBottom: 6 }}>No Intel Found</div>
+            <div style={{ fontFamily: crimson, fontSize: 13, color: isDark ? '#8B7355' : '#574B33', fontStyle: 'italic' }}>
               {searchQ ? 'No results match your search.' : 'Use SOL tools to build your history.'}
             </div>
           </div>
@@ -8421,7 +8422,7 @@ function MyIntelView({ isMobile, setSidebarOpen, getToken }: any) {
                   {/* Tool badge */}
                   <span style={{
                     fontFamily: cinzel, fontSize: 8, letterSpacing: '0.1em',
-                    color: TOOL_COLORS[entry.tool] || G,
+                    color: TOOL_COLORS[entry.tool] || (isDark ? G : '#8B6914'),
                     background: `${TOOL_COLORS[entry.tool] || G}18`,
                     border: `1px solid ${TOOL_COLORS[entry.tool] || G}44`,
                     borderRadius: 10, padding: '2px 8px', flexShrink: 0, marginTop: 2,
@@ -8430,20 +8431,20 @@ function MyIntelView({ isMobile, setSidebarOpen, getToken }: any) {
                   </span>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                      <div style={{ fontFamily: crimson, fontSize: 14, color: '#E8D5B0', lineHeight: 1.4, marginBottom: 4, flex: 1 }}>{entry.query}</div>
-                      <span style={{ fontSize: 10, color: '#6b5e45', marginLeft: 4, flexShrink: 0 }}>
+                      <div style={{ fontFamily: crimson, fontSize: 14, color: isDark ? '#E8D5B0' : '#1F1B12', lineHeight: 1.4, marginBottom: 4, flex: 1 }}>{entry.query}</div>
+                      <span style={{ fontSize: 10, color: isDark ? '#6b5e45' : '#574B33', marginLeft: 4, flexShrink: 0 }}>
                         {expandedIntelId === entry.id ? '▼' : '▶'}
                       </span>
                     </div>
                     {expandedIntelId !== entry.id && entry.response && (
-                      <div style={{ fontFamily: crimson, fontSize: 12, color: '#8B7355', lineHeight: 1.5 }}>
+                      <div style={{ fontFamily: crimson, fontSize: 12, color: isDark ? '#8B7355' : '#574B33', lineHeight: 1.5 }}>
                         {(preview => `${preview.slice(0, 120)}${preview.length > 120 ? '…' : ''}`)(extractIntelPreview(entry.response))}
                       </div>
                     )}
                     {entry.context && Object.keys(entry.context).length > 0 && (
                       <div style={{ marginTop: 4, display: 'flex', gap: 6, flexWrap: 'wrap' as const }}>
                         {Object.entries(entry.context).filter(([, v]) => v).map(([k, v]) => (
-                          <span key={k} style={{ fontFamily: cinzel, fontSize: 8, color: '#5a4f3a', letterSpacing: '0.06em' }}>{k}: {String(v)}</span>
+                          <span key={k} style={{ fontFamily: cinzel, fontSize: 8, color: isDark ? '#5a4f3a' : '#574B33', letterSpacing: '0.06em' }}>{k}: {String(v)}</span>
                         ))}
                       </div>
                     )}
@@ -8458,7 +8459,7 @@ function MyIntelView({ isMobile, setSidebarOpen, getToken }: any) {
                     <button
                       onClick={e => { e.stopPropagation(); deleteEntry(entry.id) }}
                       title="Delete"
-                      style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, padding: 4, color: '#8B7355', opacity: 0.6 }}
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, padding: 4, color: isDark ? '#8B7355' : '#574B33', opacity: 0.6 }}
                     >🗑</button>
                   </div>
                 </div>
@@ -8471,7 +8472,7 @@ function MyIntelView({ isMobile, setSidebarOpen, getToken }: any) {
                     {entry.response && (
                       <div style={{
                         fontSize: 13, lineHeight: 1.7,
-                        color: '#d4c9b0',
+                        color: isDark ? '#d4c9b0' : '#1F1B12',
                         whiteSpace: 'pre-wrap' as const,
                         fontFamily: crimson,
                       }}>
@@ -8481,7 +8482,7 @@ function MyIntelView({ isMobile, setSidebarOpen, getToken }: any) {
                     {entry.query && (
                       <div style={{
                         marginTop: 8, fontSize: 11,
-                        color: '#9a8c74',
+                        color: isDark ? '#9a8c74' : '#574B33',
                         fontFamily: crimson,
                       }}>
                         Query: {entry.query}
@@ -8490,12 +8491,12 @@ function MyIntelView({ isMobile, setSidebarOpen, getToken }: any) {
                   </div>
                 )}
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginTop: 8 }}>
-                  <span style={{ fontFamily: cinzel, fontSize: 8, color: '#3a3428', letterSpacing: '0.06em' }}>{intelTimeAgo(entry.created_at)}</span>
+                  <span style={{ fontFamily: cinzel, fontSize: 8, color: isDark ? '#3a3428' : '#574B33', letterSpacing: '0.06em' }}>{intelTimeAgo(entry.created_at)}</span>
                   {!entry.saved && (
-                    <span style={{ fontFamily: cinzel, fontSize: 8, color: '#3a3428', letterSpacing: '0.04em' }}>Auto-purges in 90 days</span>
+                    <span style={{ fontFamily: cinzel, fontSize: 8, color: isDark ? '#3a3428' : '#574B33', letterSpacing: '0.04em' }}>Auto-purges in 90 days</span>
                   )}
                   {entry.saved && (
-                    <span style={{ fontFamily: cinzel, fontSize: 8, color: '#C9A84C', letterSpacing: '0.04em' }}>⭐ Saved</span>
+                    <span style={{ fontFamily: cinzel, fontSize: 8, color: isDark ? '#C9A84C' : '#8B6914', letterSpacing: '0.04em' }}>⭐ Saved</span>
                   )}
                 </div>
               </div>
@@ -9655,7 +9656,8 @@ const COMM_DOC_TEMPLATES = [
   },
 ]
 
-function DocumentCreatorView({ isMobile, setSidebarOpen, getToken }: any) {
+function DocumentCreatorView({ theme, isMobile, setSidebarOpen, getToken }: any) {
+  const isDark = theme !== 'light'
   const GC = '#C9A84C'
   const [selectedIdx, setSelectedIdx] = useState(0)
   const [subject, setSubject] = useState('')
@@ -9690,16 +9692,16 @@ function DocumentCreatorView({ isMobile, setSidebarOpen, getToken }: any) {
   }
 
   return (
-    <div style={{ height: '100%', overflowY: 'auto', overflowX: 'hidden' as const, touchAction: 'pan-y', background: '#0D0B14' }}>
+    <div style={{ height: '100%', overflowY: 'auto', overflowX: 'hidden' as const, touchAction: 'pan-y', background: isDark ? '#0D0B14' : '#EDEBE2' }}>
       <div style={{ padding: isMobile ? '16px 16px' : '24px 28px', maxWidth: 800, margin: '0 auto' }}>
         {/* Header */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 24, flexShrink: 0 }}>
           {!isMobile && (
-            <button onClick={() => setSidebarOpen(true)} style={{ background: 'none', border: 'none', color: GC, fontSize: 22, cursor: 'pointer', padding: '4px 8px', lineHeight: 1 }}>☰</button>
+            <button onClick={() => setSidebarOpen(true)} style={{ background: 'none', border: 'none', color: isDark ? GC : '#8B6914', fontSize: 22, cursor: 'pointer', padding: '4px 8px', lineHeight: 1 }}>☰</button>
           )}
           <div>
-            <div style={{ fontFamily: cinzel, fontSize: isMobile ? 14 : 18, color: GC, letterSpacing: '0.1em' }}>DOCUMENT CREATOR</div>
-            <div style={{ fontFamily: crimson, fontSize: 12, color: '#6a5f4f', marginTop: 2 }}>SOL-generated ministry documents with WRI context</div>
+            <div style={{ fontFamily: cinzel, fontSize: isMobile ? 14 : 18, color: isDark ? GC : '#8B6914', letterSpacing: '0.1em' }}>DOCUMENT CREATOR</div>
+            <div style={{ fontFamily: crimson, fontSize: 12, color: isDark ? '#6a5f4f' : '#574B33', marginTop: 2 }}>SOL-generated ministry documents with WRI context</div>
           </div>
         </div>
 
@@ -14571,7 +14573,7 @@ function CommunityPage() {
       {activeSection === 'training'       && <TrainingView theme={theme} isMobile={isMobile} setSidebarOpen={setSidebarOpen} userId={user?.id || ''} userTier={tier} getToken={getToken} setActiveSection={setActiveSection} />}
       {activeSection === 'field-teams'    && <FieldTeamsSection isDark={isDark} setActiveSection={setActiveSection} getToken={getToken} onCreate={(type) => { setCreateIntent(type); setActiveSection('dms') }} onOpenChannel={(group) => { if (!group?.channelId) return; setOpenChannelIntent(group); setActiveSection('dms') }} />}
       {activeSection === 'document-creator' && (tierLevel >= 2
-        ? <DocumentCreatorView isMobile={isMobile} setSidebarOpen={setSidebarOpen} getToken={getToken} />
+        ? <DocumentCreatorView theme={theme} isMobile={isMobile} setSidebarOpen={setSidebarOpen} getToken={getToken} />
         : <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', background: isDark ? '#0D0B14' : '#FAF8F5', padding: '40px 20px' }}>
             <UpgradeGate variant="screen" requiredTier="commander" featureName="Document Creator" description="Upgrade to Commander to create and manage ministry documents." isDark={isDark} />
           </div>
@@ -14584,7 +14586,7 @@ function CommunityPage() {
       )}
       {activeSection === 'events'         && <EventsView theme={theme} isMobile={isMobile} setSidebarOpen={setSidebarOpen} userTier={tier} getToken={getToken} />}
       {activeSection === 'feedback'       && <FeedbackView theme={theme} userTier={tier} isMobile={isMobile} setSidebarOpen={setSidebarOpen} userId={user?.id || ''} userName={`${user?.firstName || ''} ${user?.lastName || ''}`.trim() || 'Warrior'} />}
-      {activeSection === 'my-intel'       && <MyIntelView isMobile={isMobile} setSidebarOpen={setSidebarOpen} getToken={getToken} />}
+      {activeSection === 'my-intel'       && <MyIntelView theme={theme} isMobile={isMobile} setSidebarOpen={setSidebarOpen} getToken={getToken} />}
       {activeSection === 'daily-brief'    && <DailyDevotionView theme={theme} isMobile={isMobile} setSidebarOpen={setSidebarOpen} userTier={tier} userId={user?.id || ''} />}
       {activeSection === 'sol' && (
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column' as const, background: isDark ? '#0f0c07' : '#FAF8F5', overflow: 'hidden' }}>
@@ -15279,7 +15281,7 @@ function CommunityPage() {
           <FieldTeamsSection isDark={isDark} setActiveSection={setActiveSection} getToken={getToken} onCreate={(type) => { setCreateIntent(type); setActiveSection('dms') }} onOpenChannel={(group) => { if (!group?.channelId) return; setOpenChannelIntent(group); setActiveSection('dms') }} />
         )}
         {activeSection === 'document-creator' && (tierLevel >= 2
-          ? <DocumentCreatorView isMobile={isMobile} setSidebarOpen={setSidebarOpen} getToken={getToken} />
+          ? <DocumentCreatorView theme={theme} isMobile={isMobile} setSidebarOpen={setSidebarOpen} getToken={getToken} />
           : <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', background: isDark ? '#0D0B14' : '#FAF8F5', padding: '40px 20px' }}>
               <UpgradeGate variant="screen" requiredTier="commander" featureName="Document Creator" description="Upgrade to Commander to create and manage ministry documents." isDark={isDark} />
             </div>
@@ -15305,7 +15307,7 @@ function CommunityPage() {
         )}
         {activeSection === 'events'      && <EventsView theme={theme} isMobile={isMobile} setSidebarOpen={setSidebarOpen} userTier={tier} getToken={getToken} />}
         {activeSection === 'feedback'    && <FeedbackView theme={theme} userTier={tier} isMobile={isMobile} setSidebarOpen={setSidebarOpen} userId={user?.id || ''} userName={`${user?.firstName || ''} ${user?.lastName || ''}`.trim() || 'Warrior'} />}
-        {activeSection === 'my-intel'       && <MyIntelView isMobile={isMobile} setSidebarOpen={setSidebarOpen} getToken={getToken} />}
+        {activeSection === 'my-intel'       && <MyIntelView theme={theme} isMobile={isMobile} setSidebarOpen={setSidebarOpen} getToken={getToken} />}
         {activeSection === 'daily-brief'    && <DailyDevotionView theme={theme} isMobile={isMobile} setSidebarOpen={setSidebarOpen} userTier={tier} userId={user?.id || ''} />}
         {activeSection === 'ops-dashboard'  && <OpsDashboardView theme={theme} isMobile={isMobile} setSidebarOpen={setSidebarOpen} userId={user?.id || ''} getToken={getToken} setActiveSection={setActiveSection} />}
         {activeSection === 'forum'       && (
