@@ -12777,7 +12777,6 @@ function CommunityPage() {
 
   const [theme, setTheme] = useState<'dark' | 'light'>(() => {
     if (typeof window === 'undefined') return 'dark'
-    if (window.innerWidth < 768) return 'dark'
     const stored = localStorage.getItem('wri-theme')
     return (stored === 'dark' || stored === 'light') ? stored : 'dark'
   })
@@ -14184,6 +14183,11 @@ function CommunityPage() {
             <div style={{ fontSize: 9, color: G, fontFamily: cinzel, letterSpacing: '0.1em', textTransform: 'uppercase' as const }}>{tier}</div>
           </div>
           <button
+            onClick={() => setTheme((t: string) => t === 'dark' ? 'light' : 'dark')}
+            title="Toggle theme"
+            style={{ background: 'none', border: 'none', fontSize: 16, cursor: 'pointer', padding: 8, flexShrink: 0 }}
+          >{isDark ? '☀️' : '🌙'}</button>
+          <button
             onClick={() => signOut()}
             style={{ background: 'none', border: `1px solid ${V.bdr}`, borderRadius: 5, color: V.mut, fontFamily: cinzel, fontSize: 8, letterSpacing: '0.08em', padding: '3px 8px', cursor: 'pointer', flexShrink: 0, textTransform: 'uppercase' as const }}
           >Out</button>
@@ -14818,15 +14822,15 @@ function CommunityPage() {
     return (
       <div style={{ width: '100%', height: '100dvh', background: V.bg, display: 'flex', flexDirection: 'column' as const, paddingTop: 'env(safe-area-inset-top)', overflow: 'hidden' }}>
         {/* Top bar */}
-        <div style={{ height: 52, background: '#0D0B14', flexShrink: 0, borderBottom: '1px solid rgba(201,168,76,0.15)', display: 'flex', alignItems: 'center', padding: '0 16px', gap: 12 }}>
-          <span style={{ fontFamily: cinzel, fontSize: 14, color: G, letterSpacing: '0.15em', flex: 1 }}>WAR ROOM INTEL</span>
+        <div style={{ height: 52, background: isDark ? '#0D0B14' : '#F5F2E8', flexShrink: 0, borderBottom: isDark ? '1px solid rgba(201,168,76,0.15)' : '1px solid rgba(165,125,31,0.20)', display: 'flex', alignItems: 'center', padding: '0 16px', gap: 12 }}>
+          <span style={{ fontFamily: cinzel, fontSize: 14, color: isDark ? G : '#8B6914', letterSpacing: '0.15em', flex: 1 }}>WAR ROOM INTEL</span>
         </div>
 
         {/* Drawer backdrop */}
         {ipadDrawerOpen && <div onClick={() => setIpadDrawerOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 299, background: 'rgba(0,0,0,0.5)' }} />}
 
         {/* Slide-in drawer */}
-        <div style={{ position: 'fixed', left: 0, top: 0, bottom: 0, width: 300, zIndex: 300, background: '#0D0B14', borderRight: '1px solid rgba(201,168,76,0.2)', paddingTop: 'env(safe-area-inset-top)', overflowY: 'hidden' as const, display: 'flex', flexDirection: 'column' as const, transform: ipadDrawerOpen ? 'translateX(0)' : 'translateX(-300px)', transition: 'transform 0.25s ease' }}>
+        <div style={{ position: 'fixed', left: 0, top: 0, bottom: 0, width: 300, zIndex: 300, background: isDark ? '#0D0B14' : '#F5F2E8', borderRight: isDark ? '1px solid rgba(201,168,76,0.2)' : '1px solid rgba(165,125,31,0.25)', paddingTop: 'env(safe-area-inset-top)', overflowY: 'hidden' as const, display: 'flex', flexDirection: 'column' as const, transform: ipadDrawerOpen ? 'translateX(0)' : 'translateX(-300px)', transition: 'transform 0.25s ease' }}>
           <MoreDrawerContent closeDrawer={() => setIpadDrawerOpen(false)} />
         </div>
 
@@ -14855,12 +14859,12 @@ function CommunityPage() {
     return (
       <div style={{ width: '100%', height: '100dvh', background: V.bg, display: 'flex', flexDirection: 'column' as const, paddingTop: 'env(safe-area-inset-top)', overflow: 'hidden' }}>
         {/* Header */}
-        <div style={{ height: 48, background: '#0D0B14', flexShrink: 0, borderBottom: '1px solid rgba(201,168,76,0.15)', display: 'flex', alignItems: 'center', padding: '0 16px', justifyContent: 'space-between' }}>
-          <span style={{ fontFamily: cinzel, fontSize: 12, color: G, letterSpacing: '0.1em' }}>WAR ROOM INTEL</span>
+        <div style={{ height: 48, background: isDark ? '#0D0B14' : '#F5F2E8', flexShrink: 0, borderBottom: isDark ? '1px solid rgba(201,168,76,0.15)' : '1px solid rgba(165,125,31,0.20)', display: 'flex', alignItems: 'center', padding: '0 16px', justifyContent: 'space-between' }}>
+          <span style={{ fontFamily: cinzel, fontSize: 12, color: isDark ? G : '#8B6914', letterSpacing: '0.1em' }}>WAR ROOM INTEL</span>
           {activeSection === 'database' ? (
             <button
               onClick={() => setDbFilterSheetOpen(true)}
-              style={{ position: 'relative', background: 'transparent', border: 'none', color: G, cursor: 'pointer', padding: '8px 0 8px 16px', display: 'flex', alignItems: 'center', justifyContent: 'center', minWidth: 44, minHeight: 44 }}
+              style={{ position: 'relative', background: 'transparent', border: 'none', color: isDark ? G : '#8B6914', cursor: 'pointer', padding: '8px 0 8px 16px', display: 'flex', alignItems: 'center', justifyContent: 'center', minWidth: 44, minHeight: 44 }}
               aria-label="Filter spirits"
             >
               <SlidersHorizontal size={20} strokeWidth={1.8} />
@@ -14871,7 +14875,7 @@ function CommunityPage() {
           ) : activeSection === 'arsenal' ? (
             <button
               onClick={() => setArsenalFilterSheetOpen(true)}
-              style={{ position: 'relative', background: 'transparent', border: 'none', color: G, cursor: 'pointer', padding: '8px 0 8px 16px', display: 'flex', alignItems: 'center', justifyContent: 'center', minWidth: 44, minHeight: 44 }}
+              style={{ position: 'relative', background: 'transparent', border: 'none', color: isDark ? G : '#8B6914', cursor: 'pointer', padding: '8px 0 8px 16px', display: 'flex', alignItems: 'center', justifyContent: 'center', minWidth: 44, minHeight: 44 }}
               aria-label="Filter arsenal"
             >
               <SlidersHorizontal size={20} strokeWidth={1.8} />
@@ -14880,7 +14884,7 @@ function CommunityPage() {
               )}
             </button>
           ) : (
-            <button onClick={() => setSidebarOpen(o => !o)} style={{ background: 'transparent', border: 'none', color: G, fontSize: 24, cursor: 'pointer', padding: '8px 0 8px 16px' }}>☰</button>
+            <button onClick={() => setSidebarOpen(o => !o)} style={{ background: 'transparent', border: 'none', color: isDark ? G : '#8B6914', fontSize: 24, cursor: 'pointer', padding: '8px 0 8px 16px' }}>☰</button>
           )}
         </div>
 
@@ -14888,7 +14892,7 @@ function CommunityPage() {
         {sidebarOpen && <div onClick={() => setSidebarOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 299, background: 'rgba(0,0,0,0.5)' }} />}
 
         {/* Slide-in sidebar */}
-        <div style={{ position: 'fixed', left: 0, top: 0, bottom: 0, width: 280, zIndex: 300, background: '#0D0B14', borderRight: '1px solid rgba(201,168,76,0.2)', paddingTop: 'env(safe-area-inset-top)', overflowY: 'hidden' as const, display: 'flex', flexDirection: 'column' as const, transform: sidebarOpen ? 'translateX(0)' : 'translateX(-280px)', transition: 'transform 0.25s ease' }}>
+        <div style={{ position: 'fixed', left: 0, top: 0, bottom: 0, width: 280, zIndex: 300, background: isDark ? '#0D0B14' : '#F5F2E8', borderRight: isDark ? '1px solid rgba(201,168,76,0.2)' : '1px solid rgba(165,125,31,0.25)', paddingTop: 'env(safe-area-inset-top)', overflowY: 'hidden' as const, display: 'flex', flexDirection: 'column' as const, transform: sidebarOpen ? 'translateX(0)' : 'translateX(-280px)', transition: 'transform 0.25s ease' }}>
           <MoreDrawerContent closeDrawer={() => setSidebarOpen(false)} />
         </div>
 
