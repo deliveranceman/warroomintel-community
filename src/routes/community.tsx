@@ -212,10 +212,10 @@ function ProfileModal({ member, currentUserId, onClose, onStartDM, isDark }: Pro
     <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(4px)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
       <div onClick={e => e.stopPropagation()} style={{ background: bg, border: '1px solid rgba(201,168,76,0.3)', borderRadius: '12px', width: '100%', maxWidth: '400px', boxShadow: '0 24px 64px rgba(0,0,0,0.85)', overflow: 'hidden' }}>
         <div style={{ height: '72px', background: 'linear-gradient(135deg, rgba(201,168,76,0.12) 0%, rgba(13,11,20,0.9) 100%)', borderBottom: '1px solid rgba(201,168,76,0.12)', position: 'relative' }}>
-          <button onClick={onClose} style={{ position: 'absolute', top: '10px', right: '10px', background: 'rgba(255,255,255,0.08)', border: 'none', borderRadius: '50%', width: '26px', height: '26px', color: '#C9A84C', cursor: 'pointer', fontSize: '15px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
+          <button onClick={onClose} style={{ position: 'absolute', top: '10px', right: '10px', background: 'rgba(255,255,255,0.08)', border: 'none', borderRadius: '50%', width: '26px', height: '26px', color: isDark ? '#C9A84C' : '#8B6914', cursor: 'pointer', fontSize: '15px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
         </div>
         <div style={{ padding: '0 24px 24px', marginTop: '-36px' }}>
-          <div style={{ width: '68px', height: '68px', borderRadius: '50%', background: 'linear-gradient(135deg, rgba(201,168,76,0.25), rgba(201,168,76,0.05))', border: `2px solid ${tierColor}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '26px', fontFamily: mc, fontWeight: 'bold', color: '#C9A84C', marginBottom: '14px', overflow: 'hidden' }}>
+          <div style={{ width: '68px', height: '68px', borderRadius: '50%', background: 'linear-gradient(135deg, rgba(201,168,76,0.25), rgba(201,168,76,0.05))', border: `2px solid ${tierColor}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '26px', fontFamily: mc, fontWeight: 'bold', color: isDark ? '#C9A84C' : '#8B6914', marginBottom: '14px', overflow: 'hidden' }}>
             {member.imageUrl
               ? <img src={member.imageUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
               : (member.firstName?.[0] || member.username?.[0] || '?').toUpperCase()
@@ -244,7 +244,7 @@ function ProfileModal({ member, currentUserId, onClose, onStartDM, isDark }: Pro
           {!isOwn ? (
             <button
               onClick={() => { onStartDM(member.id, member.firstName || member.username || 'Member'); onClose() }}
-              style={{ width: '100%', padding: '10px', background: 'transparent', border: '1px solid rgba(201,168,76,0.45)', borderRadius: '6px', color: '#C9A84C', fontFamily: mc, fontSize: '11px', letterSpacing: '0.08em', cursor: 'pointer' }}
+              style={{ width: '100%', padding: '10px', background: 'transparent', border: '1px solid rgba(201,168,76,0.45)', borderRadius: '6px', color: isDark ? '#C9A84C' : '#8B6914', fontFamily: mc, fontSize: '11px', letterSpacing: '0.08em', cursor: 'pointer' }}
             >💬 Send Direct Message</button>
           ) : (
             <div style={{ fontSize: '11px', color: muted, textAlign: 'center' as const, fontStyle: 'italic', fontFamily: cr }}>This is your profile</div>
@@ -771,7 +771,7 @@ function MembersView({ members, currentUserId, currentUserTier, currentUserRole,
           {Array.isArray(member.publicMetadata?.expertiseTags) && member.publicMetadata.expertiseTags.length > 0 && (
             <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 4, justifyContent: 'center', marginBottom: 6 }}>
               {(member.publicMetadata.expertiseTags as string[]).slice(0, 4).map((tag: string) => (
-                <span key={tag} style={{ fontFamily: cinzel, fontSize: 9, color: 'rgba(201,168,76,0.8)', background: 'rgba(201,168,76,0.08)', border: '1px solid rgba(201,168,76,0.25)', borderRadius: 10, padding: '2px 8px' }}>{tag}</span>
+                <span key={tag} style={{ fontFamily: cinzel, fontSize: 9, color: isDark ? 'rgba(201,168,76,0.8)' : 'rgba(139,105,20,0.8)', background: 'rgba(201,168,76,0.08)', border: '1px solid rgba(201,168,76,0.25)', borderRadius: 10, padding: '2px 8px' }}>{tag}</span>
               ))}
               {member.publicMetadata.expertiseTags.length > 4 && (
                 <span style={{ fontFamily: cinzel, fontSize: 9, color: muted }}>+{member.publicMetadata.expertiseTags.length - 4} more</span>
@@ -889,12 +889,12 @@ function PostCard({ msg, pinned, actions, isDark = true, hoveredId, onHover, str
       <div style={{ position: 'absolute', bottom: -1, left: -1, width: 10, height: 10, borderBottom: '1px solid var(--gold)', borderLeft: '1px solid var(--gold)', pointerEvents: 'none' }} />
       <div style={{ position: 'absolute', bottom: -1, right: -1, width: 10, height: 10, borderBottom: '1px solid var(--gold)', borderRight: '1px solid var(--gold)', pointerEvents: 'none' }} />
       <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
-        <div style={{ width: 44, height: 44, borderRadius: '50%', background: 'rgba(201,168,76,0.15)', border: `1px solid var(--gold-line)`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: cinzel, fontSize: 13, color: G, flexShrink: 0, overflow: 'hidden' }}>
+        <div style={{ width: 44, height: 44, borderRadius: '50%', background: 'rgba(201,168,76,0.15)', border: `1px solid var(--gold-line)`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: cinzel, fontSize: 13, color: isDark ? G : '#8B6914', flexShrink: 0, overflow: 'hidden' }}>
           {msg.user?.image ? <img src={msg.user.image} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" /> : initial}
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, flexWrap: 'wrap' }}>
-            <span style={{ fontFamily: cinzel, fontSize: 14, color: G, letterSpacing: '0.04em' }}>{msg.user?.name || msg.user?.id || 'Warrior'}</span>
+            <span style={{ fontFamily: cinzel, fontSize: 14, color: isDark ? G : '#8B6914', letterSpacing: '0.04em' }}>{msg.user?.name || msg.user?.id || 'Warrior'}</span>
             {isFounder && <FoundingBadge />}
             {pinned && <HUDChip>HOST</HUDChip>}
             {isNew && <StatusDot kind="ok" label="New" size={5} />}
@@ -1043,12 +1043,12 @@ function PrayerView({ streamToken, apiKey, userId, isMobile, isDark, setSidebarO
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           {!isMobile && (
             <button onClick={() => setSidebarOpen(o => !o)}
-              style={{ background: 'none', border: 'none', color: G, fontSize: 22, cursor: 'pointer', padding: '4px 8px', marginRight: 4, lineHeight: 1 }}>
+              style={{ background: 'none', border: 'none', color: isDark ? G : '#8B6914', fontSize: 22, cursor: 'pointer', padding: '4px 8px', marginRight: 4, lineHeight: 1 }}>
               ☰
             </button>
           )}
           <div>
-            <span style={{ fontFamily: cinzel, fontSize: 18, color: G }}>🙏 Prayer Wall</span>
+            <span style={{ fontFamily: cinzel, fontSize: 18, color: isDark ? G : '#8B6914' }}>🙏 Prayer Wall</span>
             {warriorCount > 0 && (
               <div style={{ fontFamily: cinzel, fontSize: 9, color: V.mut, letterSpacing: '0.08em', marginTop: 2 }}>
                 ⚔ {warriorCount} warrior{warriorCount !== 1 ? 's' : ''} in the chain
@@ -1072,7 +1072,7 @@ function PrayerView({ streamToken, apiKey, userId, isMobile, isDark, setSidebarO
           addresses, or sensitive details. While this wall is monitored, posts from the community
           may appear before review. War Room Intel is not responsible for content submitted by users.
           Report concerns to{' '}
-          <a href="mailto:exorcist@warroomintel.com" style={{ color: G, textDecoration: 'none' }}>exorcist@warroomintel.com</a>.
+          <a href="mailto:exorcist@warroomintel.com" style={{ color: isDark ? G : '#8B6914', textDecoration: 'none' }}>exorcist@warroomintel.com</a>.
         </p>
       </div>
       <div style={{ flex: 1, overflowY: 'auto', padding: '20px' }}>
@@ -1128,7 +1128,7 @@ function PrayerView({ streamToken, apiKey, userId, isMobile, isDark, setSidebarO
                       <div style={{ display: 'flex', gap: 6 }}>
                         <button
                           onClick={() => userLevel >= 1 ? streamFetch(`/messages/${m.id}`, 'PUT', streamToken, apiKey, { message: { text: editDraft } }).then(() => { fetchPrayers(); setEditingPostId(null) }) : beginUpgrade('soldier')}
-                          style={{ background: 'rgba(201,168,76,0.15)', border: '1px solid rgba(201,168,76,0.4)', borderRadius: 4, color: G, fontFamily: cinzel, fontSize: 10, padding: '3px 8px', cursor: 'pointer' }}
+                          style={{ background: 'rgba(201,168,76,0.15)', border: '1px solid rgba(201,168,76,0.4)', borderRadius: 4, color: isDark ? G : '#8B6914', fontFamily: cinzel, fontSize: 10, padding: '3px 8px', cursor: 'pointer' }}
                         >Save</button>
                         <button
                           onClick={() => setEditingPostId(null)}
@@ -1172,11 +1172,11 @@ function PrayerView({ streamToken, apiKey, userId, isMobile, isDark, setSidebarO
             <button
               type="button"
               onClick={() => setShowPrayerEmoji(p => !p)}
-              style={{ background: 'transparent', border: '1px solid rgba(201,168,76,0.3)', borderRadius: 6, padding: '6px 10px', cursor: 'pointer', fontSize: 18, color: '#C9A84C' }}
+              style={{ background: 'transparent', border: '1px solid rgba(201,168,76,0.3)', borderRadius: 6, padding: '6px 10px', cursor: 'pointer', fontSize: 18, color: isDark ? '#C9A84C' : '#8B6914' }}
               title="Add emoji"
             >😊</button>
             {showPrayerEmoji && (
-              <div style={{ position: 'absolute', bottom: '110%', left: 0, background: '#1a1628', border: '1px solid rgba(201,168,76,0.3)', borderRadius: 8, padding: 8, display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 4, zIndex: 1000, width: 180 }}>
+              <div style={{ position: 'absolute', bottom: '110%', left: 0, background: isDark ? '#1a1628' : '#FFFFFF', border: '1px solid rgba(201,168,76,0.3)', borderRadius: 8, padding: 8, display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 4, zIndex: 1000, width: 180 }}>
                 {PRAYER_EMOJIS.map(e => (
                   <button
                     key={e}
@@ -2859,9 +2859,9 @@ function WarRoomChatView({ streamToken, apiKey, userId, isDark, isMobile, setSid
       {/* Header */}
       <div style={{ padding: '14px 20px', borderBottom: `1px solid ${V.bdr}`, display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0, background: V.surf }}>
         {!isMobile && (
-          <button onClick={() => setSidebarOpen(o => !o)} style={{ background: 'none', border: 'none', color: '#C9A84C', fontSize: 22, cursor: 'pointer', padding: '4px 8px', marginRight: 4, lineHeight: 1 }}>☰</button>
+          <button onClick={() => setSidebarOpen(o => !o)} style={{ background: 'none', border: 'none', color: isDark ? '#C9A84C' : '#8B6914', fontSize: 22, cursor: 'pointer', padding: '4px 8px', marginRight: 4, lineHeight: 1 }}>☰</button>
         )}
-        <span style={{ fontFamily: "'Cinzel', serif", fontSize: 14, color: '#C9A84C', letterSpacing: '0.1em', flex: 1 }}>⚔ War Room Chat</span>
+        <span style={{ fontFamily: "'Cinzel', serif", fontSize: 14, color: isDark ? '#C9A84C' : '#8B6914', letterSpacing: '0.1em', flex: 1 }}>⚔ War Room Chat</span>
         <span style={{ fontFamily: "'Crimson Pro', Georgia, serif", fontSize: 12, color: V.mut, fontStyle: 'italic' }}>All members</span>
       </div>
 
@@ -2884,7 +2884,7 @@ function WarRoomChatView({ streamToken, apiKey, userId, isDark, isMobile, setSid
             >
               <div style={{ width: 32, flexShrink: 0 }}>
                 {!sameAuthor && (
-                  <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'rgba(201,168,76,0.15)', border: '1px solid rgba(201,168,76,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'Cinzel', serif", fontSize: 12, color: '#C9A84C', overflow: 'hidden' }}>
+                  <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'rgba(201,168,76,0.15)', border: '1px solid rgba(201,168,76,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'Cinzel', serif", fontSize: 12, color: isDark ? '#C9A84C' : '#8B6914', overflow: 'hidden' }}>
                     {msg.user?.image
                       ? <img src={msg.user.image} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                       : (msg.user?.name || '?')[0].toUpperCase()
@@ -2921,7 +2921,7 @@ function WarRoomChatView({ streamToken, apiKey, userId, isDark, isMobile, setSid
                     <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 3 }}>
                       <button
                         onClick={() => streamFetch(`/messages/${msg.id}`, 'PUT', streamToken, apiKey, { message: { text: editText } }).then(() => { setEditingId(null); fetchMessages() })}
-                        style={{ padding: '4px 10px', background: 'rgba(201,168,76,0.15)', border: '1px solid rgba(201,168,76,0.4)', borderRadius: 4, color: '#C9A84C', fontFamily: cinzel, fontSize: 9, cursor: 'pointer' }}
+                        style={{ padding: '4px 10px', background: 'rgba(201,168,76,0.15)', border: '1px solid rgba(201,168,76,0.4)', borderRadius: 4, color: isDark ? '#C9A84C' : '#8B6914', fontFamily: cinzel, fontSize: 9, cursor: 'pointer' }}
                       >Save</button>
                       <button
                         onClick={() => setEditingId(null)}
@@ -2949,7 +2949,7 @@ function WarRoomChatView({ streamToken, apiKey, userId, isDark, isMobile, setSid
                           />
                         ) : att.asset_url ? (
                           <a key={i} href={att.asset_url} target="_blank" rel="noreferrer"
-                            style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: msg.text ? 6 : 0, color: '#C9A84C', fontSize: 13, textDecoration: 'none' }}>
+                            style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: msg.text ? 6 : 0, color: isDark ? '#C9A84C' : '#8B6914', fontSize: 13, textDecoration: 'none' }}>
                             📄 {att.title || 'File'}
                           </a>
                         ) : null
@@ -2959,7 +2959,7 @@ function WarRoomChatView({ streamToken, apiKey, userId, isDark, isMobile, setSid
                           style={{ display: 'block', marginTop: 8, borderRadius: 8, border: '1px solid rgba(201,168,76,0.2)', overflow: 'hidden', textDecoration: 'none', background: 'rgba(201,168,76,0.05)' }}>
                           {att.image_url && <img src={att.image_url} alt="" style={{ width: '100%', maxHeight: 160, objectFit: 'cover' as const }} />}
                           <div style={{ padding: '8px 10px' }}>
-                            {att.title && <div style={{ fontFamily: cinzel, fontSize: 12, color: '#C9A84C', marginBottom: 2 }}>{att.title}</div>}
+                            {att.title && <div style={{ fontFamily: cinzel, fontSize: 12, color: isDark ? '#C9A84C' : '#8B6914', marginBottom: 2 }}>{att.title}</div>}
                             {att.text && <div style={{ fontFamily: crimson, fontSize: 12, color: V.mut, lineHeight: 1.4 }}>{att.text.slice(0, 120)}{att.text.length > 120 ? '...' : ''}</div>}
                             <div style={{ fontFamily: crimson, fontSize: 11, color: V.mut, marginTop: 4, opacity: 0.7 }}>{att.og_scrape_url}</div>
                           </div>
@@ -8624,16 +8624,16 @@ function ForumTagInput({ tags, onChange }: { tags: string[]; onChange: (t: strin
   )
 }
 
-function ForumResourceCard({ url, title, thumbnail, description, domain }: any) {
+function ForumResourceCard({ url, title, thumbnail, description, domain, isDark = true }: any) {
   if (!url) return null
   return (
     <a href={url} target="_blank" rel="noopener noreferrer"
-      style={{ display: 'flex', gap: 12, background: F_SURF2, border: `1px solid ${F_BDR}`, borderRadius: 8, padding: '10px 12px', textDecoration: 'none', alignItems: 'flex-start', marginTop: 8 }}>
+      style={{ display: 'flex', gap: 12, background: isDark ? F_SURF2 : '#FFFFFF', border: `1px solid ${F_BDR}`, borderRadius: 8, padding: '10px 12px', textDecoration: 'none', alignItems: 'flex-start', marginTop: 8 }}>
       {thumbnail && <img src={thumbnail} alt="" style={{ width: 80, height: 56, objectFit: 'cover', borderRadius: 5, flexShrink: 0 }} onError={e => { (e.target as HTMLImageElement).style.display = 'none' }} />}
       <div style={{ flex: 1, minWidth: 0 }}>
-        {title && <div style={{ fontFamily: cinzel, fontSize: 11, color: F_TXT, letterSpacing: '0.04em', marginBottom: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{title}</div>}
-        {description && <div style={{ fontFamily: crimson, fontSize: 12, color: F_DIM, lineHeight: 1.4, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' as any, overflow: 'hidden' }}>{description}</div>}
-        {domain && <div style={{ fontFamily: cinzel, fontSize: 8, color: F_MUT, marginTop: 4, letterSpacing: '0.08em' }}>{domain}</div>}
+        {title && <div style={{ fontFamily: cinzel, fontSize: 11, color: isDark ? F_TXT : '#1F1B12', letterSpacing: '0.04em', marginBottom: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{title}</div>}
+        {description && <div style={{ fontFamily: crimson, fontSize: 12, color: isDark ? F_DIM : '#574B33', lineHeight: 1.4, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' as any, overflow: 'hidden' }}>{description}</div>}
+        {domain && <div style={{ fontFamily: cinzel, fontSize: 8, color: isDark ? F_MUT : '#574B33', marginTop: 4, letterSpacing: '0.08em' }}>{domain}</div>}
       </div>
     </a>
   )
@@ -8837,7 +8837,7 @@ function ForumCommentsSection({ postId, commentCount: _commentCount, userId, isM
   )
 }
 
-function ForumPostCard({ post, userId, isMinister, getToken, onUpdate, onDelete, canComment = true }: any) {
+function ForumPostCard({ post, userId, isMinister, getToken, onUpdate, onDelete, canComment = true, isDark = true }: any) {
   const [expanded, setExpanded] = useState(false)
   const [editing,  setEditing]  = useState(false)
   const [voting,   setVoting]   = useState(false)
@@ -8906,7 +8906,7 @@ function ForumPostCard({ post, userId, isMinister, getToken, onUpdate, onDelete,
               )}
               {post.resource_url && (
                 <ForumResourceCard url={post.resource_url} title={post.resource_title} thumbnail={post.resource_thumbnail} description={post.resource_description}
-                  domain={(() => { try { return new URL(post.resource_url).hostname.replace('www.','') } catch { return '' } })()} />
+                  domain={(() => { try { return new URL(post.resource_url).hostname.replace('www.','') } catch { return '' } })()} isDark={isDark} />
               )}
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 10, flexWrap: 'wrap' as const }}>
                 <span style={{ fontFamily: cinzel, fontSize: 9, color: F_DIM, letterSpacing: '0.04em' }}>{post.author_name}</span>
@@ -8942,7 +8942,7 @@ function ForumPostCard({ post, userId, isMinister, getToken, onUpdate, onDelete,
   )
 }
 
-function ForumView({ isMobile, userId, userTier }: { isDark: boolean; isMobile: boolean; userId: string; userTier: string }) {
+function ForumView({ isDark, isMobile, userId, userTier }: { isDark: boolean; isMobile: boolean; userId: string; userTier: string }) {
   const { getToken } = useAuth()
   const { user }     = useUser()
   const { beginUpgrade } = useContext(UpgradeFlowCtx)
@@ -9002,10 +9002,10 @@ function ForumView({ isMobile, userId, userTier }: { isDark: boolean; isMobile: 
   })
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column' as const, height: '100%', overflow: 'hidden', background: '#0D0B14' }}>
+    <div style={{ display: 'flex', flexDirection: 'column' as const, height: '100%', overflow: 'hidden', background: isDark ? '#0D0B14' : '#EDEBE2' }}>
       {/* Sticky header */}
-      <div style={{ borderBottom: `1px solid ${F_BDR}`, padding: '16px 24px 0', background: '#0D0B14', flexShrink: 0 }}>
-        <div style={{ fontFamily: cinzel, fontSize: 18, color: G, letterSpacing: '0.1em', marginBottom: 6 }}>⚔ The Ops Board</div>
+      <div style={{ borderBottom: `1px solid ${F_BDR}`, padding: '16px 24px 0', background: isDark ? '#0D0B14' : '#EDEBE2', flexShrink: 0 }}>
+        <div style={{ fontFamily: cinzel, fontSize: 18, color: isDark ? G : '#8B6914', letterSpacing: '0.1em', marginBottom: 6 }}>⚔ The Ops Board</div>
         <div style={{ fontFamily: crimson, fontSize: 13, color: F_DIM, fontStyle: 'italic', marginBottom: 14 }}>Open discussion for the War Room Intel community</div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' as const, paddingBottom: 12 }}>
           <button onClick={() => setSort('hot')} style={sortBtnSt('hot')}>🔥 Hot</button>
@@ -9017,13 +9017,13 @@ function ForumView({ isMobile, userId, userTier }: { isDark: boolean; isMobile: 
           </div>
           {!isMobile && canPost && (
             <button onClick={() => setComposing(c => !c)}
-              style={{ background: 'rgba(201,168,76,0.15)', border: '1px solid rgba(201,168,76,0.4)', borderRadius: 6, color: G, fontFamily: cinzel, fontSize: 10, padding: '7px 20px', cursor: 'pointer', letterSpacing: '0.08em', marginLeft: 'auto' }}>
+              style={{ background: 'rgba(201,168,76,0.15)', border: '1px solid rgba(201,168,76,0.4)', borderRadius: 6, color: isDark ? G : '#8B6914', fontFamily: cinzel, fontSize: 10, padding: '7px 20px', cursor: 'pointer', letterSpacing: '0.08em', marginLeft: 'auto' }}>
               ＋ New Post
             </button>
           )}
           {!isMobile && !canPost && (
             <button onClick={() => beginUpgrade('soldier')}
-              style={{ background: 'transparent', border: '1px solid rgba(201,168,76,0.25)', borderRadius: 6, color: 'rgba(201,168,76,0.5)', fontFamily: cinzel, fontSize: 9, padding: '7px 14px', cursor: 'pointer', letterSpacing: '0.08em', marginLeft: 'auto' }}>
+              style={{ background: 'transparent', border: '1px solid rgba(201,168,76,0.25)', borderRadius: 6, color: isDark ? 'rgba(201,168,76,0.5)' : 'rgba(139,105,20,0.5)', fontFamily: cinzel, fontSize: 9, padding: '7px 14px', cursor: 'pointer', letterSpacing: '0.08em', marginLeft: 'auto' }}>
               🔒 Soldier+ to Post
             </button>
           )}
@@ -9055,13 +9055,13 @@ function ForumView({ isMobile, userId, userTier }: { isDark: boolean; isMobile: 
           <div style={{ flex: 1, minWidth: 0 }}>
             {isMobile && canPost && (
               <button onClick={() => setComposing(c => !c)}
-                style={{ width: '100%', background: 'rgba(201,168,76,0.12)', border: '1px solid rgba(201,168,76,0.3)', borderRadius: 8, color: G, fontFamily: cinzel, fontSize: 11, padding: '12px', cursor: 'pointer', letterSpacing: '0.08em', marginBottom: 14 }}>
+                style={{ width: '100%', background: 'rgba(201,168,76,0.12)', border: '1px solid rgba(201,168,76,0.3)', borderRadius: 8, color: isDark ? G : '#8B6914', fontFamily: cinzel, fontSize: 11, padding: '12px', cursor: 'pointer', letterSpacing: '0.08em', marginBottom: 14 }}>
                 ＋ New Post
               </button>
             )}
             {isMobile && !canPost && (
               <button onClick={() => beginUpgrade('soldier')}
-                style={{ width: '100%', background: 'transparent', border: '1px solid rgba(201,168,76,0.2)', borderRadius: 8, color: 'rgba(201,168,76,0.5)', fontFamily: cinzel, fontSize: 10, padding: '11px', cursor: 'pointer', letterSpacing: '0.08em', marginBottom: 14 }}>
+                style={{ width: '100%', background: 'transparent', border: '1px solid rgba(201,168,76,0.2)', borderRadius: 8, color: isDark ? 'rgba(201,168,76,0.5)' : 'rgba(139,105,20,0.5)', fontFamily: cinzel, fontSize: 10, padding: '11px', cursor: 'pointer', letterSpacing: '0.08em', marginBottom: 14 }}>
                 🔒 Soldier+ tier required to post → Upgrade
               </button>
             )}
@@ -9075,7 +9075,7 @@ function ForumView({ isMobile, userId, userTier }: { isDark: boolean; isMobile: 
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 8 }}>
                 {displayed.map(post => (
-                  <ForumPostCard key={post.id} post={post} userId={userId} isMinister={isMinister} getToken={getToken} onUpdate={onUpdate} onDelete={onDelete} canComment={canPost} />
+                  <ForumPostCard key={post.id} post={post} userId={userId} isMinister={isMinister} getToken={getToken} onUpdate={onUpdate} onDelete={onDelete} canComment={canPost} isDark={isDark} />
                 ))}
               </div>
             )}
@@ -9093,19 +9093,19 @@ function ForumView({ isMobile, userId, userTier }: { isDark: boolean; isMobile: 
             <div style={{ width: 280, flexShrink: 0, display: 'flex', flexDirection: 'column' as const, gap: 16 }}>
               {canPost ? (
                 <button onClick={() => setComposing(true)}
-                  style={{ width: '100%', background: 'rgba(201,168,76,0.12)', border: '1px solid rgba(201,168,76,0.35)', borderRadius: 10, color: G, fontFamily: cinzel, fontSize: 12, padding: '14px', cursor: 'pointer', letterSpacing: '0.1em' }}>
+                  style={{ width: '100%', background: 'rgba(201,168,76,0.12)', border: '1px solid rgba(201,168,76,0.35)', borderRadius: 10, color: isDark ? G : '#8B6914', fontFamily: cinzel, fontSize: 12, padding: '14px', cursor: 'pointer', letterSpacing: '0.1em' }}>
                   ＋ New Post
                 </button>
               ) : (
                 <button onClick={() => beginUpgrade('soldier')}
                   title="Soldier tier required to post"
-                  style={{ width: '100%', background: 'transparent', border: '1px solid rgba(201,168,76,0.2)', borderRadius: 10, color: 'rgba(201,168,76,0.4)', fontFamily: cinzel, fontSize: 12, padding: '14px', cursor: 'pointer', letterSpacing: '0.1em' }}>
+                  style={{ width: '100%', background: 'transparent', border: '1px solid rgba(201,168,76,0.2)', borderRadius: 10, color: isDark ? 'rgba(201,168,76,0.4)' : 'rgba(139,105,20,0.4)', fontFamily: cinzel, fontSize: 12, padding: '14px', cursor: 'pointer', letterSpacing: '0.1em' }}>
                   🔒 Soldier+ to Post
                 </button>
               )}
               {trendingTags.length > 0 && (
                 <div style={{ background: F_SURF, border: `1px solid ${F_BDR}`, borderRadius: 10, padding: '16px 16px' }}>
-                  <div style={{ fontFamily: cinzel, fontSize: 10, color: G, letterSpacing: '0.1em', marginBottom: 12 }}>🔥 Trending Tags</div>
+                  <div style={{ fontFamily: cinzel, fontSize: 10, color: isDark ? G : '#8B6914', letterSpacing: '0.1em', marginBottom: 12 }}>🔥 Trending Tags</div>
                   <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 6 }}>
                     {trendingTags.map(([tag, count]) => (
                       <button key={tag} onClick={() => setTagFilter(tagFilter === tag ? '' : tag)}
@@ -9118,7 +9118,7 @@ function ForumView({ isMobile, userId, userTier }: { isDark: boolean; isMobile: 
               )}
               {pinnedPosts.length > 0 && (
                 <div style={{ background: F_SURF, border: `1px solid ${F_BDR}`, borderRadius: 10, padding: '16px 16px' }}>
-                  <div style={{ fontFamily: cinzel, fontSize: 10, color: G, letterSpacing: '0.1em', marginBottom: 12 }}>📌 Pinned</div>
+                  <div style={{ fontFamily: cinzel, fontSize: 10, color: isDark ? G : '#8B6914', letterSpacing: '0.1em', marginBottom: 12 }}>📌 Pinned</div>
                   <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 8 }}>
                     {pinnedPosts.map(p => (
                       <div key={p.id} style={{ borderLeft: `2px solid rgba(201,168,76,0.3)`, paddingLeft: 10 }}>
@@ -9130,7 +9130,7 @@ function ForumView({ isMobile, userId, userTier }: { isDark: boolean; isMobile: 
                 </div>
               )}
               <div style={{ background: F_SURF, border: `1px solid ${F_BDR}`, borderRadius: 10, padding: '16px 16px' }}>
-                <div style={{ fontFamily: cinzel, fontSize: 10, color: G, letterSpacing: '0.1em', marginBottom: 12 }}>Community Stats</div>
+                <div style={{ fontFamily: cinzel, fontSize: 10, color: isDark ? G : '#8B6914', letterSpacing: '0.1em', marginBottom: 12 }}>Community Stats</div>
                 <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 8 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                     <span style={{ fontFamily: crimson, fontSize: 13, color: F_DIM }}>Total Discussions</span>
@@ -9922,7 +9922,7 @@ function WarRoomView({ isMobile, isDark, streamToken, apiKey, user, initials, po
                       value={editText}
                       onChange={e => setEditText(e.target.value)}
                       rows={2}
-                      style={{ flex: 1, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(201,168,76,0.3)', borderRadius: '6px', padding: '6px 10px', color: V2.txt, fontFamily: crimson, fontSize: '14px', outline: 'none', resize: 'none' as const }}
+                      style={{ flex: 1, background: isDark ? 'rgba(255,255,255,0.05)' : '#F5F2E8', border: '1px solid rgba(201,168,76,0.3)', borderRadius: '6px', padding: '6px 10px', color: V2.txt, fontFamily: crimson, fontSize: '14px', outline: 'none', resize: 'none' as const }}
                     />
                     <div style={{ display: 'flex', flexDirection: 'column' as const, gap: '4px' }}>
                       <button onClick={() => handleEditPost(msg.id)} style={{ background: 'rgba(201,168,76,0.15)', border: '1px solid rgba(201,168,76,0.4)', borderRadius: '4px', color: G2, fontFamily: cinzel, fontSize: '10px', padding: '3px 8px', cursor: 'pointer' }}>Save</button>
@@ -14249,7 +14249,7 @@ function CommunityPage() {
             else if (cat === 'purple') ringColor = '#a855f7'
           } catch {}
           return (
-            <div style={{ width: 34, height: 34, borderRadius: '50%', background: 'rgba(201,168,76,0.15)', flexShrink: 0, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: cinzel, fontSize: 11, color: G, boxShadow: `0 0 0 2px ${ringColor}` }}>
+            <div style={{ width: 34, height: 34, borderRadius: '50%', background: 'rgba(201,168,76,0.15)', flexShrink: 0, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: cinzel, fontSize: 11, color: isDark ? G : '#8B6914', boxShadow: `0 0 0 2px ${ringColor}` }}>
               {user?.imageUrl
                 ? <img src={user.imageUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                 : (user?.firstName?.[0] || 'W')
@@ -14263,7 +14263,7 @@ function CommunityPage() {
               <div style={{ fontFamily: cinzel, fontSize: 11, color: V.txt, letterSpacing: '0.06em', whiteSpace: 'nowrap' as const, overflow: 'hidden', textOverflow: 'ellipsis' }}>
                 {user?.firstName || 'Warrior'}
               </div>
-              <div style={{ fontSize: 9, color: G, fontFamily: cinzel, letterSpacing: '0.1em', textTransform: 'uppercase' as const }}>
+              <div style={{ fontSize: 9, color: isDark ? G : '#8B6914', fontFamily: cinzel, letterSpacing: '0.1em', textTransform: 'uppercase' as const }}>
                 {tier}
               </div>
             </div>
@@ -14317,7 +14317,7 @@ function CommunityPage() {
                 onClick={() => { if (section === 'ask-sol') { setChatOpen(o => !o); if (isMobile) setSidebarOpen(false) } else { setActiveSection(section); if (isMobile) setSidebarOpen(false) } }}
                 onMouseEnter={() => !isMobile ? setTooltipVisible(section) : undefined}
                 onMouseLeave={() => !isMobile ? setTooltipVisible(null) : undefined}
-                style={{ background: activeSection === section ? 'rgba(201,168,76,0.15)' : 'transparent', border: activeSection === section ? '1px solid rgba(201,168,76,0.3)' : '1px solid transparent', borderRadius: 8, width: isMobile ? 40 : 36, height: isMobile ? 40 : 36, cursor: 'pointer', color: activeSection === section ? G : '#8B7355', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.15s ease', position: 'relative' as const }}
+                style={{ background: activeSection === section ? 'rgba(201,168,76,0.15)' : 'transparent', border: activeSection === section ? '1px solid rgba(201,168,76,0.3)' : '1px solid transparent', borderRadius: 8, width: isMobile ? 40 : 36, height: isMobile ? 40 : 36, cursor: 'pointer', color: activeSection === section ? (isDark ? G : '#8B6914') : (isDark ? '#8B7355' : '#574B33'), display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.15s ease', position: 'relative' as const }}
               >
                 {icon}
                 {(() => {
@@ -14334,12 +14334,12 @@ function CommunityPage() {
                 )}
               </button>
               {isMobile && (
-                <div style={{ fontFamily: cinzel, fontSize: 7, color: activeSection === section ? G : '#8B7355', letterSpacing: '0.04em', textAlign: 'center' as const, lineHeight: 1.2, maxWidth: 44, whiteSpace: 'nowrap' as const, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                <div style={{ fontFamily: cinzel, fontSize: 7, color: activeSection === section ? (isDark ? G : '#8B6914') : (isDark ? '#8B7355' : '#574B33'), letterSpacing: '0.04em', textAlign: 'center' as const, lineHeight: 1.2, maxWidth: 44, whiteSpace: 'nowrap' as const, overflow: 'hidden', textOverflow: 'ellipsis' }}>
                   {mobileLabel}
                 </div>
               )}
               {!isMobile && tooltipVisible === section && (
-                <div style={{ position: 'absolute' as const, top: 42, left: idx === 0 ? 0 : idx === 5 ? 'auto' : '50%', right: idx === 5 ? 0 : 'auto', transform: idx > 0 && idx < 5 ? 'translateX(-50%)' : 'none', background: '#1a1625', border: '1px solid rgba(201,168,76,0.2)', borderRadius: 5, padding: '4px 10px', fontSize: 10, color: G, fontFamily: cinzel, letterSpacing: '0.06em', whiteSpace: 'nowrap' as const, zIndex: 9999, pointerEvents: 'none' as const }}>{label}</div>
+                <div style={{ position: 'absolute' as const, top: 42, left: idx === 0 ? 0 : idx === 5 ? 'auto' : '50%', right: idx === 5 ? 0 : 'auto', transform: idx > 0 && idx < 5 ? 'translateX(-50%)' : 'none', background: isDark ? '#1a1625' : '#FFFFFF', border: '1px solid rgba(201,168,76,0.2)', borderRadius: 5, padding: '4px 10px', fontSize: 10, color: isDark ? G : '#8B6914', fontFamily: cinzel, letterSpacing: '0.06em', whiteSpace: 'nowrap' as const, zIndex: 9999, pointerEvents: 'none' as const }}>{label}</div>
               )}
             </div>
           ))}
@@ -14503,7 +14503,7 @@ function CommunityPage() {
                 <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 16px', opacity: 0.45 }}>
                   <span style={{ display: 'flex', alignItems: 'center', width: 20 }}>{icon}</span>
                   <span style={{ fontFamily: cinzel, fontSize: 11, letterSpacing: '0.08em', color: isDark ? '#6b5e45' : '#5C5248', flex: 1 }}>{label}</span>
-                  <span style={{ fontSize: 8, fontFamily: cinzel, background: 'rgba(201,168,76,0.1)', color: '#8B7355', padding: '1px 6px', borderRadius: 3 }}>SOON</span>
+                  <span style={{ fontSize: 8, fontFamily: cinzel, background: 'rgba(201,168,76,0.1)', color: isDark ? '#8B7355' : '#574B33', padding: '1px 6px', borderRadius: 3 }}>SOON</span>
                 </div>
               ))}
             </div>
@@ -14514,7 +14514,7 @@ function CommunityPage() {
         {(user?.publicMetadata?.role as string) === 'minister' && (
           <>
             <div style={{ height: 1, background: 'rgba(201,168,76,0.15)', margin: '12px 16px 8px' }} />
-            <a href="/admin" style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '10px 16px', background: 'rgba(201,168,76,0.06)', borderLeft: '2px solid rgba(201,168,76,0.4)', textDecoration: 'none', fontFamily: cinzel, fontSize: 12, letterSpacing: '0.1em', color: G, transition: 'background 0.15s', boxSizing: 'border-box' as const }}
+            <a href="/admin" style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '10px 16px', background: 'rgba(201,168,76,0.06)', borderLeft: '2px solid rgba(201,168,76,0.4)', textDecoration: 'none', fontFamily: cinzel, fontSize: 12, letterSpacing: '0.1em', color: isDark ? G : '#8B6914', transition: 'background 0.15s', boxSizing: 'border-box' as const }}
               onMouseEnter={e => { (e.currentTarget as HTMLAnchorElement).style.background = 'rgba(201,168,76,0.12)' }}
               onMouseLeave={e => { (e.currentTarget as HTMLAnchorElement).style.background = 'rgba(201,168,76,0.06)' }}
             >
@@ -14748,28 +14748,28 @@ function CommunityPage() {
         {viewingProfile && <ProfileModal member={viewingProfile} currentUserId={user?.id || ''} isDark={theme !== 'light'} onClose={() => setViewingProfile(null)} onStartDM={(memberId, memberName) => { setViewingProfile(null); setPendingDMWith(memberId); setPendingDmName(memberName); setActiveSection('dms') }} />}
         {editingProfile && <EditProfileModal userId={user?.id || ''} firstName={user?.firstName || ''} lastName={user?.lastName || ''} imageUrl={user?.imageUrl || ''} existingBio={(user?.publicMetadata?.bio as string) || ''} existingCity={(user?.publicMetadata?.city as string) || ''} existingState={(user?.publicMetadata?.state as string) || ''} existingExpertiseTags={(user?.publicMetadata?.expertiseTags as string[]) || []} isDark={theme !== 'light'} onClose={() => setEditingProfile(false)} />}
         {chatOpen && (
-          <div style={{ position: 'fixed', bottom: isMobile ? 66 : 84, right: isMobile ? 0 : 24, left: isMobile ? 0 : undefined, width: isMobile ? '100%' : 340, height: isMobile ? '70vh' : 460, background: '#0f0c07', border: '1px solid #3a3020', borderTop: '2px solid #C9A84C', borderRadius: isMobile ? '12px 12px 0 0' : 8, display: 'flex', flexDirection: 'column' as const, zIndex: 1001, boxShadow: '0 8px 40px rgba(0,0,0,0.7)' }}>
+          <div style={{ position: 'fixed', bottom: isMobile ? 66 : 84, right: isMobile ? 0 : 24, left: isMobile ? 0 : undefined, width: isMobile ? '100%' : 340, height: isMobile ? '70vh' : 460, background: isDark ? '#0f0c07' : '#F5F2E8', border: '1px solid #3a3020', borderTop: '2px solid #C9A84C', borderRadius: isMobile ? '12px 12px 0 0' : 8, display: 'flex', flexDirection: 'column' as const, zIndex: 1001, boxShadow: '0 8px 40px rgba(0,0,0,0.7)' }}>
             <div style={{ padding: '0 14px', height: 40, display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid #1e1a0e', flexShrink: 0 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}><SolIcon size={16} /><span style={{ fontFamily: cinzel, fontSize: 10, color: G, letterSpacing: '0.12em' }}>ASK SOL</span><AIUsagePill feature="ask_dake" getToken={getToken} /></div>
-              <button onClick={() => setChatOpen(false)} style={{ background: 'none', border: 'none', color: '#6b5e45', cursor: 'pointer', fontSize: 18, lineHeight: 1, padding: 4 }}>×</button>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}><SolIcon size={16} /><span style={{ fontFamily: cinzel, fontSize: 10, color: isDark ? G : '#8B6914', letterSpacing: '0.12em' }}>ASK SOL</span><AIUsagePill feature="ask_dake" getToken={getToken} /></div>
+              <button onClick={() => setChatOpen(false)} style={{ background: 'none', border: 'none', color: isDark ? '#6b5e45' : '#574B33', cursor: 'pointer', fontSize: 18, lineHeight: 1, padding: 4 }}>×</button>
             </div>
             <div style={{ flex: 1, overflowY: 'auto' as const, padding: 12, display: 'flex', flexDirection: 'column' as const, gap: 8 }}>
-              {chatMessages.length === 0 && <div style={{ textAlign: 'center' as const, padding: '32px 16px', color: '#6b5e45', fontFamily: crimson, fontSize: 13, lineHeight: 1.6 }}>Ask about demonic hierarchies, spiritual warfare strategy, deliverance protocols, or any ministry question.</div>}
+              {chatMessages.length === 0 && <div style={{ textAlign: 'center' as const, padding: '32px 16px', color: isDark ? '#6b5e45' : '#574B33', fontFamily: crimson, fontSize: 13, lineHeight: 1.6 }}>Ask about demonic hierarchies, spiritual warfare strategy, deliverance protocols, or any ministry question.</div>}
               {chatMessages.map((msg, i) => (
                 <div key={i} style={{ display: 'flex', flexDirection: 'column' as const, alignItems: msg.role === 'user' ? 'flex-end' : 'flex-start' }}>
                   <div style={{ maxWidth: '85%', padding: '8px 12px', borderRadius: msg.role === 'user' ? '10px 10px 2px 10px' : '10px 10px 10px 2px', background: msg.role === 'user' ? 'rgba(201,168,76,0.1)' : '#1a1408', border: msg.role === 'user' ? '1px solid rgba(201,168,76,0.3)' : '1px solid #2a2010', lineHeight: 1.6 }}>
-                    {msg.role === 'user' ? <span style={{ fontFamily: crimson, fontSize: 14, color: '#e8d9b0', whiteSpace: 'pre-wrap' as const }}>{msg.content}</span> : <div dangerouslySetInnerHTML={{ __html: renderMarkdown(msg.content) }} style={{ fontFamily: crimson, fontSize: 14, color: '#a89878', lineHeight: 1.7 }} />}
+                    {msg.role === 'user' ? <span style={{ fontFamily: crimson, fontSize: 14, color: isDark ? '#e8d9b0' : '#1F1B12', whiteSpace: 'pre-wrap' as const }}>{msg.content}</span> : <div dangerouslySetInnerHTML={{ __html: renderMarkdown(msg.content) }} style={{ fontFamily: crimson, fontSize: 14, color: isDark ? '#a89878' : '#574B33', lineHeight: 1.7 }} />}
                   </div>
-                  {msg.role === 'assistant' && <button onClick={() => exportToPDF(msg.content)} style={{ marginTop: 4, background: 'none', border: 'none', color: '#6b5e45', fontFamily: cinzel, fontSize: 9, letterSpacing: '0.1em', cursor: 'pointer', padding: '2px 4px' }}>↓ EXPORT</button>}
+                  {msg.role === 'assistant' && <button onClick={() => exportToPDF(msg.content)} style={{ marginTop: 4, background: 'none', border: 'none', color: isDark ? '#6b5e45' : '#574B33', fontFamily: cinzel, fontSize: 9, letterSpacing: '0.1em', cursor: 'pointer', padding: '2px 4px' }}>↓ EXPORT</button>}
                 </div>
               ))}
-              {chatLoading && <div style={{ display: 'flex', justifyContent: 'flex-start' }}><div style={{ padding: '8px 14px', background: '#1a1408', border: '1px solid #2a2010', borderRadius: '10px 10px 10px 2px', color: '#6b5e45', fontFamily: crimson, fontSize: 13 }}>Analyzing…</div></div>}
+              {chatLoading && <div style={{ display: 'flex', justifyContent: 'flex-start' }}><div style={{ padding: '8px 14px', background: isDark ? '#1a1408' : '#FFFFFF', border: '1px solid #2a2010', borderRadius: '10px 10px 10px 2px', color: isDark ? '#6b5e45' : '#574B33', fontFamily: crimson, fontSize: 13 }}>Analyzing…</div></div>}
               <div ref={chatEndRef} />
             </div>
             <div style={{ padding: 12, borderTop: '1px solid #1e1a0e', flexShrink: 0 }}>
               <div style={{ display: 'flex', gap: 8 }}>
-                <textarea rows={2} value={chatInput} onChange={e => setChatInput(e.target.value)} onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChat(chatInput) } }} placeholder="Ask a question…" style={{ flex: 1, background: '#1a1408', border: '1px solid #2a2010', borderRadius: 6, padding: '8px 10px', color: '#c8b896', fontFamily: crimson, fontSize: 13, resize: 'none' as const, outline: 'none' }} />
-                <button onClick={() => sendChat(chatInput)} disabled={chatLoading || !chatInput.trim()} style={{ background: 'rgba(201,168,76,0.15)', border: '1px solid rgba(201,168,76,0.4)', borderRadius: 6, padding: '0 14px', color: G, fontFamily: cinzel, fontSize: 10, cursor: chatLoading || !chatInput.trim() ? 'not-allowed' : 'pointer', opacity: chatLoading || !chatInput.trim() ? 0.5 : 1, flexShrink: 0, letterSpacing: '0.06em' }}>SEND</button>
+                <textarea rows={2} value={chatInput} onChange={e => setChatInput(e.target.value)} onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChat(chatInput) } }} placeholder="Ask a question…" style={{ flex: 1, background: isDark ? '#1a1408' : '#FFFFFF', border: '1px solid #2a2010', borderRadius: 6, padding: '8px 10px', color: isDark ? '#c8b896' : '#1F1B12', fontFamily: crimson, fontSize: 13, resize: 'none' as const, outline: 'none' }} />
+                <button onClick={() => sendChat(chatInput)} disabled={chatLoading || !chatInput.trim()} style={{ background: 'rgba(201,168,76,0.15)', border: '1px solid rgba(201,168,76,0.4)', borderRadius: 6, padding: '0 14px', color: isDark ? G : '#8B6914', fontFamily: cinzel, fontSize: 10, cursor: chatLoading || !chatInput.trim() ? 'not-allowed' : 'pointer', opacity: chatLoading || !chatInput.trim() ? 0.5 : 1, flexShrink: 0, letterSpacing: '0.06em' }}>SEND</button>
               </div>
             </div>
           </div>
@@ -14787,22 +14787,22 @@ function CommunityPage() {
         )}
         {termsAccepted === false && user?.id && (
           <div style={{ position: 'fixed', inset: 0, zIndex: 9999, background: 'rgba(0,0,0,0.88)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}>
-            <div style={{ background: '#0f0c07', border: '1px solid rgba(201,168,76,0.35)', borderRadius: 12, maxWidth: 560, width: '100%', maxHeight: '90vh', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 24px 80px rgba(0,0,0,0.8)' }}>
+            <div style={{ background: isDark ? '#0f0c07' : '#F5F2E8', border: '1px solid rgba(201,168,76,0.35)', borderRadius: 12, maxWidth: 560, width: '100%', maxHeight: '90vh', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 24px 80px rgba(0,0,0,0.8)' }}>
               <div style={{ padding: '24px 28px 16px', borderBottom: '1px solid rgba(201,168,76,0.12)', textAlign: 'center' }}>
                 <div style={{ fontSize: 32, marginBottom: 10 }}>⚔</div>
-                <div style={{ fontFamily: cinzel, fontSize: 18, color: G, letterSpacing: '0.1em', marginBottom: 6 }}>Welcome to War Room Intel</div>
-                <div style={{ fontFamily: crimson, fontSize: 14, color: '#9a8c74', lineHeight: 1.6 }}>War Room Intel exists for one purpose: to serve the Lord Jesus Christ and advance His Kingdom.</div>
+                <div style={{ fontFamily: cinzel, fontSize: 18, color: isDark ? G : '#8B6914', letterSpacing: '0.1em', marginBottom: 6 }}>Welcome to War Room Intel</div>
+                <div style={{ fontFamily: crimson, fontSize: 14, color: isDark ? '#9a8c74' : '#574B33', lineHeight: 1.6 }}>War Room Intel exists for one purpose: to serve the Lord Jesus Christ and advance His Kingdom.</div>
               </div>
               <div style={{ display: 'flex', borderBottom: '1px solid rgba(201,168,76,0.12)', flexShrink: 0 }}>
-                {(['terms', 'privacy'] as const).map(tab => (<button key={tab} onClick={() => setTermsTab(tab)} style={{ flex: 1, padding: '10px', background: termsTab === tab ? 'rgba(201,168,76,0.08)' : 'transparent', border: 'none', borderBottom: termsTab === tab ? `2px solid ${G}` : '2px solid transparent', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.1em', color: termsTab === tab ? G : '#6a5f4f', cursor: 'pointer' }}>{tab === 'terms' ? 'TERMS OF SERVICE' : 'PRIVACY POLICY'}</button>))}
+                {(['terms', 'privacy'] as const).map(tab => (<button key={tab} onClick={() => setTermsTab(tab)} style={{ flex: 1, padding: '10px', background: termsTab === tab ? 'rgba(201,168,76,0.08)' : 'transparent', border: 'none', borderBottom: termsTab === tab ? `2px solid ${G}` : '2px solid transparent', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.1em', color: termsTab === tab ? (isDark ? G : '#8B6914') : (isDark ? '#6a5f4f' : '#574B33'), cursor: 'pointer' }}>{tab === 'terms' ? 'TERMS OF SERVICE' : 'PRIVACY POLICY'}</button>))}
               </div>
               <div style={{ flex: 1, overflowY: 'auto', padding: '16px 24px', maxHeight: 260 }}>
-                {termsTab === 'terms' ? (<div style={{ fontFamily: crimson, fontSize: 13, color: '#c8b99a', lineHeight: 1.7 }}><p>By accessing this platform you agree to use it solely for lawful, ministry-aligned purposes.</p><a href="/terms" target="_blank" rel="noopener noreferrer" style={{ color: G, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em' }}>View Full Terms of Service →</a></div>) : (<div style={{ fontFamily: crimson, fontSize: 13, color: '#c8b99a', lineHeight: 1.7 }}><p>We collect your name, email, and usage data to provide and improve this ministry platform. We do not sell your data.</p><a href="/privacy" target="_blank" rel="noopener noreferrer" style={{ color: G, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em' }}>View Full Privacy Policy →</a></div>)}
+                {termsTab === 'terms' ? (<div style={{ fontFamily: crimson, fontSize: 13, color: isDark ? '#c8b99a' : '#1F1B12', lineHeight: 1.7 }}><p>By accessing this platform you agree to use it solely for lawful, ministry-aligned purposes.</p><a href="/terms" target="_blank" rel="noopener noreferrer" style={{ color: isDark ? G : '#8B6914', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em' }}>View Full Terms of Service →</a></div>) : (<div style={{ fontFamily: crimson, fontSize: 13, color: isDark ? '#c8b99a' : '#1F1B12', lineHeight: 1.7 }}><p>We collect your name, email, and usage data to provide and improve this ministry platform. We do not sell your data.</p><a href="/privacy" target="_blank" rel="noopener noreferrer" style={{ color: isDark ? G : '#8B6914', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em' }}>View Full Privacy Policy →</a></div>)}
               </div>
-              <div style={{ padding: '16px 24px', borderTop: '1px solid rgba(201,168,76,0.12)', background: '#09070F' }}>
+              <div style={{ padding: '16px 24px', borderTop: '1px solid rgba(201,168,76,0.12)', background: isDark ? '#09070F' : '#EDEBE2' }}>
                 <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, cursor: 'pointer', marginBottom: 16 }}>
                   <input type="checkbox" checked={termsChecked} onChange={e => setTermsChecked(e.target.checked)} style={{ marginTop: 3, accentColor: G, width: 16, height: 16, flexShrink: 0 }} />
-                  <span style={{ fontFamily: crimson, fontSize: 14, color: '#c8b99a', lineHeight: 1.5 }}>I have read and agree to the <a href="/terms" target="_blank" rel="noopener noreferrer" style={{ color: G }}>Terms of Service</a> and <a href="/privacy" target="_blank" rel="noopener noreferrer" style={{ color: G }}>Privacy Policy</a></span>
+                  <span style={{ fontFamily: crimson, fontSize: 14, color: isDark ? '#c8b99a' : '#1F1B12', lineHeight: 1.5 }}>I have read and agree to the <a href="/terms" target="_blank" rel="noopener noreferrer" style={{ color: isDark ? G : '#8B6914' }}>Terms of Service</a> and <a href="/privacy" target="_blank" rel="noopener noreferrer" style={{ color: isDark ? G : '#8B6914' }}>Privacy Policy</a></span>
                 </label>
                 <button disabled={!termsChecked || termsSubmitting} onClick={async () => { if (!termsChecked || termsSubmitting) return; setTermsSubmitting(true); try { const token = await getToken(); const res = await fetch('/api/accept-terms', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` } }); if (res.ok) setTermsAccepted(true) } catch {} setTermsSubmitting(false) }} style={{ width: '100%', padding: '12px', background: termsChecked ? G : 'rgba(201,168,76,0.15)', border: 'none', borderRadius: 6, color: termsChecked ? '#0D0B14' : G, fontFamily: cinzel, fontSize: 11, letterSpacing: '0.1em', cursor: termsChecked ? 'pointer' : 'default', opacity: termsSubmitting ? 0.7 : 1 }}>{termsSubmitting ? 'SAVING...' : 'CONTINUE TO WAR ROOM →'}</button>
               </div>
@@ -14812,11 +14812,11 @@ function CommunityPage() {
         {showInstallBanner && (
           <div style={{ position: 'fixed', bottom: isMobile ? 72 : 24, ...(isMobile ? { left: 16, right: 16 } : { left: '50%', transform: 'translateX(-50%)', width: 420 }), zIndex: 200, maxWidth: isMobile ? 'calc(100% - 32px)' : 420, background: 'linear-gradient(135deg, #1a1408 0%, #0f0c07 100%)', border: '1px solid rgba(201,168,76,0.45)', borderRadius: 12, padding: '14px 16px', display: 'flex', alignItems: 'flex-start', gap: 12, boxShadow: '0 8px 32px rgba(0,0,0,0.6)' }}>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontFamily: "'Cinzel',serif", fontSize: 10, color: '#C9A84C', letterSpacing: '0.12em', marginBottom: 6 }}>ADD TO HOME SCREEN</div>
-              <div style={{ fontFamily: "'Crimson Pro',serif", fontSize: 13, color: 'rgba(232,220,200,0.8)', lineHeight: 1.5 }}>Tap <span style={{ color: '#C9A84C', fontWeight: 600 }}>"Add to Home Screen"</span> for the full app experience — works offline, no App Store needed.</div>
-              <button onClick={() => { localStorage.setItem('wri-pwa-dismissed', '1'); setShowInstallBanner(false) }} style={{ background: 'transparent', border: '1px solid rgba(201,168,76,0.3)', borderRadius: 5, padding: '4px 12px', fontFamily: "'Cinzel',serif", fontSize: 9, color: '#6b5e45', letterSpacing: '0.1em', cursor: 'pointer', marginTop: 8 }}>DISMISS</button>
+              <div style={{ fontFamily: "'Cinzel',serif", fontSize: 10, color: isDark ? '#C9A84C' : '#8B6914', letterSpacing: '0.12em', marginBottom: 6 }}>ADD TO HOME SCREEN</div>
+              <div style={{ fontFamily: "'Crimson Pro',serif", fontSize: 13, color: isDark ? 'rgba(232,220,200,0.8)' : 'rgba(31,27,18,0.95)', lineHeight: 1.5 }}>Tap <span style={{ color: isDark ? '#C9A84C' : '#8B6914', fontWeight: 600 }}>"Add to Home Screen"</span> for the full app experience — works offline, no App Store needed.</div>
+              <button onClick={() => { localStorage.setItem('wri-pwa-dismissed', '1'); setShowInstallBanner(false) }} style={{ background: 'transparent', border: '1px solid rgba(201,168,76,0.3)', borderRadius: 5, padding: '4px 12px', fontFamily: "'Cinzel',serif", fontSize: 9, color: isDark ? '#6b5e45' : '#574B33', letterSpacing: '0.1em', cursor: 'pointer', marginTop: 8 }}>DISMISS</button>
             </div>
-            <button onClick={() => { localStorage.setItem('wri-pwa-dismissed', '1'); setShowInstallBanner(false) }} style={{ background: 'transparent', border: 'none', color: '#6b5e45', fontSize: 18, cursor: 'pointer', padding: '0 2px', flexShrink: 0, lineHeight: 1 }}>×</button>
+            <button onClick={() => { localStorage.setItem('wri-pwa-dismissed', '1'); setShowInstallBanner(false) }} style={{ background: 'transparent', border: 'none', color: isDark ? '#6b5e45' : '#574B33', fontSize: 18, cursor: 'pointer', padding: '0 2px', flexShrink: 0, lineHeight: 1 }}>×</button>
           </div>
         )}
       </>
@@ -15977,7 +15977,7 @@ function CommunityPage() {
           left: isMobile ? 0 : undefined,
           width: isMobile ? '100%' : 340,
           height: isMobile ? '70vh' : 460,
-          background: '#0f0c07',
+          background: isDark ? '#0f0c07' : '#F5F2E8',
           border: '1px solid #3a3020',
           borderTop: '2px solid #C9A84C',
           borderRadius: isMobile ? '12px 12px 0 0' : 8,
@@ -15989,14 +15989,14 @@ function CommunityPage() {
           <div style={{ padding: '0 14px', height: 40, display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid #1e1a0e', flexShrink: 0 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <SolIcon size={16} />
-              <span style={{ fontFamily: cinzel, fontSize: 10, color: G, letterSpacing: '0.12em' }}>ASK SOL</span>
+              <span style={{ fontFamily: cinzel, fontSize: 10, color: isDark ? G : '#8B6914', letterSpacing: '0.12em' }}>ASK SOL</span>
               <AIUsagePill feature="ask_dake" getToken={getToken} />
             </div>
-            <button onClick={() => setChatOpen(false)} style={{ background: 'none', border: 'none', color: '#6b5e45', cursor: 'pointer', fontSize: 18, lineHeight: 1, padding: 4 }}>×</button>
+            <button onClick={() => setChatOpen(false)} style={{ background: 'none', border: 'none', color: isDark ? '#6b5e45' : '#574B33', cursor: 'pointer', fontSize: 18, lineHeight: 1, padding: 4 }}>×</button>
           </div>
           <div style={{ flex: 1, overflowY: 'auto' as const, padding: 12, display: 'flex', flexDirection: 'column' as const, gap: 8 }}>
             {chatMessages.length === 0 && (
-              <div style={{ textAlign: 'center' as const, padding: '32px 16px', color: '#6b5e45', fontFamily: crimson, fontSize: 13, lineHeight: 1.6 }}>
+              <div style={{ textAlign: 'center' as const, padding: '32px 16px', color: isDark ? '#6b5e45' : '#574B33', fontFamily: crimson, fontSize: 13, lineHeight: 1.6 }}>
                 Ask about demonic hierarchies, spiritual warfare strategy, deliverance protocols, or any ministry question.
               </div>
             )}
@@ -16011,15 +16011,15 @@ function CommunityPage() {
                   lineHeight: 1.6,
                 }}>
                   {msg.role === 'user' ? (
-                    <span style={{ fontFamily: crimson, fontSize: 14, color: '#e8d9b0', whiteSpace: 'pre-wrap' as const }}>{msg.content}</span>
+                    <span style={{ fontFamily: crimson, fontSize: 14, color: isDark ? '#e8d9b0' : '#1F1B12', whiteSpace: 'pre-wrap' as const }}>{msg.content}</span>
                   ) : (
-                    <div dangerouslySetInnerHTML={{ __html: renderMarkdown(msg.content) }} style={{ fontFamily: crimson, fontSize: 14, color: '#a89878', lineHeight: 1.7 }} />
+                    <div dangerouslySetInnerHTML={{ __html: renderMarkdown(msg.content) }} style={{ fontFamily: crimson, fontSize: 14, color: isDark ? '#a89878' : '#574B33', lineHeight: 1.7 }} />
                   )}
                 </div>
                 {msg.role === 'assistant' && (
                   <button
                     onClick={() => exportToPDF(msg.content)}
-                    style={{ marginTop: 4, background: 'none', border: 'none', color: '#6b5e45', fontFamily: cinzel, fontSize: 9, letterSpacing: '0.1em', cursor: 'pointer', padding: '2px 4px' }}
+                    style={{ marginTop: 4, background: 'none', border: 'none', color: isDark ? '#6b5e45' : '#574B33', fontFamily: cinzel, fontSize: 9, letterSpacing: '0.1em', cursor: 'pointer', padding: '2px 4px' }}
                   >
                     ↓ EXPORT
                   </button>
@@ -16028,7 +16028,7 @@ function CommunityPage() {
             ))}
             {chatLoading && (
               <div style={{ display: 'flex', justifyContent: 'flex-start' }}>
-                <div style={{ padding: '8px 14px', background: '#1a1408', border: '1px solid #2a2010', borderRadius: '10px 10px 10px 2px', color: '#6b5e45', fontFamily: crimson, fontSize: 13 }}>
+                <div style={{ padding: '8px 14px', background: isDark ? '#1a1408' : '#FFFFFF', border: '1px solid #2a2010', borderRadius: '10px 10px 10px 2px', color: isDark ? '#6b5e45' : '#574B33', fontFamily: crimson, fontSize: 13 }}>
                   Analyzing…
                 </div>
               </div>
