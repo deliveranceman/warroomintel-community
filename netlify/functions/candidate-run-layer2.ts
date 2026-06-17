@@ -37,7 +37,7 @@ export default async function handler(req: Request) {
   // Fetch candidate
   const { data: candidate, error: candErr } = await client
     .from('spirit_candidates')
-    .select('id, name, source_id, source_name, source_type, is_adversarial')
+    .select('id, name, source_id, source_name, source_type, is_adversarial, ai_notes, function, manifestations, also_known_as')
     .eq('id', candidateId)
     .single()
 
@@ -51,9 +51,21 @@ export default async function handler(req: Request) {
     )
   }
 
-  // Generate embedding for the candidate name then vector-search globally,
-  // then post-filter to the candidate's linked book. Over-fetch (match_count 30)
-  // because the RPC has no book_id filter — most global hits may be in other books.
+  // Build a richer query string by folding available candidate context fields into
+  // the embedding input. A 2-word name like "Bitterness family" produces a sparse
+  // embedding; ai_notes / function / manifestations add semantic weight.
+  const queryParts = [
+    candidate.name,
+    candidate.ai_notes,
+    candidate.function,
+    candidate.manifestations,
+    candidate.also_known_as,
+  ].filter(Boolean).map((s: string) => s.trim()).filter((s: string) => s.length > 0)
+  const queryText = queryParts.length > 0 ? queryParts.join('. ') : candidate.name
+
+  // Vector-search globally (RPC has no book_id filter), then post-filter to the
+  // candidate's linked book. Over-fetch (match_count 50 / threshold 0.45) so
+  // in-book chunks survive the filter even when global top-N are in other books.
   const OPENAI_KEY = process.env.OPENAI_API_KEY || ''
   if (!OPENAI_KEY) {
     return new Response(
@@ -65,7 +77,7 @@ export default async function handler(req: Request) {
   const embRes = await fetch('https://api.openai.com/v1/embeddings', {
     method:  'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${OPENAI_KEY}` },
-    body:    JSON.stringify({ model: 'text-embedding-3-small', input: [candidate.name] }),
+    body:    JSON.stringify({ model: 'text-embedding-3-small', input: [queryText] }),
     signal:  AbortSignal.timeout(5000),
   })
   if (!embRes.ok) {
@@ -83,11 +95,10 @@ export default async function handler(req: Request) {
     )
   }
 
-  // Wider threshold (0.55 vs spiritEnrich's 0.65) + over-fetch so in-book matches survive post-filter
   const { data: rpcMatches, error: rpcErr } = await client.rpc('match_library_chunks', {
     query_embedding: queryEmbedding,
-    match_threshold: 0.55,
-    match_count:     30,
+    match_threshold: 0.45,
+    match_count:     50,
   })
   if (rpcErr) {
     return new Response(
@@ -119,6 +130,17 @@ export default async function handler(req: Request) {
       JSON.stringify({
         error:  'no_chunks_found',
         detail: 'No semantically relevant chunks found in the linked resource',
+        diagnostic: {
+          rpc_match_count:     (rpcMatches || []).length,
+          in_book_match_count: chunks.length,
+          similarity_range:    (rpcMatches || []).length > 0
+            ? {
+                min: Math.min(...(rpcMatches as any[]).map((m: any) => m.similarity)),
+                max: Math.max(...(rpcMatches as any[]).map((m: any) => m.similarity)),
+              }
+            : null,
+          query_text_length: queryText.length,
+        },
       }),
       { status: 404, headers: CORS }
     )
