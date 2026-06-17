@@ -83,11 +83,11 @@ Requirements: 3-5 legal grounds, 2-3 renunciation prayers, 2-3 command prayers, 
       },
       body: JSON.stringify({
         model: 'claude-sonnet-4-5',
-        max_tokens: 1500,
+        max_tokens: 2500,
         system: 'You are a seasoned deliverance ministry protocol generator. Generate scripture-grounded, minister-ready protocols. Respond with valid JSON only — no markdown, no explanation.',
         messages: [{ role: 'user', content: userPrompt }],
       }),
-      signal: AbortSignal.timeout(20_000),
+      signal: AbortSignal.timeout(180_000),
     })
 
     if (!aiRes.ok) {

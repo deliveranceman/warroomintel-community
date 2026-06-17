@@ -1351,7 +1351,7 @@ function TestimonyWallView({ theme, isMobile, setSidebarOpen, userId: _userId, u
       <div className="filter-scroll" style={{ display: 'flex', gap: 6, marginBottom: 20, flexWrap: 'nowrap' as const, overflowX: 'auto', WebkitOverflowScrolling: 'touch' as any }}>
         {TESTIMONY_CATEGORIES.map(cat => (
           <button key={cat} onClick={() => setActiveFilter(cat)}
-            style={{ padding: '4px 12px', background: activeFilter === cat ? 'rgba(201,168,76,0.2)' : 'transparent', border: `1px solid ${activeFilter === cat ? GG : bdr}`, borderRadius: 20, color: activeFilter === cat ? GG : mut, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: 'pointer', textTransform: 'uppercase' as const }}>
+            style={{ padding: '4px 12px', background: activeFilter === cat ? 'rgba(201,168,76,0.2)' : 'transparent', border: `1px solid ${activeFilter === cat ? GG : bdr}`, borderRadius: 20, color: activeFilter === cat ? GG : mut, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: 'pointer', textTransform: 'uppercase' as const, flexShrink: 0, whiteSpace: 'nowrap' as const }}>
             {categoryLabels[cat]}
           </button>
         ))}
@@ -5902,13 +5902,17 @@ function ArsenalView({ theme, userTier, isMobile, setSidebarOpen, filterSheetOpe
     return (
       <div
         style={{ background: 'rgba(255,255,255,0.02)', border: `1px solid ${isSelected ? 'rgba(201,168,76,0.5)' : 'rgba(201,168,76,0.1)'}`, borderLeft: `3px solid ${tc}`, borderRadius: 8, padding: showDescription ? '12px 14px' : '10px 14px', cursor: 'pointer', transition: 'background 0.15s' }}
-        onClick={() => setExpandedId(isExp ? null : resource.id)}
+        onClick={() => {
+          if (!hasAccess) { beginUpgrade(resource.tier); return }
+          if (resource.file_url) { window.open(resource.file_url, '_blank', 'noopener,noreferrer'); return }
+          setExpandedId(isExp ? null : resource.id)
+        }}
         onMouseEnter={e => { e.currentTarget.style.background = 'rgba(201,168,76,0.05)' }}
         onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.02)' }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           {onToggle && (
-            <input type="checkbox" checked={!!isSelected} onChange={e => { e.stopPropagation(); onToggle(resource.id) }}
+            <input type="checkbox" checked={!!isSelected} onClick={e => e.stopPropagation()} onChange={e => { e.stopPropagation(); onToggle(resource.id) }}
               style={{ accentColor: G, width: 14, height: 14, cursor: 'pointer', flexShrink: 0 }} />
           )}
           <span style={{ fontSize: 15, flexShrink: 0 }}>{FILE_ICONS[resource.file_type] || '📄'}</span>
@@ -11151,6 +11155,8 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
                   background: isActive ? 'rgba(201,168,76,0.1)' : 'transparent',
                   borderBottom: `1px solid ${BDR}`,
                   transition: 'background 0.12s',
+                  userSelect: 'none' as const, WebkitUserSelect: 'none' as const,
+                  WebkitTouchCallout: 'none' as const, WebkitTapHighlightColor: 'transparent',
                 }}
                 onMouseEnter={e => { if (!isActive) (e.currentTarget as HTMLElement).style.background = isDark ? 'rgba(255,255,255,0.04)' : 'rgba(30,40,80,0.05)' }}
                 onMouseLeave={e => { if (!isActive) (e.currentTarget as HTMLElement).style.background = 'transparent' }}
@@ -12381,7 +12387,7 @@ function SitrepView({ theme, isMobile, setSidebarOpen, getToken, userId: _userId
                 key={t.key}
                 type="button"
                 onClick={() => setPostType(t.key)}
-                style={{ background: postType === t.key ? GC : 'transparent', border: `1px solid ${postType === t.key ? GC : 'rgba(201,168,76,0.3)'}`, borderRadius: 16, padding: '4px 10px', fontFamily: cinzel, fontSize: 8, color: postType === t.key ? '#0D0B14' : GC, letterSpacing: '0.06em', cursor: 'pointer', WebkitTapHighlightColor: 'transparent', touchAction: 'manipulation', fontWeight: postType === t.key ? 700 : 400 }}
+                style={{ background: postType === t.key ? GC : 'transparent', border: `1px solid ${postType === t.key ? GC : 'rgba(201,168,76,0.3)'}`, borderRadius: 16, padding: '4px 10px', fontFamily: cinzel, fontSize: 8, color: postType === t.key ? '#0D0B14' : GC, letterSpacing: '0.06em', cursor: 'pointer', WebkitTapHighlightColor: 'transparent', touchAction: 'manipulation', fontWeight: postType === t.key ? 700 : 400, flexShrink: 0, whiteSpace: 'nowrap' as const }}
               >
                 {t.icon} {t.label}
               </button>
@@ -14156,7 +14162,7 @@ function CommunityPage() {
       </a>
     )
     return (
-      <div style={{ display: 'flex', flexDirection: 'column' as const, height: '100%' }}>
+      <div style={{ display: 'flex', flexDirection: 'column' as const, height: '100%', userSelect: 'none' as const, WebkitUserSelect: 'none' as const, WebkitTouchCallout: 'none' as const, WebkitTapHighlightColor: 'transparent' }}>
         {/* User header */}
         <div style={{ padding: '12px 16px', borderBottom: `1px solid ${V.bdr}`, display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
           {(() => {
@@ -14672,7 +14678,7 @@ function CommunityPage() {
         tierLevel >= 2
           ? <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: isDark ? '#0D0B14' : '#FAF8F5', overflow: 'hidden' }}>
               <div style={{ borderBottom: `1px solid rgba(201,168,76,0.18)`, padding: isMobile ? '12px 16px' : '16px 28px', flexShrink: 0, display: 'flex', alignItems: 'center', gap: 12 }}>
-                {isMobile && <button onClick={() => setSidebarOpen(true)} style={{ background: 'none', border: 'none', color: G, fontSize: 22, cursor: 'pointer', lineHeight: 1, padding: 0, flexShrink: 0 }}>☰</button>}
+                {!isMobile && <button onClick={() => setSidebarOpen(true)} style={{ background: 'none', border: 'none', color: G, fontSize: 22, cursor: 'pointer', lineHeight: 1, padding: 0, flexShrink: 0 }}>☰</button>}
                 <div style={{ flex: 1 }}>
                   <div style={{ fontFamily: cinzel, fontSize: isMobile ? 14 : 18, color: G, fontWeight: 700, letterSpacing: '0.08em' }}>DELIVERANCE PROTOCOL ENGINE</div>
                   <div style={{ fontFamily: cinzel, fontSize: 9, color: isDark ? 'rgba(201,168,76,0.5)' : '#8B6914', letterSpacing: '0.2em', marginTop: 2 }}>COMMANDER TIER · INTEL ARCHIVE</div>

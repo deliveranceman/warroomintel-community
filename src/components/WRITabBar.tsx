@@ -334,6 +334,8 @@ export function WRITabBar({
         transform: hidden ? 'translateY(110%)' : 'translateY(0)',
         transition: reducedMotion ? undefined : 'transform 0.28s ease',
         pointerEvents: hidden ? 'none' : undefined,
+        userSelect: 'none', WebkitUserSelect: 'none',
+        WebkitTouchCallout: 'none', WebkitTapHighlightColor: 'transparent',
       }}>
         {TABS.map((tab) => {
           if (tab.isCenter) {
