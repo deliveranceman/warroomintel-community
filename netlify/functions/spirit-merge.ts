@@ -53,7 +53,7 @@ export default async function handler(req: Request) {
 
   // ── 3. Write per-field snapshots (before state = current keepRow) ─────────
   const snapErr = await insertFieldSnapshots(client, keepRow, cols, {
-    jobId:     'spirit-merge',
+    jobId:     null,
     appliedBy: userId,
     source:    'merge',
   })
