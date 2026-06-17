@@ -4124,11 +4124,11 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier, dem
           {!isMobile && (
             <button
               onClick={() => setSidebarOpen(true)}
-              style={{ minWidth: '44px', minHeight: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'transparent', border: 'none', cursor: 'pointer', WebkitTapHighlightColor: 'transparent', color: G, fontSize: '20px', flexShrink: 0 }}
+              style={{ minWidth: '44px', minHeight: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'transparent', border: 'none', cursor: 'pointer', WebkitTapHighlightColor: 'transparent', color: dbIsDark ? G : '#8B6914', fontSize: '20px', flexShrink: 0 }}
               aria-label="Open navigation"
             >☰</button>
           )}
-          <span style={{ fontFamily: cinzel, fontSize: 11, letterSpacing: '0.2em', color: G }}>⚔ INTEL DATABASE</span>
+          <span style={{ fontFamily: cinzel, fontSize: 11, letterSpacing: '0.2em', color: dbIsDark ? G : '#8B6914' }}>⚔ INTEL DATABASE</span>
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           <input
@@ -4145,7 +4145,7 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier, dem
           />
           <button
             onClick={() => setShowLegend(true)}
-            style={{ flexShrink: 0, width: 32, height: 32, borderRadius: '50%', background: 'rgba(201,168,76,0.1)', border: `1px solid rgba(201,168,76,0.3)`, color: G, fontFamily: cinzel, fontSize: 14, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+            style={{ flexShrink: 0, width: 32, height: 32, borderRadius: '50%', background: 'rgba(201,168,76,0.1)', border: `1px solid rgba(201,168,76,0.3)`, color: dbIsDark ? G : '#8B6914', fontFamily: cinzel, fontSize: 14, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
             title="How to use the Intel Archive"
           >?</button>
         </div>
@@ -4156,12 +4156,12 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier, dem
         {isMobile && (categoryFilter || rankFilter || generationalFilter || territorialFilter) && (
           <div style={{ display: 'flex', gap: 6, flexWrap: 'nowrap', overflowX: 'auto', WebkitOverflowScrolling: 'touch' as any, scrollbarWidth: 'none' as any, marginTop: 6, paddingBottom: 4 }}>
             {categoryFilter && (
-              <button onClick={() => setCategoryFilter(null)} style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 4, padding: '3px 10px', borderRadius: 20, fontSize: 9, cursor: 'pointer', fontFamily: cinzel, letterSpacing: '0.04em', border: `1px solid ${G}`, background: 'rgba(201,168,76,0.12)', color: G, whiteSpace: 'nowrap' as const }}>
+              <button onClick={() => setCategoryFilter(null)} style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 4, padding: '3px 10px', borderRadius: 20, fontSize: 9, cursor: 'pointer', fontFamily: cinzel, letterSpacing: '0.04em', border: `1px solid ${G}`, background: 'rgba(201,168,76,0.12)', color: dbIsDark ? G : '#8B6914', whiteSpace: 'nowrap' as const }}>
                 {categoryFilter} <span style={{ fontSize: 12, lineHeight: 1 }}>×</span>
               </button>
             )}
             {rankFilter && (
-              <button onClick={() => setRankFilter('')} style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 4, padding: '3px 10px', borderRadius: 20, fontSize: 9, cursor: 'pointer', fontFamily: cinzel, letterSpacing: '0.04em', border: `1px solid ${G}`, background: 'rgba(201,168,76,0.12)', color: G, whiteSpace: 'nowrap' as const }}>
+              <button onClick={() => setRankFilter('')} style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 4, padding: '3px 10px', borderRadius: 20, fontSize: 9, cursor: 'pointer', fontFamily: cinzel, letterSpacing: '0.04em', border: `1px solid ${G}`, background: 'rgba(201,168,76,0.12)', color: dbIsDark ? G : '#8B6914', whiteSpace: 'nowrap' as const }}>
                 {rankFilter} <span style={{ fontSize: 12, lineHeight: 1 }}>×</span>
               </button>
             )}
@@ -4209,7 +4209,7 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier, dem
           <div className="filter-scroll" style={{ display: 'flex', gap: 6, flexWrap: 'nowrap', overflowX: 'auto', WebkitOverflowScrolling: 'touch' as any, marginTop: 8 }}>
             {['All', 'Principality', 'Power', 'Ruler of Darkness', 'Spiritual Wickedness in High Places', 'Fallen Angel', 'Demon', 'Familiar Spirit', 'Spirit of Infirmity'].map(rank => (
               <button key={rank} onClick={() => setRankFilter(rank === 'All' ? '' : rank)}
-                style={{ flexShrink: 0, padding: '3px 10px', borderRadius: 20, fontSize: 9, cursor: 'pointer', fontFamily: cinzel, letterSpacing: '0.04em', border: `1px solid ${rankFilter === rank || (rank === 'All' && !rankFilter) ? G : dbBorder}`, background: rankFilter === rank || (rank === 'All' && !rankFilter) ? 'rgba(201,168,76,0.15)' : 'transparent', color: rankFilter === rank || (rank === 'All' && !rankFilter) ? G : dbDim, whiteSpace: 'nowrap' as const }}>
+                style={{ flexShrink: 0, padding: '3px 10px', borderRadius: 20, fontSize: 9, cursor: 'pointer', fontFamily: cinzel, letterSpacing: '0.04em', border: `1px solid ${rankFilter === rank || (rank === 'All' && !rankFilter) ? G : dbBorder}`, background: rankFilter === rank || (rank === 'All' && !rankFilter) ? 'rgba(201,168,76,0.15)' : 'transparent', color: rankFilter === rank || (rank === 'All' && !rankFilter) ? (dbIsDark ? G : '#8B6914') : dbDim, whiteSpace: 'nowrap' as const }}>
                 {rank}
               </button>
             ))}
@@ -4437,20 +4437,20 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier, dem
                 onClick={() => locked ? beginUpgrade(requiredTier!) : toggleSection(id)}
                 style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', padding: '14px 16px', minHeight: 44, background: 'transparent', border: 'none', cursor: 'pointer', WebkitTapHighlightColor: 'transparent', boxSizing: 'border-box' as const }}
               >
-                <span style={{ fontFamily: cinzel, fontSize: 12, color: locked ? mut : isOpen ? G : txt, letterSpacing: '0.08em', display: 'flex', alignItems: 'center', gap: 7 }}>
+                <span style={{ fontFamily: cinzel, fontSize: 12, color: locked ? mut : isOpen ? (dbIsDark ? G : '#8B6914') : txt, letterSpacing: '0.08em', display: 'flex', alignItems: 'center', gap: 7 }}>
                   {locked && <span style={{ fontSize: 11, opacity: 0.8 }}>🔒</span>}{title}
                 </span>
-                <span style={{ color: isOpen && !locked ? G : mut, fontSize: 18, lineHeight: 1, transform: isOpen && !locked ? 'rotate(90deg)' : 'none', transition: 'transform 0.2s', flexShrink: 0 }}>›</span>
+                <span style={{ color: isOpen && !locked ? (dbIsDark ? G : '#8B6914') : mut, fontSize: 18, lineHeight: 1, transform: isOpen && !locked ? 'rotate(90deg)' : 'none', transition: 'transform 0.2s', flexShrink: 0 }}>›</span>
               </button>
               {locked && isOpen && (
                 <div style={{ padding: '8px 16px 16px', background: 'rgba(160,120,48,0.04)' }}>
-                  <div style={{ fontFamily: cinzel, fontSize: 8, color: '#A07830', letterSpacing: '0.14em', marginBottom: 5 }}>LOCKED</div>
+                  <div style={{ fontFamily: cinzel, fontSize: 8, color: dbIsDark ? '#A07830' : '#8B6914', letterSpacing: '0.14em', marginBottom: 5 }}>LOCKED</div>
                   <div style={{ fontFamily: crimson, fontSize: 13, color: mut, lineHeight: 1.5, marginBottom: 10 }}>
                     Upgrade to {capTier} to view this section.
                   </div>
                   <button
                     onClick={() => beginUpgrade(requiredTier!)}
-                    style={{ padding: '8px 18px', background: 'rgba(201,168,76,0.12)', border: `1px solid ${G}`, borderRadius: 6, color: G, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: 'pointer', textTransform: 'uppercase' as const }}
+                    style={{ padding: '8px 18px', background: 'rgba(201,168,76,0.12)', border: `1px solid ${G}`, borderRadius: 6, color: dbIsDark ? G : '#8B6914', fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: 'pointer', textTransform: 'uppercase' as const }}
                   >Upgrade to {capTier}</button>
                 </div>
               )}
@@ -4478,7 +4478,7 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier, dem
                       closeModal()
                     }
                   }}
-                  style={{ background: 'transparent', border: 'none', color: G, fontSize: 28, cursor: 'pointer', padding: 0, minWidth: 44, minHeight: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, lineHeight: 1 }}>‹</button>
+                  style={{ background: 'transparent', border: 'none', color: dbIsDark ? G : '#8B6914', fontSize: 28, cursor: 'pointer', padding: 0, minWidth: 44, minHeight: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, lineHeight: 1 }}>‹</button>
                 {/* Sigil — tappable; only when image exists */}
                 {dossierImgUrl && (
                   <button
@@ -4509,12 +4509,12 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier, dem
                         window.speechSynthesis.speak(u)
                       }}
                       aria-label="Pronounce name"
-                      style={{ background: 'rgba(201,168,76,0.08)', border: `1px solid rgba(201,168,76,0.25)`, borderRadius: 8, color: G, cursor: 'pointer', padding: '6px 8px', minWidth: 44, minHeight: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', WebkitTapHighlightColor: 'transparent' }}>
+                      style={{ background: 'rgba(201,168,76,0.08)', border: `1px solid rgba(201,168,76,0.25)`, borderRadius: 8, color: dbIsDark ? G : '#8B6914', cursor: 'pointer', padding: '6px 8px', minWidth: 44, minHeight: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', WebkitTapHighlightColor: 'transparent' }}>
                       <span style={{ fontSize: 16, lineHeight: 1 }}>🔊</span>
                     </button>
                   )}
                   {entry.biblicalRank && (
-                    <span style={{ fontFamily: cinzel, fontSize: 7, background: 'rgba(201,168,76,0.15)', color: G, border: `1px solid rgba(201,168,76,0.3)`, padding: '3px 8px', borderRadius: 4, letterSpacing: '0.05em', maxWidth: 84, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const, display: 'block' }}>
+                    <span style={{ fontFamily: cinzel, fontSize: 7, background: 'rgba(201,168,76,0.15)', color: dbIsDark ? G : '#8B6914', border: `1px solid rgba(201,168,76,0.3)`, padding: '3px 8px', borderRadius: 4, letterSpacing: '0.05em', maxWidth: 84, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const, display: 'block' }}>
                       {entry.biblicalRank.length > 16 ? entry.biblicalRank.slice(0, 16) + '…' : entry.biblicalRank}
                     </span>
                   )}
@@ -4533,7 +4533,7 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier, dem
                       <span style={{ color: mut, fontSize: 9, flexShrink: 0, padding: '0 1px' }}>›</span>
                     </React.Fragment>
                   ))}
-                  <span style={{ fontFamily: cinzel, fontSize: 9, color: G, letterSpacing: '0.06em', whiteSpace: 'nowrap' as const, flexShrink: 0, padding: '0 2px' }}>{name}</span>
+                  <span style={{ fontFamily: cinzel, fontSize: 9, color: dbIsDark ? G : '#8B6914', letterSpacing: '0.06em', whiteSpace: 'nowrap' as const, flexShrink: 0, padding: '0 2px' }}>{name}</span>
                 </div>
               )}
               {/* Row 2: classification badges — collapses when scrolled */}
@@ -4570,7 +4570,7 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier, dem
                       {(() => {
                         const linked = demonsProp.find((d: any) => d.name?.toLowerCase() === entry.strongman?.toLowerCase())
                         return linked
-                          ? <span onClick={() => navigateToSpirit(linked)} style={{ color: G, cursor: 'pointer', fontFamily: crimson, fontSize: 14, fontWeight: 600, textDecoration: 'underline dotted' }}>{entry.strongman}</span>
+                          ? <span onClick={() => navigateToSpirit(linked)} style={{ color: dbIsDark ? G : '#8B6914', cursor: 'pointer', fontFamily: crimson, fontSize: 14, fontWeight: 600, textDecoration: 'underline dotted' }}>{entry.strongman}</span>
                           : <span style={{ fontFamily: crimson, fontSize: 14, color: txt }}>{entry.strongman}</span>
                       })()}
                     </div>
@@ -4613,7 +4613,7 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier, dem
                     <div style={{ marginBottom: 14 }}>
                       <div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.14em', color: color + 'BB', marginBottom: 4, textTransform: 'uppercase' as const }}>Parent Strongman</div>
                       <button onClick={() => { const p = demonsProp.find((d: any) => d.name?.toLowerCase() === entry.parentStrongman?.toLowerCase()); if (p) navigateToSpirit(p) }}
-                        style={{ background: 'none', border: 'none', color: G, fontFamily: crimson, fontSize: 14, cursor: 'pointer', textDecoration: 'underline', padding: 0 }}>
+                        style={{ background: 'none', border: 'none', color: dbIsDark ? G : '#8B6914', fontFamily: crimson, fontSize: 14, cursor: 'pointer', textDecoration: 'underline', padding: 0 }}>
                         {entry.parentStrongman}
                       </button>
                     </div>
@@ -4626,7 +4626,7 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier, dem
                           const linked = demonsProp.find((d: any) => d.name?.toLowerCase() === n.toLowerCase())
                           return (
                             <button key={n} onClick={() => linked && navigateToSpirit(linked)}
-                              style={{ padding: '4px 12px', background: 'rgba(201,168,76,0.08)', border: `1px solid rgba(201,168,76,0.25)`, borderRadius: 20, color: linked ? G : mut, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.06em', cursor: linked ? 'pointer' : 'default', textTransform: 'uppercase' as const }}>
+                              style={{ padding: '4px 12px', background: 'rgba(201,168,76,0.08)', border: `1px solid rgba(201,168,76,0.25)`, borderRadius: 20, color: linked ? (dbIsDark ? G : '#8B6914') : mut, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.06em', cursor: linked ? 'pointer' : 'default', textTransform: 'uppercase' as const }}>
                               {n}
                             </button>
                           )
@@ -4642,7 +4642,7 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier, dem
                           const linked = demonsProp.find((d: any) => d.name?.toLowerCase() === n.toLowerCase())
                           return (
                             <button key={ci} onClick={() => linked && navigateToSpirit(linked)}
-                              style={{ padding: '4px 12px', background: 'rgba(201,168,76,0.08)', border: `1px solid rgba(201,168,76,0.25)`, borderRadius: 20, color: linked ? G : mut, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.06em', cursor: linked ? 'pointer' : 'default', textTransform: 'uppercase' as const }}>
+                              style={{ padding: '4px 12px', background: 'rgba(201,168,76,0.08)', border: `1px solid rgba(201,168,76,0.25)`, borderRadius: 20, color: linked ? (dbIsDark ? G : '#8B6914') : mut, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.06em', cursor: linked ? 'pointer' : 'default', textTransform: 'uppercase' as const }}>
                               {n}
                             </button>
                           )
@@ -4658,7 +4658,7 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier, dem
                           const linked = demonsProp.find((d: any) => d.name?.toLowerCase() === n.toLowerCase())
                           return (
                             <button key={ri} onClick={() => linked && navigateToSpirit(linked)}
-                              style={{ padding: '4px 12px', background: 'rgba(201,168,76,0.08)', border: `1px solid rgba(201,168,76,0.25)`, borderRadius: 20, color: linked ? G : mut, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.06em', cursor: linked ? 'pointer' : 'default', textTransform: 'uppercase' as const }}>
+                              style={{ padding: '4px 12px', background: 'rgba(201,168,76,0.08)', border: `1px solid rgba(201,168,76,0.25)`, borderRadius: 20, color: linked ? (dbIsDark ? G : '#8B6914') : mut, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.06em', cursor: linked ? 'pointer' : 'default', textTransform: 'uppercase' as const }}>
                               {n}
                             </button>
                           )
@@ -4808,7 +4808,7 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier, dem
             parts.push(
               <span key={`${m.name}-${m.start}`}
                 onClick={() => { const d = (demonsProp as any[]).find(e => e.name?.toLowerCase() === m.name.toLowerCase()); if (d) setSelectedEntry(d) }}
-                style={{ color: G, cursor: 'pointer', textDecoration: 'underline dotted', fontWeight: 600 }}>
+                style={{ color: dbIsDark ? G : '#8B6914', cursor: 'pointer', textDecoration: 'underline dotted', fontWeight: 600 }}>
                 {text.slice(m.start, m.end)}
               </span>
             )
@@ -4824,7 +4824,7 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier, dem
             return (
               <span
                 onClick={() => setSelectedEntry(matched)}
-                style={{ display: 'inline-block', background: `rgba(201,168,76,0.12)`, border: `1px solid rgba(201,168,76,0.4)`, borderRadius: 4, padding: '2px 8px', marginRight: 6, marginBottom: 6, fontFamily: 'inherit', fontSize: 13, color: G, cursor: 'pointer', transition: 'background 0.15s' }}
+                style={{ display: 'inline-block', background: `rgba(201,168,76,0.12)`, border: `1px solid rgba(201,168,76,0.4)`, borderRadius: 4, padding: '2px 8px', marginRight: 6, marginBottom: 6, fontFamily: 'inherit', fontSize: 13, color: dbIsDark ? G : '#8B6914', cursor: 'pointer', transition: 'background 0.15s' }}
                 onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(201,168,76,0.22)' }}
                 onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(201,168,76,0.12)' }}
                 title={`Open dossier: ${matched.name}`}
@@ -4842,7 +4842,7 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier, dem
             <span
               onClick={() => { localStorage.setItem('wri_add_spirit_prefill', name); window.open('/admin', '_blank') }}
               style={{ display: 'inline-block', background: 'rgba(255,255,255,0.04)', border: `1px solid rgba(255,255,255,0.1)`, borderRadius: 4, padding: '2px 8px', marginRight: 6, marginBottom: 6, fontFamily: 'inherit', fontSize: 13, color: mut, cursor: 'pointer', transition: 'border-color 0.15s' }}
-              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(201,168,76,0.4)'; (e.currentTarget as HTMLElement).style.color = G }}
+              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(201,168,76,0.4)'; (e.currentTarget as HTMLElement).style.color = dbIsDark ? G : '#8B6914' }}
               onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(255,255,255,0.1)'; (e.currentTarget as HTMLElement).style.color = mut }}
               title={`Add "${name}" to Intel Archive`}
             >{name} <span style={{ fontSize: 10, opacity: 0.7 }}>✚</span></span>
@@ -4867,7 +4867,7 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier, dem
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
                     <span style={{ fontFamily: crimson, fontSize: 14, color: mut, fontStyle: 'italic' }}>/{entry.phonetic}/</span>
                     <button onClick={() => { if ('speechSynthesis' in window) { window.speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(entry.phonetic); u.rate = 0.75; u.pitch = 0.9; window.speechSynthesis.speak(u) } }}
-                      style={{ background: 'rgba(201,168,76,0.1)', border: `1px solid rgba(201,168,76,0.3)`, borderRadius: 20, padding: '2px 10px', color: G, fontFamily: cinzel, fontSize: 9, cursor: 'pointer' }}>
+                      style={{ background: 'rgba(201,168,76,0.1)', border: `1px solid rgba(201,168,76,0.3)`, borderRadius: 20, padding: '2px 10px', color: dbIsDark ? G : '#8B6914', fontFamily: cinzel, fontSize: 9, cursor: 'pointer' }}>
                       🔊 Hear
                     </button>
                   </div>
@@ -4890,13 +4890,13 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier, dem
                   { key: 'scholarly', label: '📚 Research' },
                 ] as const).map(t => (
                   <button key={t.key} onClick={() => setModalTab(t.key)}
-                    style={{ padding: '8px 16px', background: 'transparent', border: 'none', borderBottom: modalTab === t.key ? `2px solid ${G}` : '2px solid transparent', color: modalTab === t.key ? G : mut, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', cursor: 'pointer', whiteSpace: 'nowrap' as const, marginBottom: -1 }}>
+                    style={{ padding: '8px 16px', background: 'transparent', border: 'none', borderBottom: modalTab === t.key ? `2px solid ${G}` : '2px solid transparent', color: modalTab === t.key ? (dbIsDark ? G : '#8B6914') : mut, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', cursor: 'pointer', whiteSpace: 'nowrap' as const, marginBottom: -1 }}>
                     {t.label}
                   </button>
                 ))}
                 {atLeast('commander') && (
                   <button onClick={() => setModalTab('protocol')}
-                    style={{ padding: '8px 16px', background: modalTab === 'protocol' ? 'rgba(201,168,76,0.08)' : 'transparent', border: 'none', borderBottom: modalTab === 'protocol' ? `2px solid ${G}` : '2px solid transparent', color: modalTab === 'protocol' ? G : mut, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', cursor: 'pointer', whiteSpace: 'nowrap' as const, marginBottom: -1 }}>
+                    style={{ padding: '8px 16px', background: modalTab === 'protocol' ? 'rgba(201,168,76,0.08)' : 'transparent', border: 'none', borderBottom: modalTab === 'protocol' ? `2px solid ${G}` : '2px solid transparent', color: modalTab === 'protocol' ? (dbIsDark ? G : '#8B6914') : mut, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', cursor: 'pointer', whiteSpace: 'nowrap' as const, marginBottom: -1 }}>
                     ⚔ PROTOCOL
                   </button>
                 )}
@@ -4929,7 +4929,7 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier, dem
                     <div style={{ marginBottom: 18 }}>
                       <div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.15em', color: color + 'BB', marginBottom: 6, textTransform: 'uppercase' as const }}>Strongman</div>
                       {(() => { const linked = demonsProp.find((d: any) => d.name?.toLowerCase() === entry.strongman?.toLowerCase()); return linked ? (
-                        <span onClick={() => setSelectedEntry(linked)} style={{ color: G, cursor: 'pointer', textDecoration: 'underline dotted', fontFamily: crimson, fontSize: 14, fontWeight: 600 }} title={`View ${entry.strongman} dossier`}>{entry.strongman}</span>
+                        <span onClick={() => setSelectedEntry(linked)} style={{ color: dbIsDark ? G : '#8B6914', cursor: 'pointer', textDecoration: 'underline dotted', fontFamily: crimson, fontSize: 14, fontWeight: 600 }} title={`View ${entry.strongman} dossier`}>{entry.strongman}</span>
                       ) : <span style={{ fontFamily: crimson, fontSize: 14, color: txt }}>{entry.strongman}</span> })()}
                     </div>
                   ) : null}
@@ -4966,7 +4966,7 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier, dem
                           onClick={() => window.open('/community#arsenal', '_blank')}>
                           <span style={{ fontSize: 16, flexShrink: 0 }}>📄</span>
                           <div>
-                            <div style={{ fontFamily: cinzel, fontSize: 11, color: G }}>{r.title}</div>
+                            <div style={{ fontFamily: cinzel, fontSize: 11, color: dbIsDark ? G : '#8B6914' }}>{r.title}</div>
                             <div style={{ fontFamily: crimson, fontSize: 12, color: mut }}>{r.topic}</div>
                           </div>
                         </div>
@@ -4981,13 +4981,13 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier, dem
                 <UpgradeGate variant="overlay" requiredTier="soldier" featureName="Soldier Intel" isDark={isDark}>
                   <FieldBlock label="Manifestations & Symptoms" value={entry.manifestation || entry.symptoms} />
                   <FieldBlock label="Entry Points" value={entry.entryPoints} />
-                  <FieldBlock label="Scripture Reference" value={entry.scripture} color={G} />
+                  <FieldBlock label="Scripture Reference" value={entry.scripture} color={dbIsDark ? G : '#8B6914'} />
                   <FieldBlock label="Source & Origin" value={entry.sourceOrigin} />
                   {entry.parentStrongman && (
                     <div style={{ marginBottom: 18 }}>
                       <div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.15em', color: color + 'BB', marginBottom: 8, textTransform: 'uppercase' as const }}>Parent Strongman</div>
                       <button onClick={() => { const p = demonsProp.find((d: any) => d.name?.toLowerCase() === entry.parentStrongman?.toLowerCase()); if (p) setSelectedEntry(p) }}
-                        style={{ background: 'none', border: 'none', color: G, fontFamily: crimson, fontSize: 13, cursor: 'pointer', textDecoration: 'underline', padding: 0 }}>
+                        style={{ background: 'none', border: 'none', color: dbIsDark ? G : '#8B6914', fontFamily: crimson, fontSize: 13, cursor: 'pointer', textDecoration: 'underline', padding: 0 }}>
                         {entry.parentStrongman}
                       </button>
                     </div>
@@ -5000,7 +5000,7 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier, dem
                           const linked = demonsProp.find((d: any) => d.name?.toLowerCase() === n.toLowerCase())
                           return (
                             <button key={n} onClick={() => linked && setSelectedEntry(linked)}
-                              style={{ padding: '3px 12px', background: 'rgba(201,168,76,0.08)', border: `1px solid rgba(201,168,76,0.25)`, borderRadius: 20, color: linked ? G : mut, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.06em', cursor: linked ? 'pointer' : 'default', textTransform: 'uppercase' as const }}>
+                              style={{ padding: '3px 12px', background: 'rgba(201,168,76,0.08)', border: `1px solid rgba(201,168,76,0.25)`, borderRadius: 20, color: linked ? (dbIsDark ? G : '#8B6914') : mut, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.06em', cursor: linked ? 'pointer' : 'default', textTransform: 'uppercase' as const }}>
                               {n}
                             </button>
                           )
@@ -5008,13 +5008,13 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier, dem
                       </div>
                     </div>
                   )}
-                  <FieldBlock label="Counter Scriptures" value={entry.counterScriptures} color={G} />
+                  <FieldBlock label="Counter Scriptures" value={entry.counterScriptures} color={dbIsDark ? G : '#8B6914'} />
                   {entry.deliveranceSequence && (
                     <div style={{ marginBottom: 18 }}>
                       <div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.15em', color: color + 'BB', marginBottom: 8, textTransform: 'uppercase' as const }}>Deliverance Sequence</div>
                       <div style={{ background: 'rgba(13,11,20,0.8)', border: '1px solid rgba(201,168,76,0.25)', borderRadius: 6, padding: '10px 14px', fontSize: 13, lineHeight: 1.6 }}>
                         {entry.deliveranceSequence.split('→').map((step: string, i: number, arr: string[]) => (
-                          <span key={i}><span style={{ color: txt }}>{step.trim()}</span>{i < arr.length - 1 && <span style={{ color: G, margin: '0 6px' }}>→</span>}</span>
+                          <span key={i}><span style={{ color: txt }}>{step.trim()}</span>{i < arr.length - 1 && <span style={{ color: dbIsDark ? G : '#8B6914', margin: '0 6px' }}>→</span>}</span>
                         ))}
                       </div>
                     </div>
@@ -5072,7 +5072,7 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier, dem
                   {/* ── Session Intel: Cultural Presence + Trigger Questions ── */}
                   {((Array.isArray(entry.culturalPresence) && entry.culturalPresence.length > 0) || entry.sessionTriggerQuestions) && (
                     <div style={{ marginTop: 8, marginBottom: 18, paddingTop: 16, borderTop: `1px solid rgba(201,168,76,0.12)` }}>
-                      <div style={{ fontFamily: cinzel, fontSize: 11, color: G, letterSpacing: '0.1em', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <div style={{ fontFamily: cinzel, fontSize: 11, color: dbIsDark ? G : '#8B6914', letterSpacing: '0.1em', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
                         <span>⚡</span><span>Session Intel</span>
                       </div>
                       {Array.isArray(entry.culturalPresence) && entry.culturalPresence.length > 0 && (
@@ -5080,7 +5080,7 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier, dem
                           <div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.15em', color: color + 'BB', marginBottom: 8, textTransform: 'uppercase' as const }}>Cultural Presence</div>
                           <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 6 }}>
                             {entry.culturalPresence.map((cat: string) => (
-                              <span key={cat} style={{ fontFamily: cinzel, fontSize: 9, color: G, border: `1px solid rgba(201,168,76,0.4)`, borderRadius: 4, padding: '4px 10px', letterSpacing: '0.06em', background: 'rgba(201,168,76,0.05)' }}>
+                              <span key={cat} style={{ fontFamily: cinzel, fontSize: 9, color: dbIsDark ? G : '#8B6914', border: `1px solid rgba(201,168,76,0.4)`, borderRadius: 4, padding: '4px 10px', letterSpacing: '0.06em', background: 'rgba(201,168,76,0.05)' }}>
                                 {cat}
                               </span>
                             ))}
@@ -5115,8 +5115,8 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier, dem
                               <div style={{ fontSize: 10, color: mut }}>{r.topic || r.category}</div>
                             </div>
                             {r.file_url
-                              ? <a href={r.file_url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 9, color: G, background: 'transparent', border: `1px solid ${G}`, borderRadius: 4, padding: '3px 8px', cursor: 'pointer', fontFamily: cinzel, textDecoration: 'none' }}>↗ View</a>
-                              : <button onClick={async () => { const token = await getToken(); const res = await fetch(`/api/arsenal-resources?id=${r.id}&action=download`, { headers: { Authorization: `Bearer ${token}` } }); if (res.ok) { const d = await res.json(); if (d.url) window.open(d.url, '_blank') } }} style={{ fontSize: 9, color: G, background: 'transparent', border: `1px solid ${G}`, borderRadius: 4, padding: '3px 8px', cursor: 'pointer', fontFamily: cinzel }}>↗ View</button>
+                              ? <a href={r.file_url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 9, color: dbIsDark ? G : '#8B6914', background: 'transparent', border: `1px solid ${G}`, borderRadius: 4, padding: '3px 8px', cursor: 'pointer', fontFamily: cinzel, textDecoration: 'none' }}>↗ View</a>
+                              : <button onClick={async () => { const token = await getToken(); const res = await fetch(`/api/arsenal-resources?id=${r.id}&action=download`, { headers: { Authorization: `Bearer ${token}` } }); if (res.ok) { const d = await res.json(); if (d.url) window.open(d.url, '_blank') } }} style={{ fontSize: 9, color: dbIsDark ? G : '#8B6914', background: 'transparent', border: `1px solid ${G}`, borderRadius: 4, padding: '3px 8px', cursor: 'pointer', fontFamily: cinzel }}>↗ View</button>
                             }
                           </div>
                         ))}
@@ -5158,7 +5158,7 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier, dem
                   ) : !protocolResult ? (
                     <div>
                       <div style={{ marginBottom: 16 }}>
-                        <div style={{ fontFamily: cinzel, fontSize: 13, color: G, letterSpacing: '0.1em', marginBottom: 6 }}>⚔ PROTOCOL ENGINE</div>
+                        <div style={{ fontFamily: cinzel, fontSize: 13, color: dbIsDark ? G : '#8B6914', letterSpacing: '0.1em', marginBottom: 6 }}>⚔ PROTOCOL ENGINE</div>
                         <div style={{ fontFamily: crimson, fontSize: 14, color: mut, lineHeight: 1.6 }}>
                           Generate a complete deliverance session protocol — legal ground checklist, renunciation prayers, command prayers, and aftercare.
                         </div>
@@ -5167,11 +5167,11 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier, dem
                       {/* Mode selector */}
                       <div style={{ display: 'flex', gap: 8, marginBottom: 18 }}>
                         <button onClick={() => setProtocolMode('spirit')}
-                          style={{ flex: 1, padding: '8px 12px', background: protocolMode === 'spirit' ? 'rgba(201,168,76,0.15)' : 'transparent', border: `1px solid ${protocolMode === 'spirit' ? G : bdr}`, borderRadius: 6, color: protocolMode === 'spirit' ? G : mut, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: 'pointer' }}>
+                          style={{ flex: 1, padding: '8px 12px', background: protocolMode === 'spirit' ? 'rgba(201,168,76,0.15)' : 'transparent', border: `1px solid ${protocolMode === 'spirit' ? G : bdr}`, borderRadius: 6, color: protocolMode === 'spirit' ? (dbIsDark ? G : '#8B6914') : mut, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: 'pointer' }}>
                           ⚔ SPIRIT NAME
                         </button>
                         <button onClick={() => setProtocolMode('manifestation')}
-                          style={{ flex: 1, padding: '8px 12px', background: protocolMode === 'manifestation' ? 'rgba(201,168,76,0.15)' : 'transparent', border: `1px solid ${protocolMode === 'manifestation' ? G : bdr}`, borderRadius: 6, color: protocolMode === 'manifestation' ? G : mut, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: 'pointer' }}>
+                          style={{ flex: 1, padding: '8px 12px', background: protocolMode === 'manifestation' ? 'rgba(201,168,76,0.15)' : 'transparent', border: `1px solid ${protocolMode === 'manifestation' ? G : bdr}`, borderRadius: 6, color: protocolMode === 'manifestation' ? (dbIsDark ? G : '#8B6914') : mut, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: 'pointer' }}>
                           👁 MANIFESTATION
                         </button>
                       </div>
@@ -5179,7 +5179,7 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier, dem
                       {/* Spirit mode: show name + cluster option */}
                       {protocolMode === 'spirit' && (
                         <div>
-                          <div style={{ fontFamily: cinzel, fontSize: 10, color: G, letterSpacing: '0.08em', marginBottom: 10, padding: '8px 12px', background: 'rgba(201,168,76,0.06)', border: `1px solid ${bdr}`, borderRadius: 6 }}>
+                          <div style={{ fontFamily: cinzel, fontSize: 10, color: dbIsDark ? G : '#8B6914', letterSpacing: '0.08em', marginBottom: 10, padding: '8px 12px', background: 'rgba(201,168,76,0.06)', border: `1px solid ${bdr}`, borderRadius: 6 }}>
                             {entry.name}
                             {entry.biblicalRank && <span style={{ color: mut, fontFamily: cinzel, fontSize: 8, marginLeft: 8 }}>— {entry.biblicalRank}</span>}
                           </div>
@@ -5215,7 +5215,7 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier, dem
 
                       {invFromInvestigator && (
                         <div style={{ background: 'rgba(201,168,76,0.06)', border: '1px solid rgba(201,168,76,0.2)', borderRadius: 8, padding: '12px 14px', marginBottom: 16 }}>
-                          <div style={{ fontFamily: cinzel, fontSize: 9, color: G, letterSpacing: '0.12em', marginBottom: 6 }}>LINKED FROM SYMPTOM INVESTIGATOR</div>
+                          <div style={{ fontFamily: cinzel, fontSize: 9, color: dbIsDark ? G : '#8B6914', letterSpacing: '0.12em', marginBottom: 6 }}>LINKED FROM SYMPTOM INVESTIGATOR</div>
                           <div style={{ fontFamily: crimson, fontSize: 13, color: mut }}>
                             {invFromInvestigator.probableSpirits?.length} spirits identified — protocol will incorporate investigation results
                           </div>
@@ -5236,12 +5236,12 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier, dem
                       {/* Protocol header + print + regenerate */}
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
                         <div>
-                          <div style={{ fontFamily: cinzel, fontSize: 13, color: G, letterSpacing: '0.1em', marginBottom: 4 }}>⚔ SESSION PROTOCOL</div>
+                          <div style={{ fontFamily: cinzel, fontSize: 13, color: dbIsDark ? G : '#8B6914', letterSpacing: '0.1em', marginBottom: 4 }}>⚔ SESSION PROTOCOL</div>
                           <div style={{ fontFamily: cinzel, fontSize: 9, color: mut, letterSpacing: '0.08em' }}>{entry.name}</div>
                         </div>
                         <div style={{ display: 'flex', gap: 6 }}>
                           <button onClick={() => window.print()}
-                            style={{ background: 'transparent', border: `1px solid rgba(201,168,76,0.3)`, borderRadius: 4, color: G + '99', fontFamily: cinzel, fontSize: 8, letterSpacing: '0.08em', cursor: 'pointer', padding: '4px 10px' }}>
+                            style={{ background: 'transparent', border: `1px solid rgba(201,168,76,0.3)`, borderRadius: 4, color: (dbIsDark ? G : '#8B6914') + '99', fontFamily: cinzel, fontSize: 8, letterSpacing: '0.08em', cursor: 'pointer', padding: '4px 10px' }}>
                             🖨 PRINT
                           </button>
                           <button onClick={() => { setProtocolResult(null); setInvFromInvestigator(null); setCheckedGrounds({}) }}
@@ -5255,7 +5255,7 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier, dem
                       <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' as const, marginBottom: 20 }}>
                         {['Pre-Session Intel', 'Legal Grounds', 'Renunciation', 'Intercession', 'Command Prayers', 'Aftercare', 'Resources'].map((sec, i) => (
                           <button key={i} onClick={() => setActiveProtocolSection(i)}
-                            style={{ padding: '4px 10px', borderRadius: 20, fontSize: 9, fontFamily: cinzel, letterSpacing: '0.04em', cursor: 'pointer', border: `1px solid ${activeProtocolSection === i ? G : bdr}`, background: activeProtocolSection === i ? 'rgba(201,168,76,0.15)' : 'transparent', color: activeProtocolSection === i ? G : mut }}>
+                            style={{ padding: '4px 10px', borderRadius: 20, fontSize: 9, fontFamily: cinzel, letterSpacing: '0.04em', cursor: 'pointer', border: `1px solid ${activeProtocolSection === i ? G : bdr}`, background: activeProtocolSection === i ? 'rgba(201,168,76,0.15)' : 'transparent', color: activeProtocolSection === i ? (dbIsDark ? G : '#8B6914') : mut }}>
                             {sec}
                           </button>
                         ))}
@@ -5274,7 +5274,7 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier, dem
                                 <div style={{ fontFamily: cinzel, fontSize: 9, color: color + 'BB', letterSpacing: '0.12em', textTransform: 'uppercase' as const, marginBottom: 8 }}>Key Legal Grounds</div>
                                 {intel.keyLegalGrounds.map((g: string, i: number) => (
                                   <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, marginBottom: 6 }}>
-                                    <span style={{ color: G, flexShrink: 0, fontSize: 10, marginTop: 2 }}>▸</span>
+                                    <span style={{ color: dbIsDark ? G : '#8B6914', flexShrink: 0, fontSize: 10, marginTop: 2 }}>▸</span>
                                     <span style={{ fontFamily: crimson, fontSize: 14, color: txt, lineHeight: 1.5 }}>{g}</span>
                                   </div>
                                 ))}
@@ -5284,7 +5284,7 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier, dem
                               <div style={{ marginBottom: 16 }}>
                                 <div style={{ fontFamily: cinzel, fontSize: 9, color: color + 'BB', letterSpacing: '0.12em', textTransform: 'uppercase' as const, marginBottom: 8 }}>Key Scriptures</div>
                                 {intel.keyScriptures.map((s: string, i: number) => (
-                                  <div key={i} style={{ fontFamily: crimson, fontSize: 13, color: G, fontStyle: 'italic', marginBottom: 5, paddingLeft: 10, borderLeft: `2px solid rgba(201,168,76,0.2)` }}>{s}</div>
+                                  <div key={i} style={{ fontFamily: crimson, fontSize: 13, color: dbIsDark ? G : '#8B6914', fontStyle: 'italic', marginBottom: 5, paddingLeft: 10, borderLeft: `2px solid rgba(201,168,76,0.2)` }}>{s}</div>
                                 ))}
                               </div>
                             )}
@@ -5313,9 +5313,9 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier, dem
                                 {checkedGrounds[i] && <span style={{ color: '#0D0B14', fontSize: 11, fontWeight: 700 }}>✓</span>}
                               </div>
                               <div style={{ flex: 1 }}>
-                                <div style={{ fontFamily: cinzel, fontSize: 10, color: checkedGrounds[i] ? G : txt, letterSpacing: '0.06em', marginBottom: 4 }}>{item.ground}</div>
+                                <div style={{ fontFamily: cinzel, fontSize: 10, color: checkedGrounds[i] ? (dbIsDark ? G : '#8B6914') : txt, letterSpacing: '0.06em', marginBottom: 4 }}>{item.ground}</div>
                                 <div style={{ fontFamily: crimson, fontSize: 13, color: mut, fontStyle: 'italic', lineHeight: 1.5, marginBottom: 4 }}>"{item.question}"</div>
-                                {item.scripture && <div style={{ fontFamily: cinzel, fontSize: 9, color: G + '99', letterSpacing: '0.04em' }}>{item.scripture}</div>}
+                                {item.scripture && <div style={{ fontFamily: cinzel, fontSize: 9, color: (dbIsDark ? G : '#8B6914') + '99', letterSpacing: '0.04em' }}>{item.scripture}</div>}
                               </div>
                             </div>
                           ))}
@@ -5327,7 +5327,7 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier, dem
                         <div>
                           {(protocolResult.protocol?.renunciationPrayers || []).map((prayer: any, i: number) => (
                             <div key={i} style={{ marginBottom: 20, background: 'rgba(255,255,255,0.02)', border: `1px solid ${bdr}`, borderRadius: 10, padding: '16px 18px' }}>
-                              <div style={{ fontFamily: cinzel, fontSize: 10, color: G, letterSpacing: '0.08em', marginBottom: 10 }}>{prayer.title}</div>
+                              <div style={{ fontFamily: cinzel, fontSize: 10, color: dbIsDark ? G : '#8B6914', letterSpacing: '0.08em', marginBottom: 10 }}>{prayer.title}</div>
                               <div style={{ fontFamily: crimson, fontSize: 15, color: txt, lineHeight: 1.8, fontStyle: 'italic', marginBottom: 10, paddingLeft: 14, borderLeft: `3px solid rgba(201,168,76,0.3)` }}>
                                 {prayer.prayer}
                               </div>
@@ -5380,7 +5380,7 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier, dem
                                 {prayer.command}
                               </div>
                               {prayer.authority && (
-                                <div style={{ fontFamily: cinzel, fontSize: 9, color: G + '99', letterSpacing: '0.04em' }}>⚔ Authority: {prayer.authority}</div>
+                                <div style={{ fontFamily: cinzel, fontSize: 9, color: (dbIsDark ? G : '#8B6914') + '99', letterSpacing: '0.04em' }}>⚔ Authority: {prayer.authority}</div>
                               )}
                             </div>
                           ))}
@@ -5397,7 +5397,7 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier, dem
                                 <div style={{ fontFamily: cinzel, fontSize: 9, color: color + 'BB', letterSpacing: '0.12em', textTransform: 'uppercase' as const, marginBottom: 8 }}>Immediate Steps</div>
                                 {ac.initialSteps.map((s: string, i: number) => (
                                   <div key={i} style={{ display: 'flex', gap: 8, marginBottom: 6 }}>
-                                    <span style={{ color: G, flexShrink: 0, fontFamily: cinzel, fontSize: 11, marginTop: 1 }}>{i + 1}.</span>
+                                    <span style={{ color: dbIsDark ? G : '#8B6914', flexShrink: 0, fontFamily: cinzel, fontSize: 11, marginTop: 1 }}>{i + 1}.</span>
                                     <span style={{ fontFamily: crimson, fontSize: 14, color: txt, lineHeight: 1.5 }}>{s}</span>
                                   </div>
                                 ))}
@@ -5445,11 +5445,11 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier, dem
                                   <div style={{ flex: 1, minWidth: 0 }}>
                                     <div style={{ fontFamily: cinzel, fontSize: 11, color: txt, marginBottom: 3 }}>{r.title}</div>
                                     {r.relevance && <div style={{ fontFamily: crimson, fontSize: 12, color: mut, lineHeight: 1.5, marginBottom: 4 }}>{r.relevance}</div>}
-                                    <div style={{ fontFamily: cinzel, fontSize: 9, color: G + '80', letterSpacing: '0.04em' }}>{r.category || 'Resource'}</div>
+                                    <div style={{ fontFamily: cinzel, fontSize: 9, color: (dbIsDark ? G : '#8B6914') + '80', letterSpacing: '0.04em' }}>{r.category || 'Resource'}</div>
                                   </div>
                                   {r.file_path && (
                                     <a href={r.file_path} target="_blank" rel="noopener noreferrer"
-                                      style={{ fontSize: 9, color: G, background: 'transparent', border: `1px solid ${G}`, borderRadius: 4, padding: '4px 10px', cursor: 'pointer', fontFamily: cinzel, textDecoration: 'none', alignSelf: 'flex-start', flexShrink: 0 }}>
+                                      style={{ fontSize: 9, color: dbIsDark ? G : '#8B6914', background: 'transparent', border: `1px solid ${G}`, borderRadius: 4, padding: '4px 10px', cursor: 'pointer', fontFamily: cinzel, textDecoration: 'none', alignSelf: 'flex-start', flexShrink: 0 }}>
                                       ↗ VIEW
                                     </a>
                                   )}
@@ -5485,13 +5485,13 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier, dem
           <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 5001, background: dbSurf, borderRadius: '16px 16px 0 0', paddingBottom: 'calc(env(safe-area-inset-bottom) + 16px)', display: 'flex', flexDirection: 'column' as const, maxHeight: '80dvh' }}>
             {/* Sheet header */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px 12px', borderBottom: `1px solid ${dbBorder}`, flexShrink: 0 }}>
-              <span style={{ fontFamily: cinzel, fontSize: 11, color: G, letterSpacing: '0.14em' }}>FILTERS</span>
+              <span style={{ fontFamily: cinzel, fontSize: 11, color: dbIsDark ? G : '#8B6914', letterSpacing: '0.14em' }}>FILTERS</span>
               <button onClick={() => setFilterSheetOpen?.(false)} style={{ background: 'none', border: 'none', color: dbDim, fontSize: 22, cursor: 'pointer', padding: 4, lineHeight: 1 }}>×</button>
             </div>
             {/* Scrollable filter content */}
             <div style={{ overflowY: 'auto' as const, flex: 1, padding: '16px 20px' }}>
               {/* CATEGORY */}
-              <div style={{ fontFamily: cinzel, fontSize: 9, color: G, letterSpacing: '0.16em', marginBottom: 10 }}>CATEGORY</div>
+              <div style={{ fontFamily: cinzel, fontSize: 9, color: dbIsDark ? G : '#8B6914', letterSpacing: '0.16em', marginBottom: 10 }}>CATEGORY</div>
               <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 8, marginBottom: 20 }}>
                 {HIERARCHY_CATEGORIES.map(cat => {
                   const isAll = cat === 'All'
@@ -5508,17 +5508,17 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier, dem
                 })}
               </div>
               {/* RANK */}
-              <div style={{ fontFamily: cinzel, fontSize: 9, color: G, letterSpacing: '0.16em', marginBottom: 10 }}>RANK</div>
+              <div style={{ fontFamily: cinzel, fontSize: 9, color: dbIsDark ? G : '#8B6914', letterSpacing: '0.16em', marginBottom: 10 }}>RANK</div>
               <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 8, marginBottom: 20 }}>
                 {['All', 'Principality', 'Power', 'Ruler of Darkness', 'Spiritual Wickedness in High Places', 'Fallen Angel', 'Demon', 'Familiar Spirit', 'Spirit of Infirmity'].map(rank => (
                   <button key={rank} onClick={() => setRankFilter(rank === 'All' ? '' : rank)}
-                    style={{ padding: '5px 14px', borderRadius: 20, fontSize: 10, cursor: 'pointer', fontFamily: cinzel, letterSpacing: '0.04em', border: `1px solid ${rankFilter === rank || (rank === 'All' && !rankFilter) ? G : dbBorder}`, background: rankFilter === rank || (rank === 'All' && !rankFilter) ? 'rgba(201,168,76,0.15)' : 'transparent', color: rankFilter === rank || (rank === 'All' && !rankFilter) ? G : dbDim, whiteSpace: 'nowrap' as const }}>
+                    style={{ padding: '5px 14px', borderRadius: 20, fontSize: 10, cursor: 'pointer', fontFamily: cinzel, letterSpacing: '0.04em', border: `1px solid ${rankFilter === rank || (rank === 'All' && !rankFilter) ? G : dbBorder}`, background: rankFilter === rank || (rank === 'All' && !rankFilter) ? 'rgba(201,168,76,0.15)' : 'transparent', color: rankFilter === rank || (rank === 'All' && !rankFilter) ? (dbIsDark ? G : '#8B6914') : dbDim, whiteSpace: 'nowrap' as const }}>
                     {rank}
                   </button>
                 ))}
               </div>
               {/* TRAITS */}
-              <div style={{ fontFamily: cinzel, fontSize: 9, color: G, letterSpacing: '0.16em', marginBottom: 10 }}>TRAITS</div>
+              <div style={{ fontFamily: cinzel, fontSize: 9, color: dbIsDark ? G : '#8B6914', letterSpacing: '0.16em', marginBottom: 10 }}>TRAITS</div>
               <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' as const }}>
                 <button onClick={() => setGenerationalFilter(f => !f)}
                   style={{ padding: '5px 14px', borderRadius: 20, fontSize: 10, cursor: 'pointer', fontFamily: cinzel, letterSpacing: '0.04em', border: `1px solid ${generationalFilter ? '#7a9e7e' : dbBorder}`, background: generationalFilter ? 'rgba(122,158,126,0.15)' : 'transparent', color: generationalFilter ? '#7a9e7e' : dbDim }}>
@@ -5553,21 +5553,21 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier, dem
           <div onClick={e => e.stopPropagation()} style={{ background: dbIsDark ? '#0D0B14' : '#FAF8F5', border: '1px solid rgba(201,168,76,0.3)', borderRadius: 14, width: '100%', maxWidth: 640, maxHeight: '85vh', overflowY: 'auto', padding: '28px 32px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
               <div>
-                <div style={{ fontFamily: cinzel, fontSize: 18, color: G, letterSpacing: '0.08em', marginBottom: 4 }}>📚 Intel Archive Guide</div>
+                <div style={{ fontFamily: cinzel, fontSize: 18, color: dbIsDark ? G : '#8B6914', letterSpacing: '0.08em', marginBottom: 4 }}>📚 Intel Archive Guide</div>
                 <div style={{ fontFamily: crimson, fontSize: 13, color: dbDim, fontStyle: 'italic' }}>Understanding your intelligence database</div>
               </div>
               <button onClick={() => setShowLegend(false)} style={{ background: 'none', border: 'none', color: dbDim, fontSize: 22, cursor: 'pointer' }}>×</button>
             </div>
 
             <div style={{ marginBottom: 24 }}>
-              <div style={{ fontFamily: cinzel, fontSize: 11, color: G, letterSpacing: '0.12em', textTransform: 'uppercase' as const, marginBottom: 10 }}>What Is This?</div>
+              <div style={{ fontFamily: cinzel, fontSize: 11, color: dbIsDark ? G : '#8B6914', letterSpacing: '0.12em', textTransform: 'uppercase' as const, marginBottom: 10 }}>What Is This?</div>
               <div style={{ fontFamily: crimson, fontSize: 14, color: dbText, lineHeight: 1.7 }}>
                 The Intel Archive is a spiritual warfare database containing intelligence on demonic entities, principalities, and spiritual forces. Each entry is a complete dossier drawing from Scripture, biblical archaeology, etymology, and decades of deliverance ministry research. This is not a casual reference. It is a minister's field manual.
               </div>
             </div>
 
             <div style={{ marginBottom: 24 }}>
-              <div style={{ fontFamily: cinzel, fontSize: 11, color: G, letterSpacing: '0.12em', textTransform: 'uppercase' as const, marginBottom: 12 }}>Biblical Hierarchy (Ephesians 6:12)</div>
+              <div style={{ fontFamily: cinzel, fontSize: 11, color: dbIsDark ? G : '#8B6914', letterSpacing: '0.12em', textTransform: 'uppercase' as const, marginBottom: 12 }}>Biblical Hierarchy (Ephesians 6:12)</div>
               {[
                 { rank: 'Principality', color: '#ef4444', desc: 'Ruling spirits over nations and regions. Highest rank. Require territorial-level authority to displace.', ref: 'Dan. 10:13 — "Prince of Persia"' },
                 { rank: 'Power', color: '#f97316', desc: 'Delegated authority — enforce the will of principalities. Assigned to cities, institutions, and families.', ref: 'Eph. 1:21, Col. 2:15' },
@@ -5586,7 +5586,7 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier, dem
             </div>
 
             <div style={{ marginBottom: 24 }}>
-              <div style={{ fontFamily: cinzel, fontSize: 11, color: G, letterSpacing: '0.12em', textTransform: 'uppercase' as const, marginBottom: 12 }}>What Each Tab Contains</div>
+              <div style={{ fontFamily: cinzel, fontSize: 11, color: dbIsDark ? G : '#8B6914', letterSpacing: '0.12em', textTransform: 'uppercase' as const, marginBottom: 12 }}>What Each Tab Contains</div>
               {[
                 { tab: '📖 Overview', tier: 'All members', desc: 'Identity, classification, biblical rank, manifestations, primary battlefield.' },
                 { tab: '🔍 Intel', tier: 'Commander+', desc: 'Session indicators, resistance signature, demonic agreements, entry points, transmission vectors, cluster spirits, legal rights.' },
@@ -5596,7 +5596,7 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier, dem
                 <div key={item.tab} style={{ display: 'flex', gap: 12, padding: '10px 14px', background: 'rgba(201,168,76,0.04)', border: `1px solid rgba(201,168,76,0.15)`, borderRadius: 8, marginBottom: 6 }}>
                   <div style={{ flex: 1 }}>
                     <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 4 }}>
-                      <span style={{ fontFamily: cinzel, fontSize: 11, color: G, letterSpacing: '0.04em' }}>{item.tab}</span>
+                      <span style={{ fontFamily: cinzel, fontSize: 11, color: dbIsDark ? G : '#8B6914', letterSpacing: '0.04em' }}>{item.tab}</span>
                       <span style={{ fontSize: 9, color: dbDim, fontFamily: cinzel, letterSpacing: '0.06em', border: '1px solid rgba(201,168,76,0.2)', borderRadius: 10, padding: '1px 7px' }}>{item.tier}</span>
                     </div>
                     <div style={{ fontFamily: crimson, fontSize: 13, color: dbDim, lineHeight: 1.5 }}>{item.desc}</div>
@@ -6286,9 +6286,10 @@ const CONFIDENCE_COLORS = {
 }
 
 // ── INVESTIGATOR VIEW ──────────────────────────────────────
-function InvestigatorView({ userTier: _userTier, isMobile, setSidebarOpen, setActiveSection }: {
+function InvestigatorView({ theme, userTier: _userTier, isMobile, setSidebarOpen, setActiveSection }: {
   theme: string; userTier: string; isMobile: boolean; setSidebarOpen: (v: boolean) => void; setActiveSection?: (s: string) => void
 }) {
+  const isDark = theme !== 'light'
   const { getToken } = useAuth()
   const [invInput, setInvInput]   = useState('')
   const [invLoading, setInvLoading] = useState(false)
@@ -6340,33 +6341,33 @@ function InvestigatorView({ userTier: _userTier, isMobile, setSidebarOpen, setAc
   }
 
   return (
-    <div style={{ flex: 1, overflowY: 'auto', padding: isMobile ? '20px 16px' : '32px 40px', background: '#12101e', minHeight: 0 }}>
+    <div style={{ flex: 1, overflowY: 'auto', padding: isMobile ? '20px 16px' : '32px 40px', background: isDark ? '#12101e' : '#EDEBE2', minHeight: 0 }}>
       <div style={{ maxWidth: 760, margin: '0 auto' }}>
         {!isMobile && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
-            <button onClick={() => setSidebarOpen(true)} style={{ background: 'none', border: 'none', color: G, fontSize: 22, cursor: 'pointer', padding: '4px 8px', marginRight: 4, lineHeight: 1 }}>☰</button>
-            <span style={{ fontFamily: cinzel, fontSize: 13, color: G, letterSpacing: '0.1em' }}>Symptom Investigator</span>
+            <button onClick={() => setSidebarOpen(true)} style={{ background: 'none', border: 'none', color: isDark ? G : '#8B6914', fontSize: 22, cursor: 'pointer', padding: '4px 8px', marginRight: 4, lineHeight: 1 }}>☰</button>
+            <span style={{ fontFamily: cinzel, fontSize: 13, color: isDark ? G : '#8B6914', letterSpacing: '0.1em' }}>Symptom Investigator</span>
           </div>
         )}
 
         {isMobile ? (
           <div style={{ marginBottom: 20 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
-              <span style={{ fontFamily: cinzel, fontSize: 16, color: '#E8D5B0', fontWeight: 700, letterSpacing: '0.04em' }}>Symptom Investigator</span>
+              <span style={{ fontFamily: cinzel, fontSize: 16, color: isDark ? '#E8D5B0' : '#1F1B12', fontWeight: 700, letterSpacing: '0.04em' }}>Symptom Investigator</span>
               <AIUsagePill feature="symptom_investigator" getToken={getToken} />
             </div>
-            <p style={{ color: '#8B7355', fontSize: 13, lineHeight: 1.5, fontFamily: crimson, margin: 0 }}>
+            <p style={{ color: isDark ? '#8B7355' : '#574B33', fontSize: 13, lineHeight: 1.5, fontFamily: crimson, margin: 0 }}>
               Describe what you are observing — the system will identify probable spirits and suggest a deliverance sequence.
             </p>
           </div>
         ) : (
           <div style={{ textAlign: 'center', marginBottom: 40 }}>
-            <div style={{ fontSize: 11, color: G, letterSpacing: '0.2em', textTransform: 'uppercase' as const, marginBottom: 12, fontFamily: cinzel }}>⚔ War Room Intel</div>
+            <div style={{ fontSize: 11, color: isDark ? G : '#8B6914', letterSpacing: '0.2em', textTransform: 'uppercase' as const, marginBottom: 12, fontFamily: cinzel }}>⚔ War Room Intel</div>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, marginBottom: 8 }}>
-              <h1 style={{ fontFamily: cinzel, color: '#E8D5B0', fontSize: 28, fontWeight: 700, margin: 0 }}>Symptom Investigator</h1>
+              <h1 style={{ fontFamily: cinzel, color: isDark ? '#E8D5B0' : '#1F1B12', fontSize: 28, fontWeight: 700, margin: 0 }}>Symptom Investigator</h1>
               <AIUsagePill feature="symptom_investigator" getToken={getToken} />
             </div>
-            <p style={{ color: '#8B7355', fontSize: 15, lineHeight: 1.6, fontFamily: crimson }}>
+            <p style={{ color: isDark ? '#8B7355' : '#574B33', fontSize: 15, lineHeight: 1.6, fontFamily: crimson }}>
               Describe what you are observing — symptoms, manifestations, dreams, emotional patterns, physical reactions.
               The system will identify probable spirits and suggest a deliverance sequence.
             </p>
@@ -6375,11 +6376,11 @@ function InvestigatorView({ userTier: _userTier, isMobile, setSidebarOpen, setAc
 
         {recentSymptomSearches.length > 0 && !invResult && (
           <div style={{ marginBottom: 16 }}>
-            <div style={{ fontFamily: cinzel, fontSize: 9, color: '#5a4f3a', letterSpacing: '0.12em', marginBottom: 8 }}>RECENT SEARCHES</div>
+            <div style={{ fontFamily: cinzel, fontSize: 9, color: isDark ? '#5a4f3a' : '#574B33', letterSpacing: '0.12em', marginBottom: 8 }}>RECENT SEARCHES</div>
             <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 6 }}>
               {recentSymptomSearches.map((s, i) => (
                 <button key={i} onClick={() => setInvInput(s)}
-                  style={{ background: 'rgba(201,168,76,0.06)', border: '1px solid rgba(201,168,76,0.2)', borderRadius: 20, color: '#8B7355', fontFamily: crimson, fontSize: 12, padding: '4px 12px', cursor: 'pointer', maxWidth: 260, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>
+                  style={{ background: 'rgba(201,168,76,0.06)', border: '1px solid rgba(201,168,76,0.2)', borderRadius: 20, color: isDark ? '#8B7355' : '#574B33', fontFamily: crimson, fontSize: 12, padding: '4px 12px', cursor: 'pointer', maxWidth: 260, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>
                   {s.length > 50 ? s.slice(0, 50) + '…' : s}
                 </button>
               ))}
@@ -6388,7 +6389,7 @@ function InvestigatorView({ userTier: _userTier, isMobile, setSidebarOpen, setAc
         )}
 
         <div style={{ background: 'rgba(201,168,76,0.04)', border: '1px solid rgba(201,168,76,0.2)', borderRadius: 10, padding: 24, marginBottom: 24 }}>
-          <label style={{ display: 'block', fontSize: 11, color: '#8B7355', letterSpacing: '0.1em', textTransform: 'uppercase' as const, marginBottom: 10, fontFamily: cinzel }}>
+          <label style={{ display: 'block', fontSize: 11, color: isDark ? '#8B7355' : '#574B33', letterSpacing: '0.1em', textTransform: 'uppercase' as const, marginBottom: 10, fontFamily: cinzel }}>
             Observed Symptoms / Manifestations
           </label>
           <textarea
@@ -6396,14 +6397,14 @@ function InvestigatorView({ userTier: _userTier, isMobile, setSidebarOpen, setAc
             onChange={e => setInvInput(e.target.value)}
             placeholder="Example: Recurring nightmares, pressure on chest, irrational fear of abandonment, history of sexual abuse, difficulty feeling God's presence, chronic migraines..."
             rows={6}
-            style={{ width: '100%', background: 'rgba(13,11,20,0.8)', border: '1px solid rgba(201,168,76,0.3)', borderRadius: 6, color: '#E8D5B0', fontSize: 15, padding: 14, fontFamily: crimson, lineHeight: 1.6, resize: 'vertical' as const, outline: 'none', boxSizing: 'border-box' as const }}
+            style={{ width: '100%', background: isDark ? 'rgba(13,11,20,0.8)' : '#FFFFFF', border: '1px solid rgba(201,168,76,0.3)', borderRadius: 6, color: isDark ? '#E8D5B0' : '#1F1B12', fontSize: 15, padding: 14, fontFamily: crimson, lineHeight: 1.6, resize: 'vertical' as const, outline: 'none', boxSizing: 'border-box' as const }}
           />
           <div style={{ marginTop: 14 }}>
-            <span style={{ fontSize: 12, color: '#5a4f3a', fontFamily: crimson }}>Be specific — the more detail, the more accurate the intelligence.</span>
+            <span style={{ fontSize: 12, color: isDark ? '#5a4f3a' : '#574B33', fontFamily: crimson }}>Be specific — the more detail, the more accurate the intelligence.</span>
             <button
               onClick={handleInvestigate}
               disabled={invLoading || !invInput.trim()}
-              style={{ display: 'block', width: '100%', marginTop: 10, background: invLoading ? 'rgba(201,168,76,0.3)' : G, color: invLoading ? '#8B7355' : '#0D0B14', border: 'none', borderRadius: 6, padding: '12px 28px', fontSize: 13, fontFamily: cinzel, fontWeight: 700, letterSpacing: '0.08em', cursor: invLoading ? 'not-allowed' : 'pointer', transition: 'all 0.2s ease' }}
+              style={{ display: 'block', width: '100%', marginTop: 10, background: invLoading ? 'rgba(201,168,76,0.3)' : G, color: invLoading ? isDark ? '#8B7355' : '#574B33' : '#0D0B14', border: 'none', borderRadius: 6, padding: '12px 28px', fontSize: 13, fontFamily: cinzel, fontWeight: 700, letterSpacing: '0.08em', cursor: invLoading ? 'not-allowed' : 'pointer', transition: 'all 0.2s ease' }}
             >
               {invLoading ? '⚔ Analyzing...' : '⚔ Investigate'}
             </button>
@@ -6417,7 +6418,7 @@ function InvestigatorView({ userTier: _userTier, isMobile, setSidebarOpen, setAc
         )}
 
         {invLoading && (
-          <div style={{ textAlign: 'center', padding: 40, color: '#8B7355' }}>
+          <div style={{ textAlign: 'center', padding: 40, color: isDark ? '#8B7355' : '#574B33' }}>
             <div style={{ fontSize: 28, marginBottom: 12 }}>⚔</div>
             <div style={{ fontFamily: cinzel, fontSize: 14, letterSpacing: '0.1em' }}>Running intelligence analysis...</div>
           </div>
@@ -6427,20 +6428,20 @@ function InvestigatorView({ userTier: _userTier, isMobile, setSidebarOpen, setAc
           <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
             {/* SOL Disclaimer */}
             <div style={{ background: 'rgba(201,168,76,0.06)', border: '1px solid rgba(201,168,76,0.2)', borderRadius: 8, padding: '12px 16px' }}>
-              <div style={{ fontSize: 12, color: '#8B7355', lineHeight: 1.6, fontFamily: crimson }}>
-                <strong style={{ color: G, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.06em' }}>SOL INTELLIGENCE ANALYSIS</strong>
+              <div style={{ fontSize: 12, color: isDark ? '#8B7355' : '#574B33', lineHeight: 1.6, fontFamily: crimson }}>
+                <strong style={{ color: isDark ? G : '#8B6914', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.06em' }}>SOL INTELLIGENCE ANALYSIS</strong>
                 {' '}— This report is generated by SOL from the WRI spirit database. Results are a starting point for discernment, not a definitive diagnosis. Always follow the Holy Spirit's leading. Deliverance ministry requires trained ministers, prayer, and pastoral oversight.
               </div>
             </div>
 
             <section style={{ background: 'rgba(201,168,76,0.06)', border: '1px solid rgba(201,168,76,0.2)', borderRadius: 10, padding: '20px 24px' }}>
-              <div style={{ fontSize: 10, color: '#8B7355', letterSpacing: '0.12em', textTransform: 'uppercase' as const, marginBottom: 10, fontFamily: cinzel }}>Intelligence Summary</div>
-              <p style={{ color: '#E8D5B0', fontSize: 16, lineHeight: 1.7, margin: 0, fontFamily: crimson }}>{invResult.summary}</p>
+              <div style={{ fontSize: 10, color: isDark ? '#8B7355' : '#574B33', letterSpacing: '0.12em', textTransform: 'uppercase' as const, marginBottom: 10, fontFamily: cinzel }}>Intelligence Summary</div>
+              <p style={{ color: isDark ? '#E8D5B0' : '#1F1B12', fontSize: 16, lineHeight: 1.7, margin: 0, fontFamily: crimson }}>{invResult.summary}</p>
             </section>
 
             {invResult.probableSpirits?.length > 0 && (
               <section>
-                <div style={{ fontSize: 10, color: '#8B7355', letterSpacing: '0.12em', textTransform: 'uppercase' as const, marginBottom: 12, fontFamily: cinzel }}>
+                <div style={{ fontSize: 10, color: isDark ? '#8B7355' : '#574B33', letterSpacing: '0.12em', textTransform: 'uppercase' as const, marginBottom: 12, fontFamily: cinzel }}>
                   Probable Entities ({invResult.probableSpirits.length})
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -6448,13 +6449,13 @@ function InvestigatorView({ userTier: _userTier, isMobile, setSidebarOpen, setAc
                     const conf = CONFIDENCE_COLORS[spirit.confidence] || CONFIDENCE_COLORS.Low
                     const cat  = HIERARCHY_COLORS[spirit.category]  || HIERARCHY_COLORS['General Oppression']
                     return (
-                      <div key={i} style={{ background: 'rgba(13,11,20,0.8)', border: `1px solid ${conf.border}`, borderLeft: `3px solid ${conf.border}`, borderRadius: 8, padding: '14px 18px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
+                      <div key={i} style={{ background: isDark ? 'rgba(13,11,20,0.8)' : '#FFFFFF', border: `1px solid ${conf.border}`, borderLeft: `3px solid ${conf.border}`, borderRadius: 8, padding: '14px 18px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
                         <div style={{ flex: 1 }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6, flexWrap: 'wrap' as const }}>
-                            <span style={{ fontFamily: cinzel, color: '#E8D5B0', fontSize: 15, fontWeight: 600 }}>{spirit.name}</span>
+                            <span style={{ fontFamily: cinzel, color: isDark ? '#E8D5B0' : '#1F1B12', fontSize: 15, fontWeight: 600 }}>{spirit.name}</span>
                             <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 999, backgroundColor: cat.bg, color: cat.text, border: `1px solid ${cat.border}`, fontFamily: cinzel, letterSpacing: '0.04em' }}>{spirit.category}</span>
                           </div>
-                          <p style={{ color: '#8B7355', fontSize: 13, margin: 0, lineHeight: 1.5, fontFamily: crimson }}>{spirit.reason}</p>
+                          <p style={{ color: isDark ? '#8B7355' : '#574B33', fontSize: 13, margin: 0, lineHeight: 1.5, fontFamily: crimson }}>{spirit.reason}</p>
                         </div>
                         <span style={{ fontSize: 11, padding: '3px 10px', borderRadius: 999, whiteSpace: 'nowrap' as const, backgroundColor: conf.bg, color: conf.text, border: `1px solid ${conf.border}`, fontFamily: cinzel }}>{spirit.confidence}</span>
                       </div>
@@ -6465,24 +6466,24 @@ function InvestigatorView({ userTier: _userTier, isMobile, setSidebarOpen, setAc
             )}
 
             {invResult.entryPoints?.length > 0 && (
-              <section style={{ background: 'rgba(13,11,20,0.6)', border: '1px solid rgba(201,168,76,0.15)', borderRadius: 10, padding: '20px 24px' }}>
-                <div style={{ fontSize: 10, color: '#8B7355', letterSpacing: '0.12em', textTransform: 'uppercase' as const, marginBottom: 12, fontFamily: cinzel }}>Likely Entry Points</div>
+              <section style={{ background: isDark ? 'rgba(13,11,20,0.6)' : '#FFFFFF', border: '1px solid rgba(201,168,76,0.15)', borderRadius: 10, padding: '20px 24px' }}>
+                <div style={{ fontSize: 10, color: isDark ? '#8B7355' : '#574B33', letterSpacing: '0.12em', textTransform: 'uppercase' as const, marginBottom: 12, fontFamily: cinzel }}>Likely Entry Points</div>
                 <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 8 }}>
                   {invResult.entryPoints.map((ep, i) => (
-                    <span key={i} style={{ fontSize: 13, padding: '4px 12px', borderRadius: 999, background: 'rgba(201,168,76,0.08)', color: G, border: '1px solid rgba(201,168,76,0.2)', fontFamily: crimson }}>{ep}</span>
+                    <span key={i} style={{ fontSize: 13, padding: '4px 12px', borderRadius: 999, background: 'rgba(201,168,76,0.08)', color: isDark ? G : '#8B6914', border: '1px solid rgba(201,168,76,0.2)', fontFamily: crimson }}>{ep}</span>
                   ))}
                 </div>
               </section>
             )}
 
             {invResult.deliveranceSequence?.length > 0 && (
-              <section style={{ background: 'rgba(13,11,20,0.6)', border: '1px solid rgba(201,168,76,0.15)', borderRadius: 10, padding: '20px 24px' }}>
-                <div style={{ fontSize: 10, color: '#8B7355', letterSpacing: '0.12em', textTransform: 'uppercase' as const, marginBottom: 14, fontFamily: cinzel }}>Suggested Deliverance Sequence</div>
+              <section style={{ background: isDark ? 'rgba(13,11,20,0.6)' : '#FFFFFF', border: '1px solid rgba(201,168,76,0.15)', borderRadius: 10, padding: '20px 24px' }}>
+                <div style={{ fontSize: 10, color: isDark ? '#8B7355' : '#574B33', letterSpacing: '0.12em', textTransform: 'uppercase' as const, marginBottom: 14, fontFamily: cinzel }}>Suggested Deliverance Sequence</div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                   {invResult.deliveranceSequence.map((step, i) => (
                     <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
-                      <span style={{ minWidth: 24, height: 24, borderRadius: '50%', background: 'rgba(201,168,76,0.15)', border: '1px solid rgba(201,168,76,0.3)', color: G, fontSize: 11, fontFamily: cinzel, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{i + 1}</span>
-                      <span style={{ color: '#E8D5B0', fontSize: 14, lineHeight: 1.6, paddingTop: 2, fontFamily: crimson }}>{step}</span>
+                      <span style={{ minWidth: 24, height: 24, borderRadius: '50%', background: 'rgba(201,168,76,0.15)', border: '1px solid rgba(201,168,76,0.3)', color: isDark ? G : '#8B6914', fontSize: 11, fontFamily: cinzel, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{i + 1}</span>
+                      <span style={{ color: isDark ? '#E8D5B0' : '#1F1B12', fontSize: 14, lineHeight: 1.6, paddingTop: 2, fontFamily: crimson }}>{step}</span>
                     </div>
                   ))}
                 </div>
@@ -6513,8 +6514,8 @@ function InvestigatorView({ userTier: _userTier, isMobile, setSidebarOpen, setAc
 
             {setActiveSection && invResult.probableSpirits?.length > 0 && (
               <div style={{ background: 'rgba(201,168,76,0.06)', border: '1px solid rgba(201,168,76,0.25)', borderRadius: 10, padding: '20px 24px', textAlign: 'center' as const }}>
-                <div style={{ fontFamily: cinzel, fontSize: 11, color: G, letterSpacing: '0.1em', marginBottom: 8 }}>⚔ READY FOR DELIVERANCE?</div>
-                <div style={{ fontFamily: crimson, fontSize: 14, color: '#8B7355', lineHeight: 1.6, marginBottom: 14 }}>
+                <div style={{ fontFamily: cinzel, fontSize: 11, color: isDark ? G : '#8B6914', letterSpacing: '0.1em', marginBottom: 8 }}>⚔ READY FOR DELIVERANCE?</div>
+                <div style={{ fontFamily: crimson, fontSize: 14, color: isDark ? '#8B7355' : '#574B33', lineHeight: 1.6, marginBottom: 14 }}>
                   Generate a complete session protocol for {invResult.probableSpirits[0].name} with legal grounds, prayers, and aftercare.
                 </div>
                 <button onClick={() => {
@@ -6531,7 +6532,7 @@ function InvestigatorView({ userTier: _userTier, isMobile, setSidebarOpen, setAc
               </div>
             )}
 
-            <p style={{ fontSize: 12, color: '#3a3228', textAlign: 'center' as const, lineHeight: 1.6, marginTop: 8, fontFamily: crimson }}>
+            <p style={{ fontSize: 12, color: isDark ? '#3a3228' : '#574B33', textAlign: 'center' as const, lineHeight: 1.6, marginTop: 8, fontFamily: crimson }}>
               This analysis is an intelligence aid for trained ministers. Always lead with prayer, discernment, and the Holy Spirit. This tool does not replace ministerial judgment.
             </p>
           </div>
@@ -6615,7 +6616,7 @@ function GatewayInvestigatorView({ theme, userTier: _userTier, isMobile, setSide
       <div style={{ maxWidth: 780, margin: '0 auto' }}>
         {isMobile && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
-            <button onClick={() => setSidebarOpen(true)} style={{ background: 'none', border: 'none', color: G, fontSize: 22, cursor: 'pointer', padding: '4px 8px', lineHeight: 1 }}>☰</button>
+            <button onClick={() => setSidebarOpen(true)} style={{ background: 'none', border: 'none', color: isDark ? G : '#8B6914', fontSize: 22, cursor: 'pointer', padding: '4px 8px', lineHeight: 1 }}>☰</button>
           </div>
         )}
 
@@ -6675,14 +6676,14 @@ function GatewayInvestigatorView({ theme, userTier: _userTier, isMobile, setSide
         {report && (
           <div style={{ marginTop: 24 }}>
             {/* Header */}
-            <div style={{ fontFamily: cinzel, fontSize: 13, color: G, letterSpacing: '0.08em', marginBottom: 20 }}>
+            <div style={{ fontFamily: cinzel, fontSize: 13, color: isDark ? G : '#8B6914', letterSpacing: '0.08em', marginBottom: 20 }}>
               GATEWAY INTELLIGENCE REPORT: {(report.spirit || spiritName || personContext.slice(0, 50)).toUpperCase()}
             </div>
 
             {/* Summary */}
             {report.summary && (
               <div style={{ padding: '16px 20px', marginBottom: 24, background: 'rgba(201,168,76,0.06)', border: '1px solid #3a3020', borderLeft: '3px solid #C9A84C', borderRadius: 6 }}>
-                <div style={{ fontFamily: cinzel, fontSize: 10, color: G, letterSpacing: '0.12em', marginBottom: 8 }}>INTELLIGENCE SUMMARY</div>
+                <div style={{ fontFamily: cinzel, fontSize: 10, color: isDark ? G : '#8B6914', letterSpacing: '0.12em', marginBottom: 8 }}>INTELLIGENCE SUMMARY</div>
                 <div style={{ fontFamily: "'Crimson Pro', serif", fontSize: 16, color: isDark ? '#a89878' : '#4a3a2a', lineHeight: 1.7 }}>
                   {report.summary}
                 </div>
@@ -6698,13 +6699,13 @@ function GatewayInvestigatorView({ theme, userTier: _userTier, isMobile, setSide
                   const isSessionQ = section.title?.toLowerCase().includes('session')
                   return (
                     <div key={i} style={{ padding: '16px 20px', background: isDark ? '#0a0807' : '#FAF8F5', border: `1px solid ${isSessionQ ? 'rgba(201,168,76,0.3)' : (isDark ? '#2a2218' : 'rgba(160,120,48,0.2)')}`, borderLeft: isSessionQ ? `3px solid ${G}` : undefined, borderRadius: 6 }}>
-                      <div style={{ fontFamily: cinzel, fontSize: 10, color: isSessionQ ? G : mut, letterSpacing: '0.1em', marginBottom: 12, textTransform: 'uppercase' as const }}>
+                      <div style={{ fontFamily: cinzel, fontSize: 10, color: isSessionQ ? (isDark ? G : '#8B6914') : mut, letterSpacing: '0.1em', marginBottom: 12, textTransform: 'uppercase' as const }}>
                         {isSessionQ ? '⚡ ' : ''}{section.title}
                       </div>
                       <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 6 }}>
                         {items.map((item: string, j: number) => (
                           <div key={j} style={{ fontFamily: "'Crimson Pro', serif", fontSize: 15, color: isSessionQ ? txt : (isDark ? '#8a7a60' : '#5a4a3a'), lineHeight: 1.65, paddingLeft: 12, borderLeft: `1px solid ${isDark ? '#2a2218' : 'rgba(160,120,48,0.15)'}`, fontStyle: isSessionQ ? 'italic' : 'normal' }}>
-                            {isSessionQ && <span style={{ color: G, marginRight: 6, fontStyle: 'normal' }}>{j + 1}.</span>}
+                            {isSessionQ && <span style={{ color: isDark ? G : '#8B6914', marginRight: 6, fontStyle: 'normal' }}>{j + 1}.</span>}
                             {item}
                           </div>
                         ))}
