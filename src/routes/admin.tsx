@@ -15219,7 +15219,6 @@ function EnrichmentHistory({ getToken, isDark }: { getToken: any; isDark: boolea
 function EnrichmentSuggestions({ getToken, isDark }: { getToken: any; isDark: boolean }) {
   const [suggestions, setSuggestions] = useState<any[]>([])
   const [loading, setLoading]         = useState(true)
-  const [filter, setFilter]           = useState<'all' | 'enrich' | 'add' | 'high'>('all')
   const [applying, setApplying]       = useState<Record<string, boolean>>({})
   const [cardErrors, setCardErrors]   = useState<Record<string, string>>({})
   const [editedFields, setEditedFields] = useState<Record<string, Record<string, string>>>({})
@@ -15227,12 +15226,59 @@ function EnrichmentSuggestions({ getToken, isDark }: { getToken: any; isDark: bo
   const [enrichEquivalents, setEnrichEquivalents] = useState<Record<string, any>>({})
   const [enrichEquivLoading, setEnrichEquivLoading] = useState<Record<string, boolean>>({})
 
+  // Filter state — all hooks before any conditional return
+  const [statusFilter, setStatusFilter]       = useState<'all'|'pending'|'applied'|'rejected'>('all')
+  const [search, setSearch]                   = useState('')
+  const [sourceFilter, setSourceFilter]       = useState<string>('all')
+  const [hasL2Only, setHasL2Only]             = useState(false)
+  const [hasBodyRegions, setHasBodyRegions]   = useState(false)
+  const [confBands, setConfBands]             = useState<string[]>([])
+  const [actionFilter, setActionFilter]       = useState<string>('all')
+  const [adversarialFilter, setAdversarialFilter] = useState<string>('all')
+
   const cinzel  = "'Cinzel', serif"
   const crimson = "'Crimson Pro', serif"
 
+  // Hydrate filter state from URL params on mount, then load data
   useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    if (params.has('status')) {
+      const s = params.get('status') || 'all'
+      if (['all','pending','applied','rejected'].includes(s)) setStatusFilter(s as 'all'|'pending'|'applied'|'rejected')
+    }
+    if (params.has('search')) setSearch(params.get('search') || '')
+    if (params.has('source')) setSourceFilter(params.get('source') || 'all')
+    if (params.get('hasL2') === '1') setHasL2Only(true)
+    if (params.get('hasBR') === '1') setHasBodyRegions(true)
+    if (params.has('conf')) setConfBands((params.get('conf') || '').split(',').filter(Boolean))
+    if (params.has('action') && params.get('action') !== 'all') setActionFilter(params.get('action') || 'all')
+    if (params.has('adv') && params.get('adv') !== 'all') setAdversarialFilter(params.get('adv') || 'all')
     loadSuggestions()
   }, [])
+
+  // Sync filter state → URL params (replaceState keeps back-button clean)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    params.set('tab', 'enrichment')
+    if (statusFilter !== 'all') params.set('status', statusFilter)
+    else params.delete('status')
+    if (search) params.set('search', search)
+    else params.delete('search')
+    if (sourceFilter !== 'all') params.set('source', sourceFilter)
+    else params.delete('source')
+    if (hasL2Only) params.set('hasL2', '1')
+    else params.delete('hasL2')
+    if (hasBodyRegions) params.set('hasBR', '1')
+    else params.delete('hasBR')
+    if (confBands.length > 0 && confBands.length < 3) params.set('conf', confBands.join(','))
+    else params.delete('conf')
+    if (actionFilter !== 'all') params.set('action', actionFilter)
+    else params.delete('action')
+    if (adversarialFilter !== 'all') params.set('adv', adversarialFilter)
+    else params.delete('adv')
+    const newSearch = params.toString()
+    history.replaceState(null, '', newSearch ? `${window.location.pathname}?${newSearch}` : window.location.pathname)
+  }, [statusFilter, search, sourceFilter, hasL2Only, hasBodyRegions, confBands, actionFilter, adversarialFilter])
 
   async function loadSuggestions() {
     setLoading(true)
@@ -15332,7 +15378,7 @@ function EnrichmentSuggestions({ getToken, isDark }: { getToken: any; isDark: bo
   }
 
   async function handleBulkApproveHigh() {
-    const high = suggestions.filter(s => s.confidence >= 7)
+    const high = suggestions.filter(s => s.confidence >= 70)
     for (const s of high) {
       await handleApply(s.id, 'approve')
     }
@@ -15344,16 +15390,47 @@ function EnrichmentSuggestions({ getToken, isDark }: { getToken: any; isDark: bo
     }
   }
 
-  const filtered = suggestions.filter(s => {
-    if (filter === 'enrich') return s.action === 'enrich'
-    if (filter === 'add')    return s.action === 'add'
-    if (filter === 'high')   return s.confidence >= 7
-    return true
-  })
+  // Derive filter options from loaded data
+  const sourcesInData = useMemo(
+    () => Array.from(new Set(suggestions.map((s: any) => s.book_title).filter(Boolean))) as string[],
+    [suggestions]
+  )
+  const actionsInData = useMemo(
+    () => Array.from(new Set(suggestions.map((s: any) => s.action).filter(Boolean))) as string[],
+    [suggestions]
+  )
+  const activeFilters = statusFilter !== 'all' || search.trim() !== '' || sourceFilter !== 'all' || hasL2Only || hasBodyRegions || confBands.length > 0 || actionFilter !== 'all' || adversarialFilter !== 'all'
 
-  const bdr  = isDark ? '#1e1a2e' : '#d4c9b8'
-  const gold = isDark ? '#C9A84C' : '#8B6914'
-  const dim  = isDark ? '#6b5e45' : '#7a6a50'
+  const filteredSuggestions = useMemo(() => {
+    const q = search.trim().toLowerCase()
+    return suggestions.filter((s: any) => {
+      if (statusFilter !== 'all' && s.status !== statusFilter) return false
+      if (q && !s.spirit_name?.toLowerCase().includes(q) && !s.book_title?.toLowerCase().includes(q)) return false
+      if (sourceFilter !== 'all' && s.book_title !== sourceFilter) return false
+      if (hasL2Only && !s.layer2_raw) return false
+      if (hasBodyRegions && !(s.layer2_raw?.layer5_body_regions?.length > 0)) return false
+      if (confBands.length > 0 && confBands.length < 3) {
+        const band = s.confidence >= 70 ? 'high' : s.confidence >= 40 ? 'mid' : 'low'
+        if (!confBands.includes(band)) return false
+      }
+      if (actionFilter !== 'all' && s.action !== actionFilter) return false
+      if (adversarialFilter === 'true'  && !s.is_adversarial) return false
+      if (adversarialFilter === 'false' &&  s.is_adversarial) return false
+      return true
+    })
+  }, [suggestions, statusFilter, search, sourceFilter, hasL2Only, hasBodyRegions, confBands, actionFilter, adversarialFilter])
+
+  // Color tokens — mirror SpiritCandidatesManager naming
+  const ESURF = isDark ? '#13111a' : '#fff'
+  const EBDR  = isDark ? 'rgba(201,168,76,0.2)' : 'rgba(139,105,20,0.25)'
+  const ETXT  = isDark ? '#e8e0d0' : '#2D2924'
+  const EMUT  = isDark ? '#9a8c74' : '#5C5248'
+  const EG    = isDark ? '#C9A84C' : '#604408'
+
+  // Aliases so existing card render code is unchanged
+  const bdr  = EBDR
+  const gold = EG
+  const dim  = EMUT
 
   if (loading) {
     return (
@@ -15380,7 +15457,7 @@ function EnrichmentSuggestions({ getToken, isDark }: { getToken: any; isDark: bo
         <div style={{ display: 'flex', gap: 10, marginBottom: 16 }}>
           <button onClick={handleBulkApproveHigh}
             style={{ padding: '7px 16px', background: 'rgba(58,106,58,0.15)', border: '1px solid #3a6a3a', borderRadius: 4, color: '#5a8a5a', fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: 'pointer' }}>
-            ✓ APPROVE ALL HIGH CONFIDENCE (≥7)
+            ✓ APPROVE ALL HIGH CONFIDENCE (≥70%)
           </button>
           <button onClick={handleBulkRejectAll}
             style={{ padding: '7px 16px', background: 'transparent', border: `1px solid ${bdr}`, borderRadius: 4, color: '#6b4040', fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: 'pointer' }}>
@@ -15393,24 +15470,103 @@ function EnrichmentSuggestions({ getToken, isDark }: { getToken: any; isDark: bo
         </div>
       )}
 
-      {/* Filter pills */}
-      <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
-        {(['all', 'enrich', 'add', 'high'] as const).map(f => (
-          <button key={f} onClick={() => setFilter(f)}
-            style={{ padding: '5px 14px', background: filter === f ? 'rgba(201,168,76,0.12)' : 'transparent', border: `1px solid ${filter === f ? gold : bdr}`, borderRadius: 20, color: filter === f ? gold : dim, fontFamily: cinzel, fontSize: 8, letterSpacing: '0.1em', cursor: 'pointer' }}>
-            {f === 'all' ? `ALL (${suggestions.length})` : f === 'enrich' ? `ENRICH EXISTING (${suggestions.filter(s => s.action === 'enrich').length})` : f === 'add' ? `ADD NEW (${suggestions.filter(s => s.action === 'add').length})` : `HIGH CONFIDENCE (${suggestions.filter(s => s.confidence >= 7).length})`}
-          </button>
+      {/* Filter row 1: Status chips + search */}
+      <div style={{ display: 'flex', gap: 6, marginBottom: 8, flexWrap: 'wrap' as const, alignItems: 'center' }}>
+        {(['all','pending','applied','rejected'] as const).map(f => (
+          <button key={f} onClick={() => setStatusFilter(f)}
+            style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', padding: '5px 12px', borderRadius: 4, border: `1px solid ${statusFilter === f ? EG : EBDR}`, background: statusFilter === f ? 'rgba(201,168,76,0.1)' : 'transparent', color: statusFilter === f ? EG : EMUT, cursor: 'pointer', textTransform: 'capitalize' as const }}
+          >{f}</button>
         ))}
+        <input
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          placeholder="Search name or book..."
+          style={{ background: ESURF, border: `1px solid ${EBDR}`, borderRadius: 5, padding: '5px 10px', color: ETXT, fontFamily: crimson, fontSize: 13, outline: 'none', width: 200 }}
+        />
       </div>
 
-      {filtered.length === 0 && (
-        <div style={{ textAlign: 'center', padding: 60, fontFamily: cinzel, fontSize: 11, color: dim, letterSpacing: '0.1em' }}>
-          {suggestions.length === 0 ? 'No pending suggestions. Run "🔗 GENERATE SUGGESTIONS" from a book in Min. Library.' : 'No suggestions match this filter.'}
+      {/* Filter row 2: Source, Layer 2, Body Regions, confidence, action, adversarial */}
+      <div style={{ display: 'flex', gap: 6, marginBottom: 6, flexWrap: 'wrap' as const, alignItems: 'center' }}>
+        {/* Source dropdown */}
+        <select
+          value={sourceFilter}
+          onChange={e => setSourceFilter(e.target.value)}
+          style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.06em', padding: '5px 10px', borderRadius: 4, border: `1px solid ${sourceFilter !== 'all' ? EG : EBDR}`, background: ESURF, color: sourceFilter !== 'all' ? EG : EMUT, cursor: 'pointer', outline: 'none' }}
+        >
+          <option value="all">All Sources</option>
+          {sourcesInData.map(s => <option key={s} value={s}>{s.length > 40 ? s.slice(0, 40) + '…' : s}</option>)}
+        </select>
+
+        {/* Has Layer 2 toggle */}
+        <button
+          onClick={() => setHasL2Only(v => !v)}
+          style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.06em', padding: '5px 12px', borderRadius: 4, border: `1px solid ${hasL2Only ? EG : EBDR}`, background: hasL2Only ? 'rgba(201,168,76,0.12)' : 'transparent', color: hasL2Only ? EG : EMUT, cursor: 'pointer' }}
+        >&#10022; Has Layer 2</button>
+
+        {/* Has Body Regions toggle */}
+        <button
+          onClick={() => setHasBodyRegions(v => !v)}
+          style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.06em', padding: '5px 12px', borderRadius: 4, border: `1px solid ${hasBodyRegions ? EG : EBDR}`, background: hasBodyRegions ? 'rgba(201,168,76,0.12)' : 'transparent', color: hasBodyRegions ? EG : EMUT, cursor: 'pointer' }}
+        >&#10022; Has Body Regions</button>
+
+        {/* Confidence band chips */}
+        {(['high','mid','low'] as const).map(band => {
+          const active = confBands.includes(band)
+          const label = band === 'high' ? '≥70%' : band === 'mid' ? '40–69%' : '<40%'
+          return (
+            <button key={band}
+              onClick={() => setConfBands(prev => active ? prev.filter(b => b !== band) : [...prev, band])}
+              style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.06em', padding: '5px 10px', borderRadius: 4, border: `1px solid ${active ? EG : EBDR}`, background: active ? 'rgba(201,168,76,0.12)' : 'transparent', color: active ? EG : EMUT, cursor: 'pointer' }}
+            >{band.toUpperCase()} {label}</button>
+          )
+        })}
+
+        {/* Action dropdown — only shown when multiple actions present in data */}
+        {actionsInData.length > 1 && (
+          <select
+            value={actionFilter}
+            onChange={e => setActionFilter(e.target.value)}
+            style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.06em', padding: '5px 10px', borderRadius: 4, border: `1px solid ${actionFilter !== 'all' ? EG : EBDR}`, background: ESURF, color: actionFilter !== 'all' ? EG : EMUT, cursor: 'pointer', outline: 'none' }}
+          >
+            <option value="all">All Actions</option>
+            {actionsInData.map(a => <option key={a} value={a}>{a}</option>)}
+          </select>
+        )}
+
+        {/* Adversarial three-state */}
+        {(['all','false','true'] as const).map(v => {
+          const label = v === 'all' ? 'All' : v === 'true' ? 'Adversarial' : 'Non-adversarial'
+          const active = adversarialFilter === v
+          return (
+            <button key={v}
+              onClick={() => setAdversarialFilter(v)}
+              style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.06em', padding: '5px 10px', borderRadius: 4, border: `1px solid ${active ? EG : EBDR}`, background: active ? 'rgba(201,168,76,0.12)' : 'transparent', color: active ? EG : EMUT, cursor: 'pointer' }}
+            >{label}</button>
+          )
+        })}
+      </div>
+
+      {/* Showing-N-of-M counter */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
+        <span style={{ fontFamily: cinzel, fontSize: 8, color: EMUT, letterSpacing: '0.1em' }}>
+          SHOWING {filteredSuggestions.length} OF {suggestions.length}
+        </span>
+        {activeFilters && (
+          <button
+            onClick={() => { setStatusFilter('all'); setSearch(''); setSourceFilter('all'); setHasL2Only(false); setHasBodyRegions(false); setConfBands([]); setActionFilter('all'); setAdversarialFilter('all') }}
+            style={{ fontFamily: cinzel, fontSize: 8, color: '#f87171', background: 'none', border: 'none', cursor: 'pointer', letterSpacing: '0.06em', padding: 0 }}
+          >× Clear filters</button>
+        )}
+      </div>
+
+      {filteredSuggestions.length === 0 && (
+        <div style={{ textAlign: 'center', padding: 60, fontFamily: cinzel, fontSize: 11, color: EMUT, letterSpacing: '0.1em' }}>
+          {suggestions.length === 0 ? 'No pending suggestions. Run "🔗 GENERATE SUGGESTIONS" from a book in Min. Library.' : 'No suggestions match the current filter.'}
         </div>
       )}
 
       {/* Cards */}
-      {filtered.map(s => (
+      {filteredSuggestions.map(s => (
         <div key={s.id} style={{ padding: '16px 20px', marginBottom: 10, background: isDark ? '#0a0807' : '#faf6f0', border: `1px solid ${s.action === 'add' ? '#3a2020' : '#1e2a1e'}`, borderLeft: `3px solid ${s.action === 'add' ? '#8B3232' : '#3a6a3a'}`, borderRadius: 6 }}>
           {/* Card header */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
