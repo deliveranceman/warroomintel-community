@@ -97,10 +97,30 @@ Requirements: 3-5 legal grounds, 2-3 renunciation prayers, 2-3 command prayers, 
     }
 
     const aiData = await aiRes.json() as any
-    const responseText = aiData.content?.find((b: any) => b.type === 'text')?.text ?? ''
-    const jsonMatch = responseText.match(/\{[\s\S]*\}/)
-    if (!jsonMatch) throw new Error('No JSON in response')
-    const protocol = JSON.parse(jsonMatch[0])
+    const rawText = aiData.content?.find((b: any) => b.type === 'text')?.text ?? ''
+
+    // Strip ```json ... ``` fences, normalize smart quotes, then extract the JSON object.
+    const stripped = rawText
+      .replace(/^```json\s*/i, '')
+      .replace(/^```\s*/i, '')
+      .replace(/\s*```\s*$/, '')
+      .replace(/[‘’]/g, "'")
+      .replace(/[“”]/g, '"')
+      .trim()
+
+    const jsonMatch = stripped.match(/\{[\s\S]*\}/)
+    if (!jsonMatch) {
+      console.error('[deliverance-protocol] No JSON object found. Raw prefix:', rawText.slice(0, 300))
+      throw new Error('No JSON in response')
+    }
+
+    let protocol: any
+    try {
+      protocol = JSON.parse(jsonMatch[0])
+    } catch (parseErr: any) {
+      console.error('[deliverance-protocol] JSON.parse failed:', parseErr.message, '— raw prefix:', rawText.slice(0, 300))
+      throw new Error(`JSON parse failed: ${parseErr.message}`)
+    }
 
     return new Response(JSON.stringify({ protocol, arsenalResources: [], spiritData: spiritData || null }), { headers: HEADERS })
   } catch (e: any) {
