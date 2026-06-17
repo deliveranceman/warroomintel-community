@@ -200,6 +200,29 @@ Return only the improved field text. No labels, no preamble, no explanation. If 
       if (suggestion.action === 'enrich') {
         let row: any = null
 
+        // Pre-flight variant guard — runs BEFORE any spirit lookup so a slug
+        // collision with a similarly-named existing spirit cannot bypass it.
+        // A variant-flagged candidate means the operator has not yet decided
+        // merge-vs-create; no approve path should run until that is resolved.
+        {
+          const pfSafe = suggestion.spirit_name.replace(/[%_\\]/g, '\\$&')
+          const { data: pfRows } = await supabase
+            .from('spirit_candidates')
+            .select('id, name, possible_duplicate_of')
+            .ilike('name', pfSafe)
+            .eq('status', 'pending')
+            .limit(10)
+          const flagged = (pfRows || []).find(
+            (c: any) => c.possible_duplicate_of !== null && c.possible_duplicate_of !== undefined && c.possible_duplicate_of !== ''
+          )
+          if (flagged) {
+            return new Response(JSON.stringify({
+              error:   'variant_unresolved',
+              message: `Resolve variant flag for ${flagged.name} before approving enrichment. Open Spirit Candidates → resolve merge-vs-create first.`,
+            }), { status: 409, headers: CORS })
+          }
+        }
+
         // 1. Stored slug (existing_record_id) — set by classifier, most precise
         if (suggestion.existing_record_id) {
           const { data } = await supabase.from('spirits').select('*').eq('slug', suggestion.existing_record_id).limit(1)
