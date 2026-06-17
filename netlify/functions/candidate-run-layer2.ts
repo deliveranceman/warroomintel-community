@@ -51,17 +51,75 @@ export default async function handler(req: Request) {
     )
   }
 
-  // Find chunks in the linked resource that mention this spirit
-  const { data: chunks } = await client
-    .from('library_chunks')
-    .select('chunk_text, book_title')
-    .eq('book_id', candidate.source_id)
-    .ilike('chunk_text', `%${candidate.name}%`)
-    .limit(5)
-
-  if (!chunks || chunks.length === 0) {
+  // Generate embedding for the candidate name then vector-search globally,
+  // then post-filter to the candidate's linked book. Over-fetch (match_count 30)
+  // because the RPC has no book_id filter — most global hits may be in other books.
+  const OPENAI_KEY = process.env.OPENAI_API_KEY || ''
+  if (!OPENAI_KEY) {
     return new Response(
-      JSON.stringify({ error: 'no_chunks_found', detail: 'No source chunks mention this name in the linked resource' }),
+      JSON.stringify({ error: 'config_error', detail: 'OPENAI_API_KEY not configured' }),
+      { status: 500, headers: CORS }
+    )
+  }
+
+  const embRes = await fetch('https://api.openai.com/v1/embeddings', {
+    method:  'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${OPENAI_KEY}` },
+    body:    JSON.stringify({ model: 'text-embedding-3-small', input: [candidate.name] }),
+    signal:  AbortSignal.timeout(5000),
+  })
+  if (!embRes.ok) {
+    return new Response(
+      JSON.stringify({ error: 'embedding_failed', detail: `OpenAI embeddings returned ${embRes.status}` }),
+      { status: 500, headers: CORS }
+    )
+  }
+  const embData      = await embRes.json()
+  const queryEmbedding = embData.data?.[0]?.embedding
+  if (!queryEmbedding) {
+    return new Response(
+      JSON.stringify({ error: 'embedding_failed', detail: 'No embedding returned from OpenAI' }),
+      { status: 500, headers: CORS }
+    )
+  }
+
+  // Wider threshold (0.55 vs spiritEnrich's 0.65) + over-fetch so in-book matches survive post-filter
+  const { data: rpcMatches, error: rpcErr } = await client.rpc('match_library_chunks', {
+    query_embedding: queryEmbedding,
+    match_threshold: 0.55,
+    match_count:     30,
+  })
+  if (rpcErr) {
+    return new Response(
+      JSON.stringify({ error: 'rag_failed', detail: rpcErr.message }),
+      { status: 500, headers: CORS }
+    )
+  }
+
+  // Post-filter to the candidate's linked book, preserving RPC similarity ranking
+  const matchedIds = (rpcMatches || []).map((m: any) => m.id)
+  let chunks: Array<{ chunk_text: string; book_title: string }> = []
+  if (matchedIds.length > 0) {
+    const { data: bookFiltered } = await client
+      .from('library_chunks')
+      .select('id, chunk_text, book_title')
+      .in('id', matchedIds)
+      .eq('book_id', candidate.source_id)
+
+    const orderById = new Map<string, number>()
+    ;(rpcMatches || []).forEach((m: any, idx: number) => orderById.set(m.id, idx))
+    chunks = (bookFiltered || [])
+      .sort((a: any, b: any) => (orderById.get(a.id) ?? 999) - (orderById.get(b.id) ?? 999))
+      .slice(0, 5)
+      .map((c: any) => ({ chunk_text: c.chunk_text, book_title: c.book_title }))
+  }
+
+  if (chunks.length === 0) {
+    return new Response(
+      JSON.stringify({
+        error:  'no_chunks_found',
+        detail: 'No semantically relevant chunks found in the linked resource',
+      }),
       { status: 404, headers: CORS }
     )
   }
