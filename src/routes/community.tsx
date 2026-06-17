@@ -4200,7 +4200,7 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier, dem
               const isAll = cat === 'All'
               const active = isAll ? !categoryFilter : categoryFilter === cat
               const colors = isAll
-                ? { bg: '#1a1625', text: '#C9A84C', border: '#C9A84C' }
+                ? { bg: dbIsDark ? '#1a1625' : 'rgba(165,125,31,0.10)', text: dbIsDark ? '#C9A84C' : '#604408', border: dbIsDark ? '#C9A84C' : '#A57D1F' }
                 : getHierarchyColors(cat, dbIsDark)
               return (
                 <button
@@ -5513,7 +5513,7 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier, dem
                   const isAll = cat === 'All'
                   const active = isAll ? !categoryFilter : categoryFilter === cat
                   const colors = isAll
-                    ? { text: '#C9A84C', border: '#C9A84C' }
+                    ? { text: dbIsDark ? '#C9A84C' : '#604408', border: dbIsDark ? '#C9A84C' : '#A57D1F' }
                     : getHierarchyColors(cat, dbIsDark)
                   return (
                     <button key={cat} onClick={() => setCategoryFilter(isAll ? null : cat)}
@@ -5794,12 +5794,28 @@ function ArsenalView({ theme, userTier, isMobile, setSidebarOpen, filterSheetOpe
     'image/jpeg': '🖼️',
   }
 
-  const TIER_COLORS: Record<string, string> = {
-    Free:      'rgba(148,163,184,0.85)',
-    Watchman:  'rgba(148,163,184,0.85)',
-    Soldier:   'rgba(201,168,76,0.9)',
-    Commander: 'rgba(251,146,60,0.9)',
-    General:   'rgba(167,139,250,0.9)',
+  // Hex (not rgba) so `${tc}18` / `${tc}35` alpha-concat produces valid 8-digit hex colors.
+  const TIER_COLORS_DARK: Record<string, string> = {
+    free:       '#94A3B8',
+    watchman:   '#94A3B8',
+    soldier:    '#C9A84C',
+    commander:  '#FB923C',
+    general:    '#A78BFA',
+    minister:   '#F87171',
+    commandant: '#FBBF24',
+  }
+  const TIER_COLORS_LIGHT: Record<string, string> = {
+    free:       '#475569',
+    watchman:   '#475569',
+    soldier:    '#604408',
+    commander:  '#9A3412',
+    general:    '#5E3E8C',
+    minister:   '#9C2828',
+    commandant: '#8B5A00',
+  }
+  const getTierColor = (tier: string, isDark: boolean) => {
+    const map = isDark ? TIER_COLORS_DARK : TIER_COLORS_LIGHT
+    return map[tier?.toLowerCase()] || (isDark ? '#C9A84C' : '#604408')
   }
   const TIER_ORDER: Record<string, number> = { free: 0, watchman: 0, soldier: 1, commander: 2, general: 3 }
 
@@ -5849,7 +5865,7 @@ function ArsenalView({ theme, userTier, isMobile, setSidebarOpen, filterSheetOpe
   const ResourceRow = ({ resource, isSelected, onToggle, showDescription }: { resource: any; isSelected?: boolean; onToggle?: (id: string) => void; showDescription?: boolean }) => {
     const accessRequired = resource.access_tier ? (ACCESS_TIERS_ORDER[resource.access_tier] ?? 0) : tierLvl(resource.tier)
     const hasAccess  = userAccessLevel >= accessRequired
-    const tc         = TIER_COLORS[resource.tier] || G
+    const tc         = getTierColor(resource.tier, isDark)
     const isExp      = expandedId === resource.id
     const tierLabel  = (resource.tier === 'free' || resource.tier === 'Free') ? 'Watchman' : resource.tier
 
@@ -5906,10 +5922,10 @@ function ArsenalView({ theme, userTier, isMobile, setSidebarOpen, filterSheetOpe
             {hasAccess
               ? resource.file_url
                 ? <a href={resource.file_url} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()}
-                    style={{ background: 'rgba(201,168,76,0.12)', border: '1px solid rgba(201,168,76,0.3)', borderRadius: 5, padding: '4px 10px', fontFamily: cinzel, fontSize: 8, color: isDark ? G : '#8B6914', textDecoration: 'none', letterSpacing: '0.06em', whiteSpace: 'nowrap' as const }}>View</a>
+                    style={{ background: isDark ? 'rgba(201,168,76,0.12)' : 'rgba(96,68,8,0.10)', border: isDark ? '1px solid rgba(201,168,76,0.3)' : '1px solid rgba(96,68,8,0.35)', borderRadius: 5, padding: '4px 10px', fontFamily: cinzel, fontSize: 8, color: isDark ? G : '#604408', textDecoration: 'none', letterSpacing: '0.06em', whiteSpace: 'nowrap' as const }}>View</a>
                 : null
               : <button onClick={e => { e.stopPropagation(); beginUpgrade(resource.tier) }}
-                  style={{ background: 'transparent', border: `1px solid rgba(201,168,76,0.3)`, borderRadius: 5, padding: '4px 10px', fontFamily: cinzel, fontSize: 8, color: isDark ? G : '#8B6914', cursor: 'pointer', letterSpacing: '0.06em', whiteSpace: 'nowrap' as const }}>🔒</button>
+                  style={{ background: isDark ? 'transparent' : 'rgba(96,68,8,0.10)', border: isDark ? '1px solid rgba(201,168,76,0.3)' : '1px solid rgba(96,68,8,0.35)', borderRadius: 5, padding: '4px 10px', fontFamily: cinzel, fontSize: 8, color: isDark ? G : '#604408', cursor: 'pointer', letterSpacing: '0.06em', whiteSpace: 'nowrap' as const }}>🔒</button>
             }
           </div>
         </div>
