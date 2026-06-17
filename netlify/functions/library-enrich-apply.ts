@@ -195,6 +195,7 @@ Return only the improved field text. No labels, no preamble, no explanation. If 
     // Only the spirit row read/write moves; the suggestion-status updates and
     // enrichment_rejected insert stay on Supabase regardless.
     let regionApplyResult: any = null
+    let bootstrappedSpiritId: string | null = null
     if (USE_SUPABASE_DEMON_WRITES) {
       if (suggestion.action === 'enrich') {
         let row: any = null
@@ -221,7 +222,75 @@ Return only the improved field text. No labels, no preamble, no explanation. If 
         }
 
         if (!row) {
-          return new Response(JSON.stringify({ error: `Spirit not found in Supabase for "${suggestion.spirit_name}"` }), { status: 404, headers: CORS })
+          // Path C: spirit row missing — look for a matching pending candidate to bootstrap from
+          const safeCandidateName = suggestion.spirit_name.replace(/[%_\\]/g, '\\$&')
+          const { data: candidateRows } = await supabase
+            .from('spirit_candidates')
+            .select('*')
+            .ilike('name', safeCandidateName)
+            .eq('status', 'pending')
+            .limit(1)
+          const candidate = candidateRows && candidateRows.length > 0 ? candidateRows[0] : null
+
+          if (!candidate) {
+            return new Response(
+              JSON.stringify({ error: `No spirit or candidate matches '${suggestion.spirit_name}'.` }),
+              { status: 404, headers: CORS }
+            )
+          }
+
+          if (candidate.possible_duplicate_of !== null && candidate.possible_duplicate_of !== undefined) {
+            return new Response(
+              JSON.stringify({
+                error: 'variant_unresolved',
+                message: `Resolve variant flag for ${candidate.name} before approving enrichment. Open Spirit Candidates → resolve merge-vs-create first.`,
+              }),
+              { status: 409, headers: CORS }
+            )
+          }
+
+          // Bootstrap: create spirit from candidate fields — same mapping as spirit-candidate-confirm.ts
+          const bootstrapFields = {
+            name:             candidate.name,
+            aka:              candidate.also_known_as,
+            description:      candidate.function,
+            manifestation:    candidate.manifestations,
+            scriptureContext: candidate.scripture_context,
+            kingdom:          candidate.kingdom,
+            biblicalRank:     candidate.biblical_rank,
+            subKingdom:       candidate.sub_kingdom,
+            sourceOrigin:     candidate.source_name,
+          }
+          const { record: newRecord, error: createErr } = await createSpirit(supabase, bootstrapFields)
+          if (createErr || !newRecord) {
+            return new Response(JSON.stringify({ error: `Bootstrap spirit create failed: ${createErr || 'unknown'}` }), { status: 500, headers: CORS })
+          }
+
+          // Per-field snapshots for the bootstrapped fields (non-blocking, same as spirit-candidate-confirm.ts)
+          const bsSnapErr = await insertFieldSnapshots(
+            supabase,
+            { id: newRecord.id, name: newRecord.name },
+            toColumns(bootstrapFields),
+            { jobId: null, appliedBy: auth.userId, source: 'enrich' },
+          )
+          if (bsSnapErr) console.error('[library-enrich-apply] bootstrap snapshot failed:', bsSnapErr)
+
+          // Fetch raw snake_case row so the enrich merge logic below can read column values
+          const { data: rawRows } = await supabase.from('spirits').select('*').eq('slug', newRecord.slug).limit(1)
+          if (!rawRows || rawRows.length === 0) {
+            return new Response(JSON.stringify({ error: 'Bootstrap spirit created but not readable — contact support' }), { status: 500, headers: CORS })
+          }
+          row = rawRows[0]
+
+          // Mark candidate approved — same fields as spirit-candidate-confirm.ts
+          await supabase.from('spirit_candidates').update({
+            status:             'approved',
+            airtable_record_id: newRecord.slug,
+            reviewed_at:        new Date().toISOString(),
+            reviewed_by:        auth.userId,
+          }).eq('id', candidate.id)
+
+          bootstrappedSpiritId = newRecord.id as string
         }
         // Normalize the Airtable-named proposed fields to snake columns, then
         // apply the SAME merge: empty current → set; non-empty → append '\n\n'.
@@ -326,7 +395,7 @@ Return only the improved field text. No labels, no preamble, no explanation. If 
       .update({ status: 'applied', applied_at: new Date().toISOString() })
       .eq('id', suggestionId)
 
-    return new Response(JSON.stringify({ success: true, action: 'approved', spiritName: suggestion.spirit_name, regionApply: regionApplyResult }), { status: 200, headers: CORS })
+    return new Response(JSON.stringify({ success: true, action: 'approved', spiritName: suggestion.spirit_name, regionApply: regionApplyResult, ...(bootstrappedSpiritId ? { bootstrappedSpiritId } : {}) }), { status: 200, headers: CORS })
   } catch (e: any) {
     console.error('[ENRICH-APPLY] Error:', e.message)
     return new Response(JSON.stringify({ error: e.message }), { status: 500, headers: CORS })
