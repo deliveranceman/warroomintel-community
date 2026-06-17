@@ -3,6 +3,7 @@ import { requireAuth } from './_shared/access'
 import { generateSlug, toColumns, createSpirit, findSpiritSlugByName, insertFieldSnapshots } from './_shared/spiritWrite'
 import { solCall } from './_shared/solClient'
 import { LAYER2_FIELD_GENERATION_SYSTEM } from './_shared/prompts/layer2Extraction'
+import { applySpiritRegions } from './_shared/applySpiritRegions'
 
 const { url: supabaseUrl, serviceRoleKey: supabaseServiceKey } = JSON.parse(process.env.SUPABASE || '{}')
 const { token: airtableToken } = JSON.parse(process.env.AIRTABLE || '{}')
@@ -193,6 +194,7 @@ Return only the improved field text. No labels, no preamble, no explanation. If 
     // ── Supabase demon-base write path (flag-on) ─────────────────────────────
     // Only the spirit row read/write moves; the suggestion-status updates and
     // enrichment_rejected insert stay on Supabase regardless.
+    let regionApplyResult: any = null
     if (USE_SUPABASE_DEMON_WRITES) {
       if (suggestion.action === 'enrich') {
         let row: any = null
@@ -241,6 +243,16 @@ Return only the improved field text. No labels, no preamble, no explanation. If 
           }
           const { error: upErr } = await supabase.from('spirits').update(merged).eq('slug', row.slug)
           if (upErr) return new Response(JSON.stringify({ error: `Supabase update failed: ${upErr.message}` }), { status: 500, headers: CORS })
+        }
+
+        // Body-region fan-out — non-blocking; failure does not abort approval
+        const regionPayloads = (suggestion.layer2_raw?.layer5_body_regions ?? []) as any[]
+        if (regionPayloads.length > 0) {
+          try {
+            regionApplyResult = await applySpiritRegions(supabase, row.id, regionPayloads, suggestionId)
+          } catch (rErr: any) {
+            console.error('[library-enrich-apply] region fan-out failed:', rErr.message)
+          }
         }
       } else if (suggestion.action === 'add') {
         const { error: createErr } = await createSpirit(supabase, proposedFields, suggestion.spirit_name)
@@ -314,7 +326,7 @@ Return only the improved field text. No labels, no preamble, no explanation. If 
       .update({ status: 'applied', applied_at: new Date().toISOString() })
       .eq('id', suggestionId)
 
-    return new Response(JSON.stringify({ success: true, action: 'approved', spiritName: suggestion.spirit_name }), { status: 200, headers: CORS })
+    return new Response(JSON.stringify({ success: true, action: 'approved', spiritName: suggestion.spirit_name, regionApply: regionApplyResult }), { status: 200, headers: CORS })
   } catch (e: any) {
     console.error('[ENRICH-APPLY] Error:', e.message)
     return new Response(JSON.stringify({ error: e.message }), { status: 500, headers: CORS })

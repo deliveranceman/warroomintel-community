@@ -109,13 +109,13 @@ export default async function handler(req: Request) {
     if (!region) return json({ error: 'Region not found' }, 404)
 
     const { data: corrs } = await client
-      .from('spirit_region_correlations')
-      .select('spirit_name, scripture_reference, correlation_strength')
+      .from('spirit_regions')
+      .select('spirit:spirits!spirit_id(name), scripture_reference, correlation_strength')
       .eq('region_key', regionKey)
       .order('correlation_strength', { ascending: false })
       .limit(8)
 
-    const spirits    = (corrs || []).map((c: any) => c.spirit_name).filter(Boolean)
+    const spirits    = (corrs || []).map((c: any) => (c.spirit as any)?.name).filter(Boolean)
     const scriptures = (corrs || []).map((c: any) => c.scripture_reference).filter(Boolean)
 
     try {
@@ -167,10 +167,10 @@ export default async function handler(req: Request) {
       .single()
     if (rErr || !region) return json({ error: 'Region not found' }, 404)
 
-    const [{ data: corrs }, { data: condRows }] = await Promise.all([
+    const [{ data: rawCorrs }, { data: condRows }] = await Promise.all([
       client
-        .from('spirit_region_correlations')
-        .select('*')
+        .from('spirit_regions')
+        .select('*, spirit:spirits!spirit_id(id, name)')
         .eq('region_key', key)
         .order('correlation_strength', { ascending: false }),
       client
@@ -179,7 +179,7 @@ export default async function handler(req: Request) {
         .eq('region_key', key),
     ])
 
-    const correlations = corrs || []
+    const correlations = (rawCorrs || []).map((c: any) => ({ ...c, spirit_name: c.spirit?.name ?? null }))
     const scriptures = correlations
       .filter((c: any) => c.scripture_reference)
       .map((c: any) => ({ spirit_name: c.spirit_name, reference: c.scripture_reference }))
@@ -219,7 +219,7 @@ export default async function handler(req: Request) {
   const [{ data: systems }, { data: regions }, { data: corrCounts }, { data: condCounts }] = await Promise.all([
     client.from('body_systems').select('*'),
     client.from('anatomy_regions').select('*, region_systems(system_key)').eq('active', true).order('sort_order', { ascending: true }),
-    client.from('spirit_region_correlations').select('region_key'),
+    client.from('spirit_regions').select('region_key'),
     client.from('condition_regions').select('region_key'),
   ])
 

@@ -2,8 +2,7 @@
 // Given a spirit UUID and free-text region payloads, resolves each to
 // canonical region_keys and INSERTs into spirit_regions.
 //
-// NOT imported by any endpoint yet — scaffolding only. Wire into
-// spirit-candidate-confirm.ts and library-enrich-apply.ts in tomorrow's prompt.
+// Called from library-enrich-apply.ts on LES approve.
 
 import { resolveRegion } from './regionVocabulary'
 
@@ -32,7 +31,7 @@ export async function applySpiritRegions(
   client:       any,    // service-role Supabase client (caller provides)
   spiritId:     string, // canonical spirit UUID (must exist in spirits table)
   payloads:     RegionPayload[],
-  suggestionId: string  // library_enrichment_suggestions.id — audit handle
+  suggestionId: string  // library_enrichment_suggestions.id → source_suggestion_id FK
 ): Promise<ApplyRegionsResult> {
   const result: ApplyRegionsResult = {
     inserted:          [],
@@ -68,23 +67,16 @@ export async function applySpiritRegions(
 
     // Insert one row per resolved region_key
     for (const region_key of regionKeys) {
-      // Build notes string — combines excerpt with LES audit handle.
-      // TODO: when spirit_regions gains a source_suggestion_id uuid FK column,
-      // replace this notes-based audit handle with a proper FK write.
-      const notesParts: string[] = []
-      if (payload.excerpt) notesParts.push(payload.excerpt.trim())
-      notesParts.push(`[from LES: ${suggestionId}]`)
-      const notes = notesParts.join(' ')
-
       const { data: inserted, error: insertErr } = await client
         .from('spirit_regions')
         .insert({
-          spirit_id:           spiritId,
+          spirit_id:            spiritId,
           region_key,
-          correlation_strength: payload.confidence ?? null,
-          manifestation_type:  payload.symptom   ?? null,
-          notes,
-          scripture_reference: null,
+          correlation_strength: payload.confidence   ?? null,
+          manifestation_type:   payload.symptom      ?? null,
+          notes:                payload.excerpt       ?? null,
+          scripture_reference:  null,
+          source_suggestion_id: suggestionId,
         })
         .select('id')
         .single()
