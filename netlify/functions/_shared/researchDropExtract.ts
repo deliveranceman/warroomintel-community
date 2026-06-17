@@ -287,6 +287,7 @@ export async function runResearchDropSpirits(client: any, job: any): Promise<voi
         if (existingSugg) { dupeSkipped++; continue }
 
         let proposedFields: Record<string, any> = {}
+        let layer2RawOutput: any = null
         if (mention.context) {
           try {
             const extraction = await extractSpiritFromSource({
@@ -304,7 +305,8 @@ export async function runResearchDropSpirits(client: any, job: any): Promise<voi
             totalInputTokens  += extraction.meta.inputTokens
             totalOutputTokens += extraction.meta.outputTokens
             totalCostUsd      += extraction.meta.costUsd
-            proposedFields = layer2ToProposedFields(extraction.output)
+            proposedFields  = layer2ToProposedFields(extraction.output)
+            layer2RawOutput = extraction.output
             console.log(`[research-drop] Layer2 ${mention.name}: ${Object.keys(proposedFields).length} fields, completeness=${extraction.output._meta.extraction_completeness}`)
           } catch (e: any) {
             console.warn('[research-drop] Layer2 extraction error for', mention.name, ':', e.message)
@@ -318,6 +320,7 @@ export async function runResearchDropSpirits(client: any, job: any): Promise<voi
           existing_record_id: spiritRow?.slug || '',
           action:             'enrich',
           proposed_fields:    proposedFields,
+          layer2_raw:         layer2RawOutput,
           confidence:         confToInt(mention.confidence),
           source_excerpt:     mention.context || '',
           status:             'pending',

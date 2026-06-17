@@ -111,6 +111,7 @@ export default async function handler(req: Request) {
       existing_record_id: null,
       action:             'enrich',
       proposed_fields:    proposedFields,
+      layer2_raw:         extraction.output,
       confidence,
       source_excerpt:     srcExcerpt,
       status:             'pending',
