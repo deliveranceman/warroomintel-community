@@ -189,9 +189,11 @@ export const REGION_SYNONYMS: RegionCrosswalk = {
   'neck':                  ['throat', 'cervical_spine'],
   'neck lymph':            ['neck_lymph'],
   'throat':                ['throat'],
-  // TODO Justin: "throat chakra" is chakra-system terminology from New Age/Eastern frameworks.
-  // Retained here because it appears in some deliverance ministry literature as a shorthand
-  // for throat-area affliction. Confirm whether this mapping is appropriate in WRI context.
+  // Hindu chakra system — Vishuddha, the fifth chakra at the throat. In Christian framing
+  // the symptom cluster (voice problems, spiritual choking, lying, blasphemy, inability
+  // to speak truth) maps to throat region. Mapping intentionally captures the adversarial
+  // term so Intelligence Only sources surface correctly. Renunciation framing: renounce
+  // Hindu belief systems tied to chakra. See spirit prayer_points for the actual prayer text.
   'throat chakra':         ['throat'],
   'thyroid':               ['thyroid'],
   'voice box':             ['throat'],
@@ -201,9 +203,11 @@ export const REGION_SYNONYMS: RegionCrosswalk = {
   'back of the head':      ['occiput'],
   'brain':                 ['brain'],
   'cranium':               ['cranium'],
-  // TODO Justin: "crown" as a ministry term can mean top of the head (cranium)
-  // or carry royal/authority connotations. Mapped to cranium as anatomical best-fit.
-  // Confirm if a spiritual authority dimension warrants a different treatment.
+  // Dual context — both senses point to cranium. (1) Biblical: top of head, neutral
+  // anatomical term (Deut 28:35, Isa 3:17). (2) Chakra: Sahasrara, the crown chakra,
+  // associated with "godhood of self," pride, false illumination. When term appears in
+  // Intelligence Only source, treat as chakra context. Renunciation framing: renounce
+  // Hindu chakra system. See spirit prayer_points for the actual prayer text.
   'crown':                 ['cranium'],
   'ear':                   ['left_ear', 'right_ear'],
   'ears':                  ['left_ear', 'right_ear'],
@@ -212,6 +216,14 @@ export const REGION_SYNONYMS: RegionCrosswalk = {
   'face':                  ['forehead', 'nose', 'mouth_jaw'],
   'forehead':              ['forehead'],
   'head':                  ['brain', 'cranium', 'forehead'],
+  // Symptom, not a strict body region — mapped here so Layer 2 extractions that mention
+  // headaches surface the head regions. May point to Hindu chakra involvement and/or
+  // third-eye spirit activity (Ajna/forehead pressure) in addition to ordinary
+  // physical/stress causes. Renunciation framing: renounce Hindu chakra system + third eye
+  // when source context suggests spiritual root. See spirit prayer_points for the actual prayer text.
+  'headache':              ['brain', 'forehead'],
+  // see headache
+  'headaches':             ['brain', 'forehead'],
   'jaw':                   ['mouth_jaw'],
   'left ear':              ['left_ear'],
   'left eye':              ['left_eye'],
@@ -226,10 +238,12 @@ export const REGION_SYNONYMS: RegionCrosswalk = {
   'skull':                 ['cranium'],
   'temple':                ['forehead'],
   'temples':               ['forehead'],
-  // TODO Justin: "third eye" is occult/New Age terminology (brow chakra/pineal gland).
-  // Some deliverance practitioners use it to describe enemy access through the forehead/mind gate.
-  // Currently mapped to forehead as the closest anatomical region. Confirm or remove.
-  'third eye':             ['forehead'],
+  // Occult / New Age terminology for the brow chakra (Ajna). In WRI ministry context,
+  // surfaces from EYE symptoms — dim vision, gray veil, distortion — not forehead pressure.
+  // Almost exclusively left eye in field observation but right is possible. Tied to
+  // Witchcraft and Jezebel spirit activity. Renunciation framing: renounce third eye +
+  // witchcraft. See Witchcraft/Jezebel spirit prayer_points for the actual prayer text.
+  'third eye':             ['left_eye', 'right_eye'],
   'thoughts':              ['brain'],
 }
 
