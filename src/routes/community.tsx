@@ -4351,7 +4351,7 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier, dem
                 {/* Companion chips preview — Commander+ */}
                 {companionList.length > 0 && (
                   <div style={{ marginBottom: 8 }}>
-                    <div style={{ fontFamily: cinzel, fontSize: 7, letterSpacing: '0.15em', color: color + 'BB', marginBottom: 4 }}>COMPANIONS</div>
+                    <div style={{ fontFamily: cinzel, fontSize: 7, letterSpacing: '0.15em', color: dbIsDark ? (color + 'BB') : '#604408', fontWeight: 600, marginBottom: 4 }}>COMPANIONS</div>
                     {atLeast('Commander') ? (
                       <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
                         {companionList.slice(0, 3).map((c: string, ci: number) => (
@@ -4370,7 +4370,7 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier, dem
                   </div>
                 )}
 
-                <div style={{ textAlign: 'center', marginTop: 8, fontFamily: cinzel, fontSize: 8, letterSpacing: '0.1em', color: color + '66' }}>
+                <div style={{ textAlign: 'center', marginTop: 8, fontFamily: cinzel, fontSize: 8, letterSpacing: '0.1em', color: dbIsDark ? (color + '66') : '#604408', fontWeight: 600 }}>
                   ▼ VIEW FULL INTEL
                 </div>
               </TacticalCard>
@@ -6404,7 +6404,7 @@ function InvestigatorView({ theme, userTier: _userTier, isMobile, setSidebarOpen
             <button
               onClick={handleInvestigate}
               disabled={invLoading || !invInput.trim()}
-              style={{ display: 'block', width: '100%', marginTop: 10, background: invLoading ? 'rgba(201,168,76,0.3)' : G, color: invLoading ? isDark ? '#8B7355' : '#574B33' : '#0D0B14', border: 'none', borderRadius: 6, padding: '12px 28px', fontSize: 13, fontFamily: cinzel, fontWeight: 700, letterSpacing: '0.08em', cursor: invLoading ? 'not-allowed' : 'pointer', transition: 'all 0.2s ease' }}
+              style={{ display: 'block', width: '100%', marginTop: 10, background: invLoading ? 'rgba(201,168,76,0.3)' : (isDark ? G : '#A57D1F'), color: invLoading ? isDark ? '#8B7355' : '#574B33' : '#0D0B14', border: 'none', borderRadius: 6, padding: '12px 28px', fontSize: 13, fontFamily: cinzel, fontWeight: 700, letterSpacing: '0.08em', cursor: invLoading ? 'not-allowed' : 'pointer', transition: 'all 0.2s ease' }}
             >
               {invLoading ? '⚔ Analyzing...' : '⚔ Investigate'}
             </button>
@@ -6659,7 +6659,7 @@ function GatewayInvestigatorView({ theme, userTier: _userTier, isMobile, setSide
           <button
             onClick={handleInvestigate}
             disabled={loading || !canSubmit}
-            style={{ background: loading ? 'rgba(201,168,76,0.4)' : G, color: '#0D0B14', fontFamily: cinzel, fontSize: 11, fontWeight: 700, letterSpacing: '0.1em', border: 'none', borderRadius: 6, padding: '11px 28px', cursor: loading || !canSubmit ? 'wait' : 'pointer', opacity: !canSubmit ? 0.5 : 1 }}
+            style={{ background: loading ? 'rgba(201,168,76,0.4)' : (isDark ? G : '#A57D1F'), color: '#0D0B14', fontFamily: cinzel, fontSize: 11, fontWeight: 700, letterSpacing: '0.1em', border: 'none', borderRadius: 6, padding: '11px 28px', cursor: loading || !canSubmit ? 'wait' : 'pointer', opacity: !canSubmit ? 0.5 : 1 }}
           >
             {loading
               ? `🔍 ${stage === 'assembling_context' ? 'Gathering Intel…' : stage === 'generating' ? `Investigating… ${progress}%` : 'Queuing…'}`

@@ -4,6 +4,7 @@
 
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import { Search } from 'lucide-react'
+import { useIsDark } from '@/lib/use-is-dark'
 
 // ─── Bracket ────────────────────────────────────────────────────────────────
 // Tactical corner-bracket accent. Parent must be position:relative.
@@ -41,11 +42,12 @@ export interface ClassBadgeProps {
   label?: string
 }
 export function ClassBadge({ level = 'II', label = 'INTEL' }: ClassBadgeProps) {
+  const isDark = useIsDark()
   const colors: Record<ClassLevel, { bg: string; border: string; text: string }> = {
-    'I':   { bg: 'var(--crit-bg)',  border: 'rgba(200,74,74,0.5)',   text: '#e07070' },
-    'II':  { bg: 'var(--warn-bg)', border: 'rgba(226,167,60,0.55)', text: '#e8b658' },
-    'III': { bg: 'var(--info-bg)', border: 'rgba(91,139,181,0.5)',  text: '#7fa8c7' },
-    'IV':  { bg: 'var(--ok-bg)',   border: 'rgba(95,174,111,0.4)',  text: '#6dbe7e' },
+    'I':   { bg: 'var(--crit-bg)',  border: 'rgba(200,74,74,0.5)',   text: isDark ? '#e07070' : '#9C2828' },
+    'II':  { bg: 'var(--warn-bg)', border: 'rgba(226,167,60,0.55)', text: isDark ? '#e8b658' : '#604408' },
+    'III': { bg: 'var(--info-bg)', border: 'rgba(91,139,181,0.5)',  text: isDark ? '#7fa8c7' : '#1E4F8C' },
+    'IV':  { bg: 'var(--ok-bg)',   border: 'rgba(95,174,111,0.4)',  text: isDark ? '#6dbe7e' : '#2E6B3C' },
   }
   const c = colors[level]
   return (
