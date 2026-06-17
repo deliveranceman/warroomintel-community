@@ -74,12 +74,19 @@ Requirements: 3-5 legal grounds, 2-3 renunciation prayers, 2-3 command prayers, 
       tier: 'standard',
       system: 'You are a seasoned deliverance ministry protocol generator. Generate scripture-grounded, minister-ready protocols. Respond with valid JSON only — no markdown, no explanation.',
       messages: [{ role: 'user', content: userPrompt }],
-      maxTokens: 2500,
+      maxTokens: 8000,
       timeoutMs: 300_000,
       meta,
     })
 
     await client.from('ai_jobs').update({ stage: 'parsing', progress: 85 }).eq('id', jobId)
+
+    // Meter immediately — if JSON parse fails the row still reflects actual usage.
+    await client.from('ai_jobs').update({
+      model_used:    result.model,
+      tokens_used:   (result.inputTokens ?? 0) + (result.outputTokens ?? 0),
+      cost_estimate: result.costUsd,
+    }).eq('id', jobId)
 
     const stripped = result.text
       .replace(/^```json\s*/i, '')
