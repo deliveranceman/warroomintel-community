@@ -125,6 +125,7 @@ export interface GoldButtonProps {
 export function GoldButton({
   children, onClick, full, sm, ghost, style = {}, icon, disabled, type = 'button',
 }: GoldButtonProps) {
+  const isDark = useIsDark()
   return (
     <button
       type={type}
@@ -142,7 +143,9 @@ export function GoldButton({
         border: ghost ? '1px solid var(--gold-line-hi)' : '1px solid transparent',
         background: ghost
           ? 'transparent'
-          : 'linear-gradient(180deg, var(--gold) 0%, #b89538 100%)',
+          : (isDark
+            ? 'linear-gradient(180deg, var(--gold) 0%, #b89538 100%)'
+            : 'linear-gradient(180deg, #B8860B 0%, #8B6914 100%)'),
         color: ghost ? 'var(--gold)' : '#1a1305',
         width: full ? '100%' : 'auto',
         boxShadow: ghost

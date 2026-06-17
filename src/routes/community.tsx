@@ -3834,7 +3834,7 @@ return (
   )
 }
 
-const HIERARCHY_COLORS: Record<string, { bg: string; text: string; border: string }> = {
+const HIERARCHY_COLORS_DARK: Record<string, { bg: string; text: string; border: string }> = {
   'Fear / Rejection':    { bg: '#1a0f2e', text: '#c084fc', border: '#7c3aed' },
   'Marine Kingdom':      { bg: '#0a1628', text: '#38bdf8', border: '#0284c7' },
   'Occult / Witchcraft': { bg: '#1a0a0a', text: '#f87171', border: '#dc2626' },
@@ -3843,6 +3843,22 @@ const HIERARCHY_COLORS: Record<string, { bg: string; text: string; border: strin
   'Death / Destruction': { bg: '#0a0a0a', text: '#9ca3af', border: '#374151' },
   'Religious':           { bg: '#0f1a0a', text: '#86efac', border: '#15803d' },
   'General Oppression':  { bg: '#0f0f1a', text: '#a5b4fc', border: '#4338ca' },
+}
+
+const HIERARCHY_COLORS_LIGHT: Record<string, { bg: string; text: string; border: string }> = {
+  'Fear / Rejection':    { bg: 'rgba(124, 58, 237, 0.10)', text: '#5E3E8C', border: '#7c3aed' },
+  'Marine Kingdom':      { bg: 'rgba(2, 132, 199, 0.10)',  text: '#1E4F8C', border: '#0284c7' },
+  'Occult / Witchcraft': { bg: 'rgba(220, 38, 38, 0.10)',  text: '#9C2828', border: '#dc2626' },
+  'Freemasonry':         { bg: 'rgba(146, 64, 14, 0.10)',  text: '#604408', border: '#92400e' },
+  'Perversion':          { bg: 'rgba(157, 23, 77, 0.10)',  text: '#8C1D4E', border: '#9d174d' },
+  'Death / Destruction': { bg: 'rgba(55, 65, 81, 0.10)',   text: '#374151', border: '#374151' },
+  'Religious':           { bg: 'rgba(21, 128, 61, 0.10)',  text: '#15803D', border: '#15803d' },
+  'General Oppression':  { bg: 'rgba(67, 56, 202, 0.10)',  text: '#3730A3', border: '#4338ca' },
+}
+
+const getHierarchyColors = (cat: string, isDark: boolean) => {
+  const map = isDark ? HIERARCHY_COLORS_DARK : HIERARCHY_COLORS_LIGHT
+  return map[cat] || map['General Oppression']
 }
 
 const HIERARCHY_CATEGORIES = [
@@ -4185,7 +4201,7 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier, dem
               const active = isAll ? !categoryFilter : categoryFilter === cat
               const colors = isAll
                 ? { bg: '#1a1625', text: '#C9A84C', border: '#C9A84C' }
-                : (HIERARCHY_COLORS[cat] || HIERARCHY_COLORS['General Oppression'])
+                : getHierarchyColors(cat, dbIsDark)
               return (
                 <button
                   key={cat}
@@ -4578,7 +4594,7 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier, dem
                   {entry.isTerritorial && entry.region && <DField label="Territorial Region" value={entry.region} />}
                   {entry.hierarchyCategory && (() => {
                     const cat = entry.hierarchyCategory
-                    const colors = HIERARCHY_COLORS[cat] || HIERARCHY_COLORS['General Oppression']
+                    const colors = getHierarchyColors(cat, dbIsDark)
                     return (
                       <div style={{ marginBottom: 14 }}>
                         <div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.14em', color: color + 'BB', marginBottom: 4, textTransform: 'uppercase' as const }}>Category</div>
@@ -5012,7 +5028,7 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier, dem
                   {entry.deliveranceSequence && (
                     <div style={{ marginBottom: 18 }}>
                       <div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.15em', color: color + 'BB', marginBottom: 8, textTransform: 'uppercase' as const }}>Deliverance Sequence</div>
-                      <div style={{ background: 'rgba(13,11,20,0.8)', border: '1px solid rgba(201,168,76,0.25)', borderRadius: 6, padding: '10px 14px', fontSize: 13, lineHeight: 1.6 }}>
+                      <div style={{ background: dbIsDark ? 'rgba(13,11,20,0.8)' : '#FFFFFF', border: '1px solid rgba(201,168,76,0.25)', borderRadius: 6, padding: '10px 14px', fontSize: 13, lineHeight: 1.6 }}>
                         {entry.deliveranceSequence.split('→').map((step: string, i: number, arr: string[]) => (
                           <span key={i}><span style={{ color: txt }}>{step.trim()}</span>{i < arr.length - 1 && <span style={{ color: dbIsDark ? G : '#8B6914', margin: '0 6px' }}>→</span>}</span>
                         ))}
@@ -5021,7 +5037,7 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier, dem
                   )}
                   {entry.hierarchyCategory && (() => {
                     const cat = entry.hierarchyCategory
-                    const colors = HIERARCHY_COLORS[cat] || HIERARCHY_COLORS['General Oppression']
+                    const colors = getHierarchyColors(cat, dbIsDark)
                     return (
                       <div style={{ marginBottom: 14 }}>
                         <div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.15em', color: color + 'BB', marginBottom: 6, textTransform: 'uppercase' as const }}>Kingdom Category</div>
@@ -5498,7 +5514,7 @@ function DatabaseView({ theme, isMobile, isTablet, setSidebarOpen, userTier, dem
                   const active = isAll ? !categoryFilter : categoryFilter === cat
                   const colors = isAll
                     ? { text: '#C9A84C', border: '#C9A84C' }
-                    : (HIERARCHY_COLORS[cat] || HIERARCHY_COLORS['General Oppression'])
+                    : getHierarchyColors(cat, dbIsDark)
                   return (
                     <button key={cat} onClick={() => setCategoryFilter(isAll ? null : cat)}
                       style={{ padding: '5px 14px', borderRadius: 999, fontSize: 11, cursor: 'pointer', fontFamily: cinzel, letterSpacing: '0.04em', border: `1px solid ${colors.border}`, backgroundColor: active ? colors.border : 'transparent', color: active ? '#0D0B14' : colors.text, fontWeight: active ? 600 : 400, whiteSpace: 'nowrap' as const }}>
@@ -6447,7 +6463,7 @@ function InvestigatorView({ theme, userTier: _userTier, isMobile, setSidebarOpen
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                   {invResult.probableSpirits.map((spirit, i) => {
                     const conf = CONFIDENCE_COLORS[spirit.confidence] || CONFIDENCE_COLORS.Low
-                    const cat  = HIERARCHY_COLORS[spirit.category]  || HIERARCHY_COLORS['General Oppression']
+                    const cat  = getHierarchyColors(spirit.category, isDark)
                     return (
                       <div key={i} style={{ background: isDark ? 'rgba(13,11,20,0.8)' : '#FFFFFF', border: `1px solid ${conf.border}`, borderLeft: `3px solid ${conf.border}`, borderRadius: 8, padding: '14px 18px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
                         <div style={{ flex: 1 }}>
