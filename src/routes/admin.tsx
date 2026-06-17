@@ -15235,6 +15235,7 @@ function EnrichmentSuggestions({ getToken, isDark }: { getToken: any; isDark: bo
   const [confBands, setConfBands]             = useState<string[]>([])
   const [actionFilter, setActionFilter]       = useState<string>('all')
   const [adversarialFilter, setAdversarialFilter] = useState<string>('all')
+  const [expandedIds, setExpandedIds]             = useState<Set<string>>(new Set())
 
   const cinzel  = "'Cinzel', serif"
   const crimson = "'Crimson Pro', serif"
@@ -15567,10 +15568,18 @@ function EnrichmentSuggestions({ getToken, isDark }: { getToken: any; isDark: bo
 
       {/* Cards */}
       {filteredSuggestions.map(s => (
-        <div key={s.id} style={{ padding: '16px 20px', marginBottom: 10, background: isDark ? '#0a0807' : '#faf6f0', border: `1px solid ${s.action === 'add' ? '#3a2020' : '#1e2a1e'}`, borderLeft: `3px solid ${s.action === 'add' ? '#8B3232' : '#3a6a3a'}`, borderRadius: 6 }}>
-          {/* Card header */}
+        <div key={s.id} id={`les-${s.id}`} style={{ padding: '16px 20px', marginBottom: 10, background: isDark ? '#0a0807' : '#faf6f0', border: `1px solid ${s.action === 'add' ? '#3a2020' : '#1e2a1e'}`, borderLeft: `3px solid ${s.action === 'add' ? '#8B3232' : '#3a6a3a'}`, borderRadius: 6 }}>
+          {/* Clickable header — action buttons stopPropagation so they don't toggle expand */}
+          <div
+            role="button" tabIndex={0}
+            onClick={() => setExpandedIds(prev => { const next = new Set(prev); if (next.has(s.id)) { next.delete(s.id) } else { next.add(s.id); setTimeout(() => document.getElementById(`les-${s.id}`)?.scrollIntoView({ block: 'nearest' }), 0) }; return next })}
+            onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setExpandedIds(prev => { const next = new Set(prev); if (next.has(s.id)) { next.delete(s.id) } else { next.add(s.id) }; return next }) } }}
+            style={{ cursor: 'pointer', userSelect: 'none' as const }}
+          >
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
-            <div>
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+              <svg viewBox="0 0 8 8" width="8" height="8" style={{ flexShrink: 0, marginTop: 4, color: EMUT, transform: expandedIds.has(s.id) ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 0.15s ease' }}><path d="M2 1 L6 4 L2 7" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>
+              <div>
               <span style={{ fontFamily: cinzel, fontSize: 13, color: gold, letterSpacing: '0.06em' }}>
                 {s.spirit_name}
               </span>
@@ -15580,19 +15589,20 @@ function EnrichmentSuggestions({ getToken, isDark }: { getToken: any; isDark: bo
               <span style={{ fontFamily: cinzel, fontSize: 8, color: '#4a3f2f', marginLeft: 8 }}>
                 CONFIDENCE: {s.confidence}%
               </span>
+              </div>
             </div>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' as const, justifyContent: 'flex-end' }}>
               <button
-                onClick={() => fetchEnrichEquivalents(s.spirit_name, s.kingdom || '', s.description || '')}
+                onClick={e => { e.stopPropagation(); fetchEnrichEquivalents(s.spirit_name, s.kingdom || '', s.description || '') }}
                 disabled={enrichEquivLoading[s.spirit_name]}
                 style={{ padding: '4px 10px', background: 'transparent', border: '1px solid rgba(201,168,76,0.25)', borderRadius: 4, color: gold, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.06em', cursor: 'pointer', opacity: enrichEquivLoading[s.spirit_name] ? 0.5 : 1 }}>
                 {enrichEquivLoading[s.spirit_name] ? 'Looking up...' : '✦ Find Equivalents'}
               </button>
-              <button onClick={() => handleApply(s.id, 'approve')} disabled={applying[s.id]}
+              <button onClick={e => { e.stopPropagation(); handleApply(s.id, 'approve') }} disabled={applying[s.id]}
                 style={{ padding: '6px 14px', background: 'rgba(58,106,58,0.15)', border: '1px solid #3a6a3a', borderRadius: 4, color: '#5a8a5a', fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: applying[s.id] ? 'not-allowed' : 'pointer' }}>
                 {applying[s.id] ? '⏳' : '✓ APPROVE'}
               </button>
-              <button onClick={() => handleApply(s.id, 'reject')} disabled={applying[s.id]}
+              <button onClick={e => { e.stopPropagation(); handleApply(s.id, 'reject') }} disabled={applying[s.id]}
                 style={{ padding: '6px 14px', background: 'transparent', border: '1px solid #3a2020', borderRadius: 4, color: '#6b4040', fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: applying[s.id] ? 'not-allowed' : 'pointer' }}>
                 ✗ REJECT
               </button>
@@ -15603,7 +15613,9 @@ function EnrichmentSuggestions({ getToken, isDark }: { getToken: any; isDark: bo
           <div style={{ fontFamily: cinzel, fontSize: 8, color: '#3a3020', letterSpacing: '0.08em', marginBottom: 8 }}>
             📖 {s.book_title}
           </div>
+          </div>{/* end clickable header */}
 
+          {expandedIds.has(s.id) && (<>
           {/* Excerpt */}
           {s.source_excerpt && (
             <div style={{ fontFamily: crimson, fontSize: 13, color: '#4a3f2f', fontStyle: 'italic', borderLeft: '2px solid #2a2218', paddingLeft: 10, marginBottom: 10 }}>
@@ -15705,6 +15717,7 @@ function EnrichmentSuggestions({ getToken, isDark }: { getToken: any; isDark: bo
               </div>
             )
           })()}
+          </>)}
         </div>
       ))}
     </div>
