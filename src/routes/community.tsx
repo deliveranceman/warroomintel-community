@@ -8728,6 +8728,65 @@ function exportProtocolToPDF(resultJson: any) {
   if (win) { win.document.write(html); win.document.close() }
 }
 
+function formatDeliveranceProtocolForExport(resultJson: any, spiritName: string, clusterContext?: string): string {
+  const protocol = resultJson?.protocol
+  const name = spiritName || resultJson?.spiritData?.name || 'Protocol'
+  const lines: string[] = []
+  lines.push(`# Deliverance Protocol — ${name}`)
+  if (clusterContext) lines.push(`\n**Cluster:** ${clusterContext}`)
+  lines.push('')
+  const pre = protocol?.preSessionIntel
+  if (pre) {
+    lines.push('## Pre-Session Intel')
+    if (pre.summary) lines.push(pre.summary)
+    if (pre.keyLegalGrounds?.length) { lines.push('\n**Key Legal Grounds:**'); pre.keyLegalGrounds.forEach((g: string) => lines.push(`- ${g}`)) }
+    if (pre.keyScriptures?.length) { lines.push('\n**Key Scriptures:**'); pre.keyScriptures.forEach((s: string) => lines.push(`- ${s}`)) }
+    if (pre.warningFlags?.length) { lines.push('\n**Warning Flags:**'); pre.warningFlags.forEach((f: string) => lines.push(`- ${f}`)) }
+    lines.push('')
+  }
+  if (protocol?.legalGroundChecklist?.length) {
+    lines.push('## Legal Ground Checklist')
+    protocol.legalGroundChecklist.forEach((item: any) => {
+      lines.push(`\n**${item.ground}**`)
+      if (item.question) lines.push(item.question)
+      if (item.scripture) lines.push(`*${item.scripture}*`)
+    })
+    lines.push('')
+  }
+  if (protocol?.renunciationPrayers?.length) {
+    lines.push('## Renunciation Prayers')
+    protocol.renunciationPrayers.forEach((p: any) => {
+      lines.push(`\n### ${p.title}`)
+      if (p.prayer) lines.push(p.prayer)
+      if (p.notes) lines.push(`*Note: ${p.notes}*`)
+    })
+    lines.push('')
+  }
+  if (protocol?.commandPrayers?.length) {
+    lines.push('## Command Prayers')
+    protocol.commandPrayers.forEach((p: any) => {
+      lines.push(`\n### ${p.target}`)
+      if (p.command) lines.push(p.command)
+      if (p.authority) lines.push(`*${p.authority}*`)
+    })
+    if (protocol.intercession) {
+      lines.push('\n**Intercession**')
+      if (protocol.intercession.opening) lines.push(protocol.intercession.opening)
+      protocol.intercession.declarations?.forEach((d: string) => lines.push(`- ${d}`))
+    }
+    lines.push('')
+  }
+  const ac = protocol?.aftercare
+  if (ac) {
+    lines.push('## Post-Session Aftercare')
+    if (ac.initialSteps?.length) { lines.push('\n**Initial Steps:**'); ac.initialSteps.forEach((s: string) => lines.push(`- ${s}`)) }
+    if (ac.dailyPractices?.length) { lines.push('\n**Daily Practices:**'); ac.dailyPractices.forEach((s: string) => lines.push(`- ${s}`)) }
+    if (ac.warningSignsToWatch?.length) { lines.push('\n**Warning Signs:**'); ac.warningSignsToWatch.forEach((s: string) => lines.push(`- ${s}`)) }
+    if (ac.followUpQuestions?.length) { lines.push('\n**Follow-Up Questions:**'); ac.followUpQuestions.forEach((s: string) => lines.push(`- ${s}`)) }
+  }
+  return lines.join('\n')
+}
+
 function renderSolInputSummary(jobType: string, params: any, txt: string, mut: string): React.ReactNode {
   if (!params) return null
   const field = (label: string, value: string | undefined) => value ? (
@@ -15340,6 +15399,7 @@ function CommunityPage() {
                   <div style={{ fontFamily: cinzel, fontSize: 13, color: G, letterSpacing: '0.08em' }}>⚔ SESSION PROTOCOL</div>
                   <div style={{ display: 'flex', gap: 10 }}>
                     <button onClick={() => setStpPrintMode(true)} style={{ background: 'transparent', border: `1px solid rgba(201,168,76,0.3)`, borderRadius: 6, padding: '6px 14px', color: G, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: 'pointer' }}>🖨 PRINT</button>
+                    <button onClick={() => exportToPDF(formatDeliveranceProtocolForExport(stpResult, stpSpiritName || stpResult?.spiritData?.name || ''))} style={{ background: 'transparent', border: `1px solid rgba(201,168,76,0.3)`, borderRadius: 6, padding: '6px 14px', color: G, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: 'pointer' }}>↓ EXPORT PDF</button>
                     <button onClick={() => { setStpResult(null); setStpError(null) }} style={{ background: 'transparent', border: `1px solid rgba(201,168,76,0.3)`, borderRadius: 6, padding: '6px 14px', color: isDark ? '#9a8874' : '#5C5248', fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: 'pointer' }}>↩ NEW PROTOCOL</button>
                   </div>
                 </div>
@@ -15855,6 +15915,7 @@ function CommunityPage() {
                     <div style={{ fontFamily: cinzel, fontSize: 13, color: G, letterSpacing: '0.08em' }}>⚔ SESSION PROTOCOL</div>
                     <div style={{ display: 'flex', gap: 10 }}>
                       <button onClick={() => setStpPrintMode(true)} style={{ background: 'transparent', border: `1px solid rgba(201,168,76,0.3)`, borderRadius: 6, padding: '6px 14px', color: G, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: 'pointer' }}>🖨 PRINT</button>
+                      <button onClick={() => exportToPDF(formatDeliveranceProtocolForExport(stpResult, stpSpiritName || stpResult?.spiritData?.name || ''))} style={{ background: 'transparent', border: `1px solid rgba(201,168,76,0.3)`, borderRadius: 6, padding: '6px 14px', color: G, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: 'pointer' }}>↓ EXPORT PDF</button>
                       <button onClick={() => { setStpResult(null); setStpError(null) }} style={{ background: 'transparent', border: `1px solid rgba(201,168,76,0.3)`, borderRadius: 6, padding: '6px 14px', color: isDark ? '#9a8874' : '#5C5248', fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: 'pointer' }}>↩ NEW PROTOCOL</button>
                     </div>
                   </div>
