@@ -13490,7 +13490,7 @@ function CommunityPage() {
               fetch('/api/ai-history', {
                 method:  'POST',
                 headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-                body:    JSON.stringify({ tool: 'ai-assistant', query: msg.trim(), response: responseText }),
+                body:    JSON.stringify({ tool: 'ask-sol', query: msg.trim(), response: responseText }),
               }).catch(() => {})
             }
             setChatStage(''); setChatLoading(false)
