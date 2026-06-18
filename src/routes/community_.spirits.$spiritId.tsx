@@ -469,14 +469,7 @@ function SpiritDossierPage() {
         {/* ── Page Header ── */}
         <div style={{ borderBottom: '1px solid var(--border)', padding: '16px 24px', background: 'var(--surface)' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', maxWidth: 760, margin: '0 auto' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <button onClick={() => navigate({ to: '/community' })}
-                style={{ background: 'transparent', border: 'none', color: G, fontSize: 22, cursor: 'pointer', padding: 0, lineHeight: 1 }}>‹</button>
-              <div>
-                <div style={{ fontFamily: cinzel, fontSize: 9, color: 'var(--muted)', letterSpacing: '0.2em', marginBottom: 4 }}>INTEL ARCHIVE / SPIRIT DOSSIER</div>
-                <div style={{ fontFamily: cinzel, fontSize: 20, color, fontWeight: 700, letterSpacing: '0.05em' }}>{name}</div>
-              </div>
-            </div>
+            <div style={{ fontFamily: cinzel, fontSize: 20, color, fontWeight: 700, letterSpacing: '0.05em' }}>{name}</div>
             <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
               <button onClick={() => exportSpiritToPDF(entry)}
                 style={{ background: 'transparent', border: '1px solid rgba(201,168,76,0.35)', borderRadius: 6, padding: '5px 10px', color: G, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: 'pointer' }}>
