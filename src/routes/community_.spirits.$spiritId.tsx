@@ -342,14 +342,14 @@ function SpiritDossierPage() {
       if (!atLeast('general')) return null
       return (
         <div style={{ marginBottom: 18 }}>
-          <div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.15em', color: (accent || color) + 'BB', marginBottom: 6, textTransform: 'uppercase' }}>{label}</div>
+          <div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.15em', color: accent || G, marginBottom: 6, textTransform: 'uppercase' }}>{label}</div>
           <div style={{ fontFamily: crimson, fontSize: 14, color: 'var(--muted)', fontStyle: 'italic', lineHeight: 1.65 }}>No data on file.</div>
         </div>
       )
     }
     return (
       <div style={{ marginBottom: 18 }}>
-        <div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.15em', color: (accent || color) + 'BB', marginBottom: 6, textTransform: 'uppercase' }}>{label}</div>
+        <div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.15em', color: accent || G, marginBottom: 6, textTransform: 'uppercase' }}>{label}</div>
         <div style={{ fontFamily: crimson, fontSize: 14, color: 'var(--text)', lineHeight: 1.65 }}>{value}</div>
       </div>
     )
@@ -538,7 +538,7 @@ function SpiritDossierPage() {
                 if (!url || !url.startsWith('http')) return null
                 return (
                   <div style={{ marginBottom: 20 }}>
-                    <div style={{ fontFamily: cinzel, fontSize: 10, color: color + 'BB', letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 8 }}>Historical Depiction</div>
+                    <div style={{ fontFamily: cinzel, fontSize: 10, color: G, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 8 }}>Historical Depiction</div>
                     <img src={url} alt={entry.name}
                       style={{ maxWidth: '100%', maxHeight: 250, borderRadius: 8, border: '1px solid rgba(201,168,76,0.15)', objectFit: 'contain', display: 'block', margin: '0 auto', cursor: 'pointer' }}
                       onClick={() => window.open(url, '_blank')}
@@ -553,7 +553,7 @@ function SpiritDossierPage() {
               <FieldBlock label="Kingdom" value={entry.kingdom} />
               {entry.strongman ? (
                 <div style={{ marginBottom: 18 }}>
-                  <div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.15em', color: color + 'BB', marginBottom: 6, textTransform: 'uppercase' }}>Strongman</div>
+                  <div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.15em', color: G, marginBottom: 6, textTransform: 'uppercase' }}>Strongman</div>
                   {(() => {
                     const linked = allDemons.find(d => d.name?.toLowerCase() === entry.strongman?.toLowerCase())
                     return linked?.slug ? (
@@ -573,13 +573,13 @@ function SpiritDossierPage() {
               )}
               {entry.isTerritorial && entry.region && (
                 <div style={{ marginBottom: 14 }}>
-                  <div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.15em', color: color + 'BB', marginBottom: 6, textTransform: 'uppercase' }}>🗺 Territorial Region</div>
+                  <div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.15em', color: G, marginBottom: 6, textTransform: 'uppercase' }}>🗺 Territorial Region</div>
                   <div style={{ fontFamily: crimson, fontSize: 14, color: 'var(--text)' }}>{entry.region}</div>
                 </div>
               )}
               {spiritResources.length > 0 && (
                 <div style={{ marginTop: 20, borderTop: '1px solid rgba(201,168,76,0.15)', paddingTop: 16 }}>
-                  <div style={{ fontFamily: cinzel, fontSize: 9, color: color + 'BB', letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 10 }}>Related Resources</div>
+                  <div style={{ fontFamily: cinzel, fontSize: 9, color: G, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 10 }}>Related Resources</div>
                   {spiritResources.map((r: any) => (
                     <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0', borderBottom: '1px solid rgba(201,168,76,0.08)', cursor: 'pointer' }}
                       onClick={() => window.open('/community#arsenal', '_blank')}>
@@ -604,7 +604,7 @@ function SpiritDossierPage() {
               <FieldBlock label="Source & Origin" value={entry.sourceOrigin} />
               {entry.parentStrongman && (
                 <div style={{ marginBottom: 18 }}>
-                  <div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.15em', color: color + 'BB', marginBottom: 8, textTransform: 'uppercase' }}>Parent Strongman</div>
+                  <div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.15em', color: G, marginBottom: 8, textTransform: 'uppercase' }}>Parent Strongman</div>
                   {(() => {
                     const linked = allDemons.find(d => d.name?.toLowerCase() === entry.parentStrongman?.toLowerCase())
                     return linked?.slug ? (
@@ -618,10 +618,12 @@ function SpiritDossierPage() {
               )}
               {entry.companionSpirits && (
                 <div style={{ marginBottom: 18 }}>
-                  <div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.15em', color: color + 'BB', marginBottom: 8, textTransform: 'uppercase' }}>Companion Spirits</div>
+                  <div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.15em', color: G, marginBottom: 8, textTransform: 'uppercase' }}>Companion Spirits</div>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                     {String(entry.companionSpirits).split(',').map((s: string) => s.trim()).filter(Boolean).map((n: string) => {
-                      const linked = allDemons.find(d => d.name?.toLowerCase() === n.toLowerCase())
+                      const baseName = n.replace(/\s*\(.*\)/g, '').trim()
+                      const tokens = baseName.split('/').map((t: string) => t.trim()).filter(Boolean)
+                      const linked = allDemons.find(d => tokens.some((t: string) => d.name?.toLowerCase() === t.toLowerCase()))
                       return (
                         <button key={n} onClick={() => linked?.slug && navigate({ to: '/community/spirits/$spiritId', params: { spiritId: linked.slug } })}
                           style={{ padding: '3px 12px', background: 'rgba(201,168,76,0.08)', border: '1px solid rgba(201,168,76,0.25)', borderRadius: 20, color: linked ? G : 'var(--muted)', fontFamily: cinzel, fontSize: 9, letterSpacing: '0.06em', cursor: linked?.slug ? 'pointer' : 'default', textTransform: 'uppercase' }}>
@@ -635,7 +637,7 @@ function SpiritDossierPage() {
               <FieldBlock label="Counter Scriptures" value={entry.counterScriptures} accent={G} />
               {entry.deliveranceSequence && (
                 <div style={{ marginBottom: 18 }}>
-                  <div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.15em', color: color + 'BB', marginBottom: 8, textTransform: 'uppercase' }}>Deliverance Sequence</div>
+                  <div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.15em', color: G, marginBottom: 8, textTransform: 'uppercase' }}>Deliverance Sequence</div>
                   <div style={{ background: 'rgba(13,11,20,0.8)', border: '1px solid rgba(201,168,76,0.25)', borderRadius: 6, padding: '10px 14px', fontSize: 13, lineHeight: 1.6 }}>
                     {entry.deliveranceSequence.split('→').map((step: string, i: number, arr: string[]) => (
                       <span key={i}><span style={{ color: 'var(--text)' }}>{step.trim()}</span>{i < arr.length - 1 && <span style={{ color: G, margin: '0 6px' }}>→</span>}</span>
@@ -648,7 +650,7 @@ function SpiritDossierPage() {
                 const colors = getHierarchyColors(cat)
                 return (
                   <div style={{ marginBottom: 14 }}>
-                    <div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.15em', color: color + 'BB', marginBottom: 6, textTransform: 'uppercase' }}>Kingdom Category</div>
+                    <div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.15em', color: G, marginBottom: 6, textTransform: 'uppercase' }}>Kingdom Category</div>
                     <span style={{ padding: '5px 14px', borderRadius: 999, fontSize: 12, fontFamily: cinzel, backgroundColor: colors.bg, color: colors.text, border: `1px solid ${colors.border}`, letterSpacing: '0.05em', display: 'inline-block' }}>{cat}</span>
                   </div>
                 )
@@ -663,7 +665,7 @@ function SpiritDossierPage() {
               <FieldBlock label="Resistance Signature" value={entry.resistanceSignature} />
               {entry.clusterSpirits && (
                 <div style={{ marginBottom: 18 }}>
-                  <div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.15em', color: color + 'BB', marginBottom: 8, textTransform: 'uppercase' }}>Cluster Spirits</div>
+                  <div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.15em', color: G, marginBottom: 8, textTransform: 'uppercase' }}>Cluster Spirits</div>
                   <div style={{ display: 'flex', flexWrap: 'wrap' }}>
                     {parseSpiritNames(String(entry.clusterSpirits)).map((n, i) => <SpiritPill key={i} name={n} />)}
                   </div>
@@ -681,7 +683,7 @@ function SpiritDossierPage() {
               <FieldBlock label="Operational Notes" value={entry.operationalNotes} />
               {entry.prayerPoints && (
                 <div style={{ marginBottom: 18 }}>
-                  <div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.15em', color: color + 'BB', marginBottom: 8, textTransform: 'uppercase' }}>Prayer Points</div>
+                  <div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.15em', color: G, marginBottom: 8, textTransform: 'uppercase' }}>Prayer Points</div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                     {String(entry.prayerPoints).split(/\n|\d+\./).filter((s: string) => s.trim()).map((p: string, i: number) => (
                       <div key={i} style={{ background: 'rgba(201,168,76,0.05)', border: '1px solid rgba(201,168,76,0.15)', borderRadius: 8, padding: '10px 14px', fontFamily: crimson, fontSize: 13, color: 'var(--text)', lineHeight: 1.6 }}>
@@ -699,7 +701,7 @@ function SpiritDossierPage() {
                   </div>
                   {Array.isArray(entry.culturalPresence) && entry.culturalPresence.length > 0 && (
                     <div style={{ marginBottom: 14 }}>
-                      <div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.15em', color: color + 'BB', marginBottom: 8, textTransform: 'uppercase' }}>Cultural Presence</div>
+                      <div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.15em', color: G, marginBottom: 8, textTransform: 'uppercase' }}>Cultural Presence</div>
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                         {entry.culturalPresence.map((cat: string) => (
                           <span key={cat} style={{ fontFamily: cinzel, fontSize: 9, color: G, border: '1px solid rgba(201,168,76,0.4)', borderRadius: 4, padding: '4px 10px', letterSpacing: '0.06em', background: 'rgba(201,168,76,0.05)' }}>
@@ -711,7 +713,7 @@ function SpiritDossierPage() {
                   )}
                   {entry.sessionTriggerQuestions && (
                     <div>
-                      <div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.15em', color: color + 'BB', marginBottom: 8, textTransform: 'uppercase' }}>Session Trigger Questions</div>
+                      <div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.15em', color: G, marginBottom: 8, textTransform: 'uppercase' }}>Session Trigger Questions</div>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                         {String(entry.sessionTriggerQuestions).split('\n').filter((l: string) => l.trim()).map((line: string, i: number) => (
                           <div key={i} style={{ fontFamily: crimson, fontSize: 13, color: 'var(--text)', lineHeight: 1.65, fontStyle: 'italic', paddingLeft: 10, borderLeft: '2px solid rgba(201,168,76,0.2)' }}>
@@ -725,7 +727,7 @@ function SpiritDossierPage() {
               )}
               {spiritResources.length > 0 && (
                 <div style={{ marginBottom: 18 }}>
-                  <div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.15em', color: color + 'BB', marginBottom: 8, textTransform: 'uppercase' }}>📎 Related Resources</div>
+                  <div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.15em', color: G, marginBottom: 8, textTransform: 'uppercase' }}>📎 Related Resources</div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                     {spiritResources.map((r: any) => (
                       <div key={r.id} style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -764,7 +766,7 @@ function SpiritDossierPage() {
               <FieldBlock label="Sub-Kingdom" value={entry.subKingdom && entry.subKingdom !== 'None' ? entry.subKingdom : undefined} />
               {entry.relatedSpirits && (
                 <div style={{ marginBottom: 18 }}>
-                  <div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.15em', color: color + 'BB', marginBottom: 8, textTransform: 'uppercase' }}>Related Spirits</div>
+                  <div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.15em', color: G, marginBottom: 8, textTransform: 'uppercase' }}>Related Spirits</div>
                   <div style={{ display: 'flex', flexWrap: 'wrap' }}>
                     {String(entry.relatedSpirits).split(/[,;]/).map(s => s.trim()).filter(Boolean).map((n, i) => <SpiritPill key={i} name={n} />)}
                   </div>
@@ -881,7 +883,7 @@ function SpiritDossierPage() {
                         </div>
                         {intel.keyLegalGrounds?.length > 0 && (
                           <div style={{ marginBottom: 16 }}>
-                            <div style={{ fontFamily: cinzel, fontSize: 9, color: color + 'BB', letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 8 }}>Key Legal Grounds</div>
+                            <div style={{ fontFamily: cinzel, fontSize: 9, color: G, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 8 }}>Key Legal Grounds</div>
                             {intel.keyLegalGrounds.map((g: string, i: number) => (
                               <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, marginBottom: 6 }}>
                                 <span style={{ color: G, flexShrink: 0, fontSize: 10, marginTop: 2 }}>▸</span>
@@ -892,7 +894,7 @@ function SpiritDossierPage() {
                         )}
                         {intel.keyScriptures?.length > 0 && (
                           <div style={{ marginBottom: 16 }}>
-                            <div style={{ fontFamily: cinzel, fontSize: 9, color: color + 'BB', letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 8 }}>Key Scriptures</div>
+                            <div style={{ fontFamily: cinzel, fontSize: 9, color: G, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 8 }}>Key Scriptures</div>
                             {intel.keyScriptures.map((s: string, i: number) => (
                               <div key={i} style={{ fontFamily: crimson, fontSize: 13, color: G, fontStyle: 'italic', marginBottom: 5, paddingLeft: 10, borderLeft: '2px solid rgba(201,168,76,0.2)' }}>{s}</div>
                             ))}
@@ -961,13 +963,13 @@ function SpiritDossierPage() {
                         <div style={{ fontFamily: cinzel, fontSize: 10, color: G, letterSpacing: '0.15em', textTransform: 'uppercase', marginBottom: 12, paddingBottom: 6, borderBottom: '1px solid rgba(201,168,76,0.2)' }}>INTERCESSION</div>
                         {ic.opening && (
                           <div style={{ marginBottom: 20 }}>
-                            <div style={{ fontFamily: cinzel, fontSize: 9, color: color + 'BB', letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 8 }}>Opening Intercession</div>
+                            <div style={{ fontFamily: cinzel, fontSize: 9, color: G, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 8 }}>Opening Intercession</div>
                             <div style={{ fontFamily: crimson, fontSize: 15, color: 'var(--text)', lineHeight: 1.8, fontStyle: 'italic', paddingLeft: 14, borderLeft: '3px solid rgba(201,168,76,0.3)' }}>{ic.opening}</div>
                           </div>
                         )}
                         {ic.declarations?.length > 0 && (
                           <div style={{ marginBottom: 20 }}>
-                            <div style={{ fontFamily: cinzel, fontSize: 9, color: color + 'BB', letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 8 }}>Declarations</div>
+                            <div style={{ fontFamily: cinzel, fontSize: 9, color: G, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 8 }}>Declarations</div>
                             {ic.declarations.map((d: string, i: number) => (
                               <div key={i} style={{ fontFamily: crimson, fontSize: 14, color: 'var(--text)', lineHeight: 1.6, marginBottom: 8, paddingLeft: 12, borderLeft: '2px solid rgba(201,168,76,0.2)' }}>{d}</div>
                             ))}
@@ -975,7 +977,7 @@ function SpiritDossierPage() {
                         )}
                         {ic.binding && (
                           <div>
-                            <div style={{ fontFamily: cinzel, fontSize: 9, color: color + 'BB', letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 8 }}>Binding Prayer</div>
+                            <div style={{ fontFamily: cinzel, fontSize: 9, color: G, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 8 }}>Binding Prayer</div>
                             <div style={{ fontFamily: crimson, fontSize: 15, color: 'var(--text)', lineHeight: 1.8, fontStyle: 'italic', paddingLeft: 14, borderLeft: '3px solid rgba(220,38,38,0.4)' }}>{ic.binding}</div>
                           </div>
                         )}
@@ -1009,7 +1011,7 @@ function SpiritDossierPage() {
                         <div style={{ fontFamily: cinzel, fontSize: 10, color: G, letterSpacing: '0.15em', textTransform: 'uppercase', marginBottom: 12, paddingBottom: 6, borderBottom: '1px solid rgba(201,168,76,0.2)' }}>AFTERCARE</div>
                         {ac.initialSteps?.length > 0 && (
                           <div style={{ marginBottom: 16 }}>
-                            <div style={{ fontFamily: cinzel, fontSize: 9, color: color + 'BB', letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 8 }}>Immediate Steps</div>
+                            <div style={{ fontFamily: cinzel, fontSize: 9, color: G, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 8 }}>Immediate Steps</div>
                             {ac.initialSteps.map((s: string, i: number) => (
                               <div key={i} style={{ display: 'flex', gap: 8, marginBottom: 6 }}>
                                 <span style={{ color: G, flexShrink: 0, fontFamily: cinzel, fontSize: 11, marginTop: 1 }}>{i + 1}.</span>
@@ -1020,7 +1022,7 @@ function SpiritDossierPage() {
                         )}
                         {ac.dailyPractices?.length > 0 && (
                           <div style={{ marginBottom: 16 }}>
-                            <div style={{ fontFamily: cinzel, fontSize: 9, color: color + 'BB', letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 8 }}>Daily Practices</div>
+                            <div style={{ fontFamily: cinzel, fontSize: 9, color: G, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 8 }}>Daily Practices</div>
                             {ac.dailyPractices.map((p: string, i: number) => (
                               <div key={i} style={{ fontFamily: crimson, fontSize: 14, color: 'var(--text)', lineHeight: 1.5, marginBottom: 6, paddingLeft: 10, borderLeft: '2px solid rgba(201,168,76,0.15)' }}>• {p}</div>
                             ))}
@@ -1036,7 +1038,7 @@ function SpiritDossierPage() {
                         )}
                         {ac.followUpQuestions?.length > 0 && (
                           <div>
-                            <div style={{ fontFamily: cinzel, fontSize: 9, color: color + 'BB', letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 8 }}>Follow-Up Questions</div>
+                            <div style={{ fontFamily: cinzel, fontSize: 9, color: G, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 8 }}>Follow-Up Questions</div>
                             {ac.followUpQuestions.map((q: string, i: number) => (
                               <div key={i} style={{ fontFamily: crimson, fontSize: 14, color: 'var(--muted)', fontStyle: 'italic', marginBottom: 6 }}>• {q}</div>
                             ))}
