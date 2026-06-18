@@ -8623,6 +8623,111 @@ const SOL_JOB_TYPE_LABELS: Record<string, string> = {
   ask_sol:               'Ask SOL',
 }
 
+function exportProtocolToPDF(resultJson: any) {
+  const protocol = resultJson?.protocol
+  if (!protocol) return
+  const date = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
+  const esc = (s: string) => String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+  const list = (items: string[]) => items?.length
+    ? `<ul>${items.map(i => `<li>${esc(i)}</li>`).join('')}</ul>`
+    : ''
+  const pre = protocol.preSessionIntel || {}
+  const preHtml = `
+    <h2>PRE-SESSION INTEL</h2>
+    ${pre.summary ? `<p>${esc(pre.summary)}</p>` : ''}
+    ${pre.keyLegalGrounds?.length ? `<h3>Key Legal Grounds</h3>${list(pre.keyLegalGrounds)}` : ''}
+    ${pre.keyScriptures?.length ? `<h3>Key Scriptures</h3>${list(pre.keyScriptures)}` : ''}
+    ${pre.warningFlags?.length ? `<h3>Warning Flags</h3>${list(pre.warningFlags)}` : ''}
+  `
+  const lgHtml = protocol.legalGroundChecklist?.length ? `
+    <h2>LEGAL GROUND CHECKLIST</h2>
+    <table style="width:100%;border-collapse:collapse">
+      ${(protocol.legalGroundChecklist as any[]).map((g: any) => `
+        <tr style="border-bottom:1px solid #e8d5b0">
+          <td style="padding:8px 0 4px 16px;font-family:'Cinzel',serif;font-size:11px;font-weight:600;color:#3a2a10">${esc(g.ground)}</td>
+        </tr>
+        <tr>
+          <td style="padding:0 0 8px 16px;color:#5a4a30">${esc(g.question || '')}${g.scripture ? `<br/><em style="color:#8a7a60">${esc(g.scripture)}</em>` : ''}</td>
+        </tr>
+      `).join('')}
+    </table>
+  ` : ''
+  const renHtml = protocol.renunciationPrayers?.length ? `
+    <h2>RENUNCIATION PRAYERS</h2>
+    ${(protocol.renunciationPrayers as any[]).map((p: any) => `
+      <h3>${esc(p.title)}</h3>
+      <p style="font-style:italic;color:#5a4a30">${esc(p.prayer)}</p>
+      ${p.notes ? `<p style="font-size:12px;color:#8a7a60">${esc(p.notes)}</p>` : ''}
+    `).join('<hr style="border:none;border-top:1px solid #e8d5b0;margin:12px 0"/>')}
+  ` : ''
+  const cmdHtml = protocol.commandPrayers?.length ? `
+    <h2>COMMAND PRAYERS</h2>
+    ${(protocol.commandPrayers as any[]).map((p: any) => `
+      <div style="margin-bottom:16px">
+        <strong>${esc(p.target)}</strong>
+        <p style="font-style:italic;color:#5a4a30">${esc(p.command)}</p>
+        ${p.authority ? `<p style="font-size:12px;color:#8a7a60"><em>Authority: ${esc(p.authority)}</em></p>` : ''}
+      </div>
+    `).join('')}
+  ` : ''
+  const af = protocol.aftercare || {}
+  const afHtml = (af.initialSteps?.length || af.dailyPractices?.length || af.warningSignsToWatch?.length) ? `
+    <h2>AFTERCARE</h2>
+    ${af.initialSteps?.length ? `<h3>Initial Steps</h3>${list(af.initialSteps)}` : ''}
+    ${af.dailyPractices?.length ? `<h3>Daily Practices</h3>${list(af.dailyPractices)}` : ''}
+    ${af.warningSignsToWatch?.length ? `<h3>Warning Signs to Watch</h3>${list(af.warningSignsToWatch)}` : ''}
+    ${af.followUpQuestions?.length ? `<h3>Follow-Up Questions</h3>${list(af.followUpQuestions)}` : ''}
+  ` : ''
+  const bodyHtml = preHtml + '<hr class="divider"/>' + lgHtml + '<hr class="divider"/>' + renHtml + '<hr class="divider"/>' + cmdHtml + '<hr class="divider"/>' + afHtml
+  const html = `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8"/>
+<title>War Room Intel — Deliverance Protocol</title>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Crimson+Text:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet"/>
+<style>
+  body { margin: 0; background: #fff; color: #1a1408; font-family: 'Crimson Text', Georgia, serif; font-size: 15px; line-height: 1.7; }
+  .page { max-width: 720px; margin: 0 auto; padding: 48px 48px 64px; }
+  .header { border-bottom: 2px solid #C9A84C; padding-bottom: 20px; margin-bottom: 32px; display: flex; justify-content: space-between; align-items: flex-end; }
+  .brand { font-family: 'Cinzel', serif; font-size: 22px; font-weight: 700; color: #1a1408; letter-spacing: 0.08em; }
+  .brand span { color: #C9A84C; }
+  .classification { font-family: 'Cinzel', serif; font-size: 9px; letter-spacing: 0.25em; color: #C9A84C; text-transform: uppercase; border: 1px solid #C9A84C; padding: 3px 8px; }
+  .date { font-family: 'Cinzel', serif; font-size: 10px; color: #8a7a60; letter-spacing: 0.1em; margin-top: 6px; }
+  .divider { border: none; border-top: 1px solid #d4b896; margin: 24px 0; }
+  h1 { font-family: 'Cinzel', serif; font-size: 16px; font-weight: 700; color: #1a1408; letter-spacing: 0.08em; margin: 24px 0 12px; }
+  h2 { font-family: 'Cinzel', serif; font-size: 14px; font-weight: 600; color: #3a2a10; letter-spacing: 0.06em; margin: 20px 0 10px; }
+  h3 { font-family: 'Cinzel', serif; font-size: 12px; font-weight: 600; color: #5a4a30; letter-spacing: 0.06em; margin: 16px 0 8px; }
+  p { margin: 0 0 12px; }
+  ul { padding-left: 0; list-style: none; margin: 8px 0 12px; }
+  li::before { content: '⚔ '; color: #C9A84C; }
+  li { margin: 4px 0; padding-left: 16px; text-indent: -16px; }
+  strong { color: #1a1408; font-weight: 600; }
+  em { color: #5a4a30; }
+  .footer { margin-top: 48px; padding-top: 16px; border-top: 1px solid #d4b896; display: flex; justify-content: space-between; font-family: 'Cinzel', serif; font-size: 9px; color: #8a7a60; letter-spacing: 0.1em; }
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="header">
+    <div>
+      <div class="brand">WAR ROOM <span>INTEL</span></div>
+      <div class="date">${date}</div>
+    </div>
+    <div class="classification">DELIVERANCE PROTOCOL</div>
+  </div>
+  <div>${bodyHtml}</div>
+  <div class="footer">
+    <span>War Room Intel · A Ministry of Staffordtown Church · Copperhill, TN</span>
+    <span>warroomintel.com</span>
+  </div>
+</div>
+<script>window.onload = () => window.print()</script>
+</body>
+</html>`
+  const win = window.open('', '_blank')
+  if (win) { win.document.write(html); win.document.close() }
+}
+
 function renderSolInputSummary(jobType: string, params: any, txt: string, mut: string): React.ReactNode {
   if (!params) return null
   const field = (label: string, value: string | undefined) => value ? (
@@ -8670,7 +8775,12 @@ function renderSolOpenResult(job: any, isDark: boolean, onOpenProtocol: (r: any)
   switch (job.job_type) {
     case 'deliverance_protocol':
       if (!job.result_json?.protocol) return null
-      return <button onClick={() => onOpenProtocol(job.result_json)} style={btnPrimary}>⚔ OPEN PROTOCOL</button>
+      return (
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' as const }}>
+          <button onClick={() => onOpenProtocol(job.result_json)} style={btnPrimary}>⚔ OPEN PROTOCOL</button>
+          <button onClick={() => exportProtocolToPDF(job.result_json)} style={btnOutline}>↓ EXPORT PDF</button>
+        </div>
+      )
     case 'spirit_enrich': {
       const n = job.result_json?.spiritName || job.input_params?.spiritSlug || ''
       return <button onClick={() => onNavigate('database')} style={btnOutline}>📖 SPIRIT DOSSIER{n ? ` — ${n}` : ''}</button>
