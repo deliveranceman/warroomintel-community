@@ -45,7 +45,7 @@ export default async function handler(req: Request) {
     }
 
     // Single update
-    const { id, title, tier, topic, notes, tags, spirit_tags, content_tier, access_tier, draft } = body || {}
+    const { id, title, tier, topic, notes, tags, spirit_tags, content_tier, access_tier, draft, featured } = body || {}
     if (!id) return new Response(JSON.stringify({ error: 'id required' }), { status: 400 })
 
     const updates: Record<string, any> = {}
@@ -58,6 +58,7 @@ export default async function handler(req: Request) {
     if (content_tier !== undefined) updates.content_tier = content_tier === null ? null : Number(content_tier)
     if (access_tier  !== undefined) updates.access_tier  = access_tier
     if (draft        !== undefined) updates.draft        = draft === true || draft === 'true'
+    if (featured     !== undefined) updates.featured     = featured === true || featured === 'true'
 
     const { data: row, error } = await supabase
       .from('resources')

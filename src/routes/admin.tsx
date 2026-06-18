@@ -760,6 +760,7 @@ function ArsenalManager({ getToken, isDark = true }: { getToken: (opts?: { templ
                     tags:       Array.isArray(r.tags) ? r.tags : [],
                     notes:      r.description || r.notes || '',
                     spirit_tags: Array.isArray(r.spirit_tags) ? r.spirit_tags : [],
+                    featured:   !!r.featured,
                   })
                 }}
                 style={{ background: arsenalEditId === r.id ? 'rgba(201,168,76,0.2)' : 'transparent', border: '1px solid rgba(201,168,76,0.5)', borderRadius: 5, color: adGold, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.06em', padding: '4px 10px', cursor: 'pointer', flexShrink: 0 }}
@@ -799,6 +800,10 @@ function ArsenalManager({ getToken, isDark = true }: { getToken: (opts?: { templ
                   <label style={{ fontFamily: cinzel, fontSize: 8, color: adDim, letterSpacing: '0.1em', display: 'block', marginBottom: 4 }}>DESCRIPTION</label>
                   <textarea value={arsenalEditForm.notes} onChange={e => setArsenalEditForm((f: any) => ({ ...f, notes: e.target.value }))} rows={2} style={{ width: '100%', boxSizing: 'border-box' as const, background: 'rgba(255,255,255,0.04)', border: `1px solid ${adBdr}`, borderRadius: 4, padding: '6px 10px', color: adTxt, fontFamily: crimson, fontSize: 13, outline: 'none', resize: 'vertical' as const }} />
                 </div>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+                  <input type="checkbox" checked={!!arsenalEditForm.featured} onChange={e => setArsenalEditForm((f: any) => ({ ...f, featured: e.target.checked }))} style={{ accentColor: adGold, width: 14, height: 14, cursor: 'pointer' }} />
+                  <span style={{ fontFamily: cinzel, fontSize: 9, color: adTxt, letterSpacing: '0.06em' }}>Featured (show on Arsenal Pinned shelf)</span>
+                </label>
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' as const }}>
                   <button onClick={async () => {
                     const token = await getToken()
