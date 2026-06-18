@@ -31,6 +31,7 @@ import { Route as AdminIndexRouteImport } from './routes/admin.index'
 import { Route as ProductsProductIdRouteImport } from './routes/products/$productId'
 import { Route as CommunitySpiritualMappingRouteImport } from './routes/community_.spiritual-mapping'
 import { Route as CommunitySearchRouteImport } from './routes/community_.search'
+import { Route as CommunitySpiritsSpiriIdRouteImport } from './routes/community_.spirits.$spiritId'
 import { Route as CommunityScriptureRouteImport } from './routes/community_.scripture'
 import { Route as CommunityQrfRouteImport } from './routes/community_.qrf'
 import { Route as CommunityForumRouteImport } from './routes/community_.forum'
@@ -171,6 +172,11 @@ const CommunitySpiritualMappingRoute =
 const CommunitySearchRoute = CommunitySearchRouteImport.update({
   id: '/community_/search',
   path: '/community/search',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CommunitySpiritsSpiriIdRoute = CommunitySpiritsSpiriIdRouteImport.update({
+  id: '/community_/spirits/$spiritId',
+  path: '/community/spirits/$spiritId',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CommunityScriptureRoute = CommunityScriptureRouteImport.update({
@@ -377,6 +383,7 @@ export interface FileRoutesByFullPath {
   '/community/scripture': typeof CommunityScriptureRoute
   '/community/search': typeof CommunitySearchRoute
   '/community/spiritual-mapping': typeof CommunitySpiritualMappingRoute
+  '/community/spirits/$spiritId': typeof CommunitySpiritsSpiriIdRoute
   '/products/$productId': typeof ProductsProductIdRoute
   '/admin/': typeof AdminIndexRoute
 }
@@ -430,6 +437,7 @@ export interface FileRoutesByTo {
   '/community/scripture': typeof CommunityScriptureRoute
   '/community/search': typeof CommunitySearchRoute
   '/community/spiritual-mapping': typeof CommunitySpiritualMappingRoute
+  '/community/spirits/$spiritId': typeof CommunitySpiritsSpiriIdRoute
   '/products/$productId': typeof ProductsProductIdRoute
   '/admin': typeof AdminIndexRoute
 }
@@ -485,6 +493,7 @@ export interface FileRoutesById {
   '/community_/scripture': typeof CommunityScriptureRoute
   '/community_/search': typeof CommunitySearchRoute
   '/community_/spiritual-mapping': typeof CommunitySpiritualMappingRoute
+  '/community_/spirits/$spiritId': typeof CommunitySpiritsSpiriIdRoute
   '/products/$productId': typeof ProductsProductIdRoute
   '/admin/': typeof AdminIndexRoute
 }
@@ -541,6 +550,7 @@ export interface FileRouteTypes {
     | '/community/scripture'
     | '/community/search'
     | '/community/spiritual-mapping'
+    | '/community/spirits/$spiritId'
     | '/products/$productId'
     | '/admin/'
   fileRoutesByTo: FileRoutesByTo
@@ -594,6 +604,7 @@ export interface FileRouteTypes {
     | '/community/scripture'
     | '/community/search'
     | '/community/spiritual-mapping'
+    | '/community/spirits/$spiritId'
     | '/products/$productId'
     | '/admin'
   id:
@@ -648,6 +659,7 @@ export interface FileRouteTypes {
     | '/community_/scripture'
     | '/community_/search'
     | '/community_/spiritual-mapping'
+    | '/community_/spirits/$spiritId'
     | '/products/$productId'
     | '/admin/'
   fileRoutesById: FileRoutesById
@@ -701,6 +713,7 @@ export interface RootRouteChildren {
   CommunityScriptureRoute: typeof CommunityScriptureRoute
   CommunitySearchRoute: typeof CommunitySearchRoute
   CommunitySpiritualMappingRoute: typeof CommunitySpiritualMappingRoute
+  CommunitySpiritsSpiriIdRoute: typeof CommunitySpiritsSpiriIdRoute
   ProductsProductIdRoute: typeof ProductsProductIdRoute
 }
 
@@ -858,6 +871,13 @@ declare module '@tanstack/react-router' {
       path: '/community/search'
       fullPath: '/community/search'
       preLoaderRoute: typeof CommunitySearchRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/community_/spirits/$spiritId': {
+      id: '/community_/spirits/$spiritId'
+      path: '/community/spirits/$spiritId'
+      fullPath: '/community/spirits/$spiritId'
+      preLoaderRoute: typeof CommunitySpiritsSpiriIdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/community_/scripture': {
@@ -1136,6 +1156,7 @@ const rootRouteChildren: RootRouteChildren = {
   CommunityScriptureRoute: CommunityScriptureRoute,
   CommunitySearchRoute: CommunitySearchRoute,
   CommunitySpiritualMappingRoute: CommunitySpiritualMappingRoute,
+  CommunitySpiritsSpiriIdRoute: CommunitySpiritsSpiriIdRoute,
   ProductsProductIdRoute: ProductsProductIdRoute,
 }
 export const routeTree = rootRouteImport
