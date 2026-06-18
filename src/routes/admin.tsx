@@ -15594,6 +15594,11 @@ function EnrichmentSuggestions({ getToken, isDark }: { getToken: any; isDark: bo
               <span style={{ fontFamily: cinzel, fontSize: 8, color: '#4a3f2f', marginLeft: 8 }}>
                 CONFIDENCE: {s.confidence}%
               </span>
+              {s.layer2_raw?._meta?.extraction_completeness && (
+                <span style={{ fontFamily: cinzel, fontSize: 8, color: '#5a4e36', marginLeft: 8, opacity: 0.75 }}>
+                  · {String(s.layer2_raw._meta.extraction_completeness).toUpperCase()}
+                </span>
+              )}
               </div>
             </div>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' as const, justifyContent: 'flex-end' }}>
@@ -15621,6 +15626,12 @@ function EnrichmentSuggestions({ getToken, isDark }: { getToken: any; isDark: bo
           </div>{/* end clickable header */}
 
           {expandedIds.has(s.id) && (<>
+          {/* Attested warning */}
+          {s.layer2_raw?._meta?.target_spirit_attested === false && (
+            <div style={{ marginBottom: 10, padding: '6px 12px', background: 'rgba(217,119,6,0.08)', border: '1px solid rgba(217,119,6,0.3)', borderRadius: 4 }}>
+              <span style={{ fontFamily: cinzel, fontSize: 8, color: '#d97706', letterSpacing: '0.1em' }}>⚠ TARGET SPIRIT NOT ATTESTED — extraction may reference a related or misidentified entity</span>
+            </div>
+          )}
           {/* Excerpt */}
           {s.source_excerpt && (
             <div style={{ fontFamily: crimson, fontSize: 13, color: '#4a3f2f', fontStyle: 'italic', borderLeft: '2px solid #2a2218', paddingLeft: 10, marginBottom: 10 }}>
