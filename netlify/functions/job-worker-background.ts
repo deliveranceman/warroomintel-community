@@ -15,6 +15,7 @@ import { runDreamInterpretation } from './_shared/dreamInterpret'
 import { runGatewayInvestigation } from './_shared/gatewayInvestigate'
 import { runDeliveranceProtocol } from './_shared/deliveranceProtocol'
 import { runAskSol } from './_shared/askSol'
+import { runGenerateDocument } from './_shared/generateDocument'
 
 const { url: sbUrl, serviceRoleKey: sbKey } = JSON.parse(process.env.SUPABASE || '{}')
 
@@ -77,6 +78,8 @@ export default async function handler(req: Request): Promise<Response> {
     await runDeliveranceProtocol(client, job)
   } else if (job.job_type === 'ask_sol') {
     await runAskSol(client, job)
+  } else if (job.job_type === 'generate_document') {
+    await runGenerateDocument(client, job)
   } else {
     await client.from('ai_jobs').update({
       status:        'failed',
