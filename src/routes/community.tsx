@@ -8978,12 +8978,17 @@ function timeAgo(dateStr: string | null | undefined): string {
 
 // ── FORUM VIEW ─────────────────────────────────────────────────────────────────
 
-const F_SURF  = 'rgba(255,255,255,0.03)'
 const F_SURF2 = 'rgba(255,255,255,0.06)'
-const F_BDR   = 'rgba(201,168,76,0.15)'
-const F_TXT   = '#f0e8d8'
-const F_DIM   = '#8B7355'
-const F_MUT   = '#6b5e45'
+
+function getForumPalette(isDark: boolean) {
+  return {
+    surf: isDark ? 'rgba(255,255,255,0.03)' : '#FFFFFF',
+    bdr:  isDark ? 'rgba(201,168,76,0.15)'  : '#D8D1BE',
+    txt:  isDark ? '#f0e8d8'                 : '#1F1B12',
+    dim:  isDark ? '#8B7355'                 : '#574B33',
+    mut:  isDark ? '#6b5e45'                 : '#574B33',
+  }
+}
 
 const FORUM_POST_TYPES: Record<string, { label: string; color: string; bg: string; placeholder: string }> = {
   discussion:   { label: 'Discussion',   color: '#C9A84C', bg: 'rgba(201,168,76,0.12)',   placeholder: 'Share your thoughts with the community…'    },
@@ -9011,7 +9016,8 @@ function ForumTierPill({ tier }: { tier: string }) {
   )
 }
 
-function ForumTagInput({ tags, onChange }: { tags: string[]; onChange: (t: string[]) => void }) {
+function ForumTagInput({ tags, onChange, isDark = true }: { tags: string[]; onChange: (t: string[]) => void; isDark?: boolean }) {
+  const F = getForumPalette(isDark)
   const [input, setInput] = useState('')
   function add(val: string) {
     const tag = val.trim().toLowerCase().replace(/\s+/g, '-').slice(0, 40)
@@ -9023,7 +9029,7 @@ function ForumTagInput({ tags, onChange }: { tags: string[]; onChange: (t: strin
     if (e.key === 'Backspace' && !input && tags.length) onChange(tags.slice(0, -1))
   }
   return (
-    <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 6, padding: '6px 10px', background: F_SURF2, border: `1px solid ${F_BDR}`, borderRadius: 6, cursor: 'text', minHeight: 38, alignItems: 'center' }}
+    <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 6, padding: '6px 10px', background: F_SURF2, border: `1px solid ${F.bdr}`, borderRadius: 6, cursor: 'text', minHeight: 38, alignItems: 'center' }}
       onClick={e => (e.currentTarget.querySelector('input') as HTMLInputElement)?.focus()}>
       {tags.map(t => (
         <span key={t} style={{ background: 'rgba(74,158,232,0.12)', color: '#4A9EE8', fontFamily: cinzel, fontSize: 9, padding: '2px 8px', borderRadius: 10, border: '1px solid rgba(74,158,232,0.3)', display: 'flex', alignItems: 'center', gap: 4 }}>
@@ -9033,28 +9039,30 @@ function ForumTagInput({ tags, onChange }: { tags: string[]; onChange: (t: strin
       ))}
       <input value={input} onChange={e => setInput(e.target.value)} onKeyDown={onKey} onBlur={() => input.trim() && add(input)}
         placeholder={tags.length === 0 ? 'Add tags (Enter to add)…' : ''}
-        style={{ border: 'none', background: 'transparent', outline: 'none', color: F_TXT, fontFamily: crimson, fontSize: 13, flex: 1, minWidth: 120 }} />
+        style={{ border: 'none', background: 'transparent', outline: 'none', color: F.txt, fontFamily: crimson, fontSize: 13, flex: 1, minWidth: 120 }} />
     </div>
   )
 }
 
 function ForumResourceCard({ url, title, thumbnail, description, domain, isDark = true }: any) {
+  const F = getForumPalette(isDark)
   if (!url) return null
   return (
     <a href={url} target="_blank" rel="noopener noreferrer"
-      style={{ display: 'flex', gap: 12, background: isDark ? F_SURF2 : '#FFFFFF', border: `1px solid ${F_BDR}`, borderRadius: 8, padding: '10px 12px', textDecoration: 'none', alignItems: 'flex-start', marginTop: 8 }}>
+      style={{ display: 'flex', gap: 12, background: isDark ? F_SURF2 : '#FFFFFF', border: `1px solid ${F.bdr}`, borderRadius: 8, padding: '10px 12px', textDecoration: 'none', alignItems: 'flex-start', marginTop: 8 }}>
       {thumbnail && <img src={thumbnail} alt="" style={{ width: 80, height: 56, objectFit: 'cover', borderRadius: 5, flexShrink: 0 }} onError={e => { (e.target as HTMLImageElement).style.display = 'none' }} />}
       <div style={{ flex: 1, minWidth: 0 }}>
-        {title && <div style={{ fontFamily: cinzel, fontSize: 11, color: isDark ? F_TXT : '#1F1B12', letterSpacing: '0.04em', marginBottom: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{title}</div>}
-        {description && <div style={{ fontFamily: crimson, fontSize: 12, color: isDark ? F_DIM : '#574B33', lineHeight: 1.4, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' as any, overflow: 'hidden' }}>{description}</div>}
-        {domain && <div style={{ fontFamily: cinzel, fontSize: 8, color: isDark ? F_MUT : '#574B33', marginTop: 4, letterSpacing: '0.08em' }}>{domain}</div>}
+        {title && <div style={{ fontFamily: cinzel, fontSize: 11, color: isDark ? F.txt : '#1F1B12', letterSpacing: '0.04em', marginBottom: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{title}</div>}
+        {description && <div style={{ fontFamily: crimson, fontSize: 12, color: isDark ? F.dim : '#574B33', lineHeight: 1.4, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' as any, overflow: 'hidden' }}>{description}</div>}
+        {domain && <div style={{ fontFamily: cinzel, fontSize: 8, color: isDark ? F.mut : '#574B33', marginTop: 4, letterSpacing: '0.08em' }}>{domain}</div>}
       </div>
     </a>
   )
 }
 
-function ForumPostComposer({ onPost, onCancel, canPost }: { onPost: (p: any) => void; onCancel: () => void; canPost: boolean }) {
+function ForumPostComposer({ onPost, onCancel, canPost, isDark = true }: { onPost: (p: any) => void; onCancel: () => void; canPost: boolean; isDark?: boolean }) {
   const { getToken } = useAuth()
+  const F = getForumPalette(isDark)
   const [postType,    setPostType]    = useState('discussion')
   const [title,       setTitle]       = useState('')
   const [body,        setBody]        = useState('')
@@ -9065,7 +9073,7 @@ function ForumPostComposer({ onPost, onCancel, canPost }: { onPost: (p: any) => 
   const [submitting,  setSubmitting]  = useState(false)
   const [error,       setError]       = useState('')
   const tc = FORUM_POST_TYPES[postType]
-  const inputSt: React.CSSProperties = { width: '100%', background: F_SURF2, border: `1px solid ${F_BDR}`, borderRadius: 6, padding: '9px 12px', color: F_TXT, fontFamily: crimson, fontSize: 14, outline: 'none', boxSizing: 'border-box' as const }
+  const inputSt: React.CSSProperties = { width: '100%', background: F_SURF2, border: `1px solid ${F.bdr}`, borderRadius: 6, padding: '9px 12px', color: F.txt, fontFamily: crimson, fontSize: 14, outline: 'none', boxSizing: 'border-box' as const }
 
   async function fetchOg(url: string) {
     if (!url.trim()) return
@@ -9102,12 +9110,12 @@ function ForumPostComposer({ onPost, onCancel, canPost }: { onPost: (p: any) => 
   }
 
   return (
-    <div style={{ background: F_SURF, border: `1px solid ${F_BDR}`, borderRadius: 12, padding: '24px 28px', marginBottom: 16, width: '100%', boxSizing: 'border-box' as const }}>
+    <div style={{ background: F.surf, border: `1px solid ${F.bdr}`, borderRadius: 12, padding: '24px 28px', marginBottom: 16, width: '100%', boxSizing: 'border-box' as const }}>
       <div style={{ fontFamily: cinzel, fontSize: 13, color: G, letterSpacing: '0.1em', marginBottom: 16 }}>⚔ New Post</div>
       <div style={{ display: 'flex', flexWrap: 'nowrap' as const, overflowX: 'auto' as const, gap: 6, marginBottom: 14 }}>
         {Object.entries(FORUM_POST_TYPES).map(([k, v]) => (
           <button key={k} type="button" onClick={() => setPostType(k)}
-            style={{ flexShrink: 0, whiteSpace: 'nowrap' as const, background: postType === k ? v.bg : 'transparent', border: `1px solid ${postType === k ? v.color : F_BDR}`, borderRadius: 20, padding: '4px 14px', cursor: 'pointer', fontFamily: cinzel, fontSize: 9, color: postType === k ? v.color : F_DIM, letterSpacing: '0.08em' }}>
+            style={{ flexShrink: 0, whiteSpace: 'nowrap' as const, background: postType === k ? v.bg : 'transparent', border: `1px solid ${postType === k ? v.color : F.bdr}`, borderRadius: 20, padding: '4px 14px', cursor: 'pointer', fontFamily: cinzel, fontSize: 9, color: postType === k ? v.color : F.dim, letterSpacing: '0.08em' }}>
             {v.label}
           </button>
         ))}
@@ -9125,18 +9133,18 @@ function ForumPostComposer({ onPost, onCancel, canPost }: { onPost: (p: any) => 
                 onBlur={() => resourceUrl.trim() && fetchOg(resourceUrl)}
                 onPaste={e => { setTimeout(() => { const v = (e.target as HTMLInputElement).value; if (v.startsWith('http')) fetchOg(v) }, 100) }}
                 style={{ ...inputSt, flex: 1 }} />
-              {ogLoading && <span style={{ color: F_DIM, fontFamily: cinzel, fontSize: 10, alignSelf: 'center' }}>Fetching…</span>}
+              {ogLoading && <span style={{ color: F.dim, fontFamily: cinzel, fontSize: 10, alignSelf: 'center' }}>Fetching…</span>}
             </div>
-            {ogData && <ForumResourceCard {...ogData} url={resourceUrl} />}
+            {ogData && <ForumResourceCard {...ogData} url={resourceUrl} isDark={isDark} />}
           </>
         )}
-        <ForumTagInput tags={tags} onChange={setTags} />
+        <ForumTagInput tags={tags} onChange={setTags} isDark={isDark} />
         {error && <div style={{ color: '#f87171', fontFamily: crimson, fontSize: 12 }}>{error}</div>}
-        {!canPost && <div style={{ color: F_DIM, fontFamily: crimson, fontSize: 12, fontStyle: 'italic' }}>Soldier+ tier required to post. You can still comment on existing posts.</div>}
+        {!canPost &&<div style={{ color: F.dim, fontFamily: crimson, fontSize: 12, fontStyle: 'italic' }}>Soldier+ tier required to post. You can still comment on existing posts.</div>}
         <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
-          <button type="button" onClick={onCancel} style={{ background: 'transparent', border: `1px solid ${F_BDR}`, borderRadius: 6, color: F_DIM, fontFamily: cinzel, fontSize: 9, padding: '8px 18px', cursor: 'pointer', letterSpacing: '0.08em' }}>Cancel</button>
+          <button type="button" onClick={onCancel} style={{ background: 'transparent', border: `1px solid ${F.bdr}`, borderRadius: 6, color: F.dim, fontFamily: cinzel, fontSize: 9, padding: '8px 18px', cursor: 'pointer', letterSpacing: '0.08em' }}>Cancel</button>
           <button type="button" onClick={submit} disabled={submitting || !canPost}
-            style={{ background: canPost ? 'rgba(201,168,76,0.15)' : 'rgba(255,255,255,0.04)', border: `1px solid ${canPost ? 'rgba(201,168,76,0.4)' : F_BDR}`, borderRadius: 6, color: canPost ? G : F_MUT, fontFamily: cinzel, fontSize: 9, padding: '8px 20px', cursor: canPost ? 'pointer' : 'not-allowed', letterSpacing: '0.08em', opacity: submitting ? 0.6 : 1 }}>
+            style={{ background: canPost ? 'rgba(201,168,76,0.15)' : 'rgba(255,255,255,0.04)', border: `1px solid ${canPost ? 'rgba(201,168,76,0.4)' : F.bdr}`, borderRadius: 6, color: canPost ? G : F.mut, fontFamily: cinzel, fontSize: 9, padding: '8px 20px', cursor: canPost ? 'pointer' : 'not-allowed', letterSpacing: '0.08em', opacity: submitting ? 0.6 : 1 }}>
             {submitting ? 'Posting…' : 'Post'}
           </button>
         </div>
@@ -9145,14 +9153,15 @@ function ForumPostComposer({ onPost, onCancel, canPost }: { onPost: (p: any) => 
   )
 }
 
-function ForumPostEditForm({ post, onSave, onCancel }: any) {
+function ForumPostEditForm({ post, onSave, onCancel, isDark = true }: any) {
   const { getToken } = useAuth()
+  const F = getForumPalette(isDark)
   const [title,  setTitle]  = useState(post.title || '')
   const [body,   setBody]   = useState(post.body || '')
   const [tags,   setTags]   = useState<string[]>(post.tags || [])
   const [saving, setSaving] = useState(false)
   const [error,  setError]  = useState('')
-  const inputSt: React.CSSProperties = { width: '100%', background: F_SURF2, border: `1px solid ${F_BDR}`, borderRadius: 6, padding: '8px 12px', color: F_TXT, fontFamily: crimson, fontSize: 13, outline: 'none', boxSizing: 'border-box' as const }
+  const inputSt: React.CSSProperties = { width: '100%', background: F_SURF2, border: `1px solid ${F.bdr}`, borderRadius: 6, padding: '8px 12px', color: F.txt, fontFamily: crimson, fontSize: 13, outline: 'none', boxSizing: 'border-box' as const }
 
   async function save() {
     if (!title.trim()) { setError('Title required'); return }
@@ -9168,18 +9177,19 @@ function ForumPostEditForm({ post, onSave, onCancel }: any) {
     <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 10 }}>
       <input value={title} onChange={e => setTitle(e.target.value)} style={inputSt} placeholder="Title" />
       <textarea value={body} onChange={e => setBody(e.target.value)} rows={5} style={{ ...inputSt, resize: 'vertical' as const }} />
-      <ForumTagInput tags={tags} onChange={setTags} />
+      <ForumTagInput tags={tags} onChange={setTags} isDark={isDark} />
       {error && <div style={{ color: '#f87171', fontFamily: crimson, fontSize: 12 }}>{error}</div>}
       <div style={{ display: 'flex', gap: 8 }}>
         <button onClick={save} disabled={saving} style={{ background: 'rgba(201,168,76,0.15)', border: '1px solid rgba(201,168,76,0.4)', borderRadius: 5, color: G, fontFamily: cinzel, fontSize: 9, padding: '6px 16px', cursor: 'pointer' }}>{saving ? '…' : 'Save'}</button>
-        <button onClick={onCancel} style={{ background: 'transparent', border: `1px solid ${F_BDR}`, borderRadius: 5, color: F_DIM, fontFamily: cinzel, fontSize: 9, padding: '6px 12px', cursor: 'pointer' }}>Cancel</button>
+        <button onClick={onCancel} style={{ background: 'transparent', border: `1px solid ${F.bdr}`, borderRadius: 5, color: F.dim, fontFamily: cinzel, fontSize: 9, padding: '6px 12px', cursor: 'pointer' }}>Cancel</button>
       </div>
     </div>
   )
 }
 
-function ForumCommentsSection({ postId, commentCount: _commentCount, userId, isMinister, getToken, canComment = true }: any) {
+function ForumCommentsSection({ postId, commentCount: _commentCount, userId, isMinister, getToken, canComment = true, isDark = true }: any) {
   const { beginUpgrade } = useContext(UpgradeFlowCtx)
+  const F = getForumPalette(isDark)
   const [comments,   setComments]   = useState<any[]>([])
   const [loaded,     setLoaded]     = useState(false)
   const [loading,    setLoading]    = useState(false)
@@ -9218,30 +9228,30 @@ function ForumCommentsSection({ postId, commentCount: _commentCount, userId, isM
   }
 
   return (
-    <div style={{ borderTop: `1px solid ${F_BDR}`, padding: '14px 16px 16px' }}>
+    <div style={{ borderTop: `1px solid ${F.bdr}`, padding: '14px 16px 16px' }}>
       <div style={{ fontFamily: cinzel, fontSize: 9, color: G, letterSpacing: '0.1em', marginBottom: 12 }}>
         {comments.length} {comments.length === 1 ? 'Comment' : 'Comments'}
       </div>
-      {loading && <div style={{ color: F_DIM, fontFamily: cinzel, fontSize: 9, padding: '8px 0' }}>Loading…</div>}
+      {loading && <div style={{ color: F.dim, fontFamily: cinzel, fontSize: 9, padding: '8px 0' }}>Loading…</div>}
       <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 8, marginBottom: 14 }}>
         {comments.map(c => (
           <div key={c.id} style={{ background: F_SURF2, borderRadius: 8, padding: '10px 14px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, flexWrap: 'wrap' as const }}>
               <span style={{ fontFamily: cinzel, fontSize: 10, color: G, letterSpacing: '0.05em' }}>{c.author_name}</span>
               <ForumTierPill tier={c.author_tier} />
-              <span style={{ fontFamily: cinzel, fontSize: 8, color: F_MUT }}>{timeAgo(c.created_at)}</span>
+              <span style={{ fontFamily: cinzel, fontSize: 8, color: F.mut }}>{timeAgo(c.created_at)}</span>
               {(c.user_id === userId || isMinister) && (
-                <button onClick={() => del(c.id)} style={{ marginLeft: 'auto', background: 'transparent', border: 'none', color: F_MUT, cursor: 'pointer', fontSize: 11, padding: '0 2px', opacity: 0.6 }} title="Delete">✕</button>
+                <button onClick={() => del(c.id)} style={{ marginLeft: 'auto', background: 'transparent', border: 'none', color: F.mut, cursor: 'pointer', fontSize: 11, padding: '0 2px', opacity: 0.6 }} title="Delete">✕</button>
               )}
             </div>
-            <div style={{ fontFamily: crimson, fontSize: 13, color: F_TXT, lineHeight: 1.6, whiteSpace: 'pre-wrap' as const }}>{c.body}</div>
+            <div style={{ fontFamily: crimson, fontSize: 13, color: F.txt, lineHeight: 1.6, whiteSpace: 'pre-wrap' as const }}>{c.body}</div>
           </div>
         ))}
       </div>
       <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end' }}>
         <textarea placeholder="Write a comment… (Cmd+Enter to submit)" value={draft} onChange={e => setDraft(e.target.value)}
           onKeyDown={e => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) submit() }}
-          rows={2} style={{ flex: 1, background: F_SURF2, border: `1px solid ${F_BDR}`, borderRadius: 6, padding: '8px 10px', color: F_TXT, fontFamily: crimson, fontSize: 13, outline: 'none', resize: 'none' as const }} />
+          rows={2} style={{ flex: 1, background: F_SURF2, border: `1px solid ${F.bdr}`, borderRadius: 6, padding: '8px 10px', color: F.txt, fontFamily: crimson, fontSize: 13, outline: 'none', resize: 'none' as const }} />
         <button onClick={canComment ? submit : () => beginUpgrade('soldier')} disabled={canComment && (submitting || !draft.trim())}
           style={{ background: 'rgba(201,168,76,0.12)', border: '1px solid rgba(201,168,76,0.35)', borderRadius: 6, color: G, fontFamily: cinzel, fontSize: 9, padding: '9px 14px', cursor: 'pointer', opacity: (canComment && (!draft.trim() || submitting)) ? 0.4 : 1, whiteSpace: 'nowrap' as const, letterSpacing: '0.08em' }}>
           {submitting ? '…' : 'Reply'}
@@ -9252,6 +9262,7 @@ function ForumCommentsSection({ postId, commentCount: _commentCount, userId, isM
 }
 
 function ForumPostCard({ post, userId, isMinister, getToken, onUpdate, onDelete, canComment = true, isDark = true }: any) {
+  const F = getForumPalette(isDark)
   const [expanded, setExpanded] = useState(false)
   const [editing,  setEditing]  = useState(false)
   const [voting,   setVoting]   = useState(false)
@@ -9295,8 +9306,8 @@ function ForumPostCard({ post, userId, isMinister, getToken, onUpdate, onDelete,
         <div style={{ display: 'flex', flexDirection: 'column' as const, alignItems: 'center', padding: '16px 10px', gap: 2, borderRight: `1px solid var(--gold-line)`, flexShrink: 0, width: 52 }}>
           <button onClick={vote} title={post.voted ? 'Remove vote' : 'Upvote'}
             style={{ background: post.voted ? 'rgba(201,168,76,0.15)' : 'transparent', border: 'none', borderRadius: 6, padding: '6px 10px', cursor: 'pointer', display: 'flex', flexDirection: 'column' as const, alignItems: 'center', gap: 2, transition: 'background 0.15s' }}>
-            <span style={{ fontSize: 14, color: post.voted ? G : F_MUT }}>▲</span>
-            <span style={{ fontFamily: cinzel, fontSize: 11, color: post.voted ? G : F_DIM, letterSpacing: '0.04em' }}>{post.upvotes || 0}</span>
+            <span style={{ fontSize: 14, color: post.voted ? G : F.mut }}>▲</span>
+            <span style={{ fontFamily: cinzel, fontSize: 11, color: post.voted ? G : F.dim, letterSpacing: '0.04em' }}>{post.upvotes || 0}</span>
           </button>
         </div>
         <div style={{ flex: 1, minWidth: 0, padding: '12px 16px' }}>
@@ -9308,12 +9319,12 @@ function ForumPostCard({ post, userId, isMinister, getToken, onUpdate, onDelete,
             ))}
           </div>
           {editing ? (
-            <ForumPostEditForm post={post} onSave={(updated: any) => { onUpdate(updated); setEditing(false) }} onCancel={() => setEditing(false)} />
+            <ForumPostEditForm post={post} onSave={(updated: any) => { onUpdate(updated); setEditing(false) }} onCancel={() => setEditing(false)} isDark={isDark} />
           ) : (
             <>
-              <div onClick={() => setExpanded(e => !e)} style={{ fontFamily: cinzel, fontSize: 14, color: F_TXT, letterSpacing: '0.04em', marginBottom: 6, lineHeight: 1.4, cursor: 'pointer' }}>{post.title}</div>
+              <div onClick={() => setExpanded(e => !e)} style={{ fontFamily: cinzel, fontSize: 14, color: F.txt, letterSpacing: '0.04em', marginBottom: 6, lineHeight: 1.4, cursor: 'pointer' }}>{post.title}</div>
               {post.body && (
-                <div onClick={() => setExpanded(e => !e)} style={{ fontFamily: crimson, fontSize: 13, color: F_DIM, lineHeight: 1.6, cursor: 'pointer',
+                <div onClick={() => setExpanded(e => !e)} style={{ fontFamily: crimson, fontSize: 13, color: F.dim, lineHeight: 1.6, cursor: 'pointer',
                   ...(expanded ? {} : { display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' as any, overflow: 'hidden' }) }}>
                   {post.body}
                 </div>
@@ -9323,21 +9334,21 @@ function ForumPostCard({ post, userId, isMinister, getToken, onUpdate, onDelete,
                   domain={(() => { try { return new URL(post.resource_url).hostname.replace('www.','') } catch { return '' } })()} isDark={isDark} />
               )}
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 10, flexWrap: 'wrap' as const }}>
-                <span style={{ fontFamily: cinzel, fontSize: 9, color: F_DIM, letterSpacing: '0.04em' }}>{post.author_name}</span>
+                <span style={{ fontFamily: cinzel, fontSize: 9, color: F.dim, letterSpacing: '0.04em' }}>{post.author_name}</span>
                 <ForumTierPill tier={post.author_tier} />
                 <MonoTime color="var(--t-4)" size={9}>{timeAgo(post.created_at)}</MonoTime>
-                <button onClick={() => setExpanded(e => !e)} style={{ background: 'transparent', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, padding: '2px 6px', borderRadius: 4, color: F_DIM }}>
+                <button onClick={() => setExpanded(e => !e)} style={{ background: 'transparent', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, padding: '2px 6px', borderRadius: 4, color: F.dim }}>
                   <span style={{ fontSize: 11 }}>💬</span>
                   <span style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.04em' }}>{post.comment_count || 0}</span>
                 </button>
                 <div style={{ display: 'flex', gap: 6, marginLeft: 'auto' }}>
                   {isOwn && !isMinister && (
-                    <button onClick={() => setEditing(true)} style={{ background: 'transparent', border: `1px solid ${F_BDR}`, borderRadius: 4, color: F_DIM, fontFamily: cinzel, fontSize: 8, padding: '2px 8px', cursor: 'pointer' }}>✎ Edit</button>
+                    <button onClick={() => setEditing(true)} style={{ background: 'transparent', border: `1px solid ${F.bdr}`, borderRadius: 4, color: F.dim, fontFamily: cinzel, fontSize: 8, padding: '2px 8px', cursor: 'pointer' }}>✎ Edit</button>
                   )}
                   {isMinister && (
                     <>
-                      <button onClick={() => setEditing(true)} style={{ background: 'transparent', border: `1px solid ${F_BDR}`, borderRadius: 4, color: F_DIM, fontFamily: cinzel, fontSize: 8, padding: '2px 8px', cursor: 'pointer' }}>✎</button>
-                      <button onClick={togglePin} style={{ background: post.pinned ? 'rgba(201,168,76,0.1)' : 'transparent', border: `1px solid ${F_BDR}`, borderRadius: 4, color: post.pinned ? G : F_DIM, fontFamily: cinzel, fontSize: 8, padding: '2px 8px', cursor: 'pointer' }}>📌</button>
+                      <button onClick={() => setEditing(true)} style={{ background: 'transparent', border: `1px solid ${F.bdr}`, borderRadius: 4, color: F.dim, fontFamily: cinzel, fontSize: 8, padding: '2px 8px', cursor: 'pointer' }}>✎</button>
+                      <button onClick={togglePin} style={{ background: post.pinned ? 'rgba(201,168,76,0.1)' : 'transparent', border: `1px solid ${F.bdr}`, borderRadius: 4, color: post.pinned ? G : F.dim, fontFamily: cinzel, fontSize: 8, padding: '2px 8px', cursor: 'pointer' }}>📌</button>
                     </>
                   )}
                   {(isOwn || isMinister) && (
@@ -9350,7 +9361,7 @@ function ForumPostCard({ post, userId, isMinister, getToken, onUpdate, onDelete,
         </div>
       </div>
       {expanded && !editing && (
-        <ForumCommentsSection postId={post.id} commentCount={post.comment_count} userId={userId} isMinister={isMinister} getToken={getToken} canComment={canComment} />
+        <ForumCommentsSection postId={post.id} commentCount={post.comment_count} userId={userId} isMinister={isMinister} getToken={getToken} canComment={canComment} isDark={isDark} />
       )}
     </div>
   )
@@ -9363,6 +9374,7 @@ function ForumView({ isDark, isMobile, userId, userTier }: { isDark: boolean; is
   const userRole     = (user?.publicMetadata?.role as string) || ''
   const isMinister   = getAccessLevel({ tier: userTier, role: userRole }) >= 4
   const canPost      = getAccessLevel({ tier: userTier, role: userRole }) >= 1
+  const F = getForumPalette(isDark)
 
   const [posts,       setPosts]       = useState<any[]>([])
   const [loading,     setLoading]     = useState(true)
@@ -9412,22 +9424,22 @@ function ForumView({ isDark, isMobile, userId, userTier }: { isDark: boolean; is
     background: sort === s ? 'rgba(201,168,76,0.12)' : 'transparent',
     border: `1px solid ${sort === s ? 'rgba(201,168,76,0.4)' : 'transparent'}`,
     borderRadius: 6, padding: '6px 16px', cursor: 'pointer', fontFamily: cinzel, fontSize: 10,
-    color: sort === s ? G : F_DIM, letterSpacing: '0.08em',
+    color: sort === s ? G : F.dim, letterSpacing: '0.08em',
   })
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column' as const, height: '100%', overflow: 'hidden', background: isDark ? '#0D0B14' : '#EDEBE2' }}>
       {/* Sticky header */}
-      <div style={{ borderBottom: `1px solid ${F_BDR}`, padding: '16px 24px 0', background: isDark ? '#0D0B14' : '#EDEBE2', flexShrink: 0 }}>
+      <div style={{ borderBottom: `1px solid ${F.bdr}`, padding: '16px 24px 0', background: isDark ? '#0D0B14' : '#EDEBE2', flexShrink: 0 }}>
         <div style={{ fontFamily: cinzel, fontSize: 18, color: isDark ? G : '#8B6914', letterSpacing: '0.1em', marginBottom: 6 }}>⚔ The Ops Board</div>
-        <div style={{ fontFamily: crimson, fontSize: 13, color: F_DIM, fontStyle: 'italic', marginBottom: 14 }}>Open discussion for the War Room Intel community</div>
+        <div style={{ fontFamily: crimson, fontSize: 13, color: F.dim, fontStyle: 'italic', marginBottom: 14 }}>Open discussion for the War Room Intel community</div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' as const, paddingBottom: 12 }}>
           <button onClick={() => setSort('hot')} style={sortBtnSt('hot')}>🔥 Hot</button>
           <button onClick={() => setSort('new')} style={sortBtnSt('new')}>✨ New</button>
           <button onClick={() => setSort('top')} style={sortBtnSt('top')}>⬆ Top</button>
           <div style={{ flex: 1, maxWidth: 280 }}>
             <input placeholder="Search posts…" value={search} onChange={e => setSearch(e.target.value)}
-              style={{ width: '100%', background: F_SURF2, border: `1px solid ${F_BDR}`, borderRadius: 6, padding: '6px 12px', color: F_TXT, fontFamily: crimson, fontSize: 13, outline: 'none', boxSizing: 'border-box' as const }} />
+              style={{ width: '100%', background: F_SURF2, border: `1px solid ${F.bdr}`, borderRadius: 6, padding: '6px 12px', color: F.txt, fontFamily: crimson, fontSize: 13, outline: 'none', boxSizing: 'border-box' as const }} />
           </div>
           {!isMobile && canPost && (
             <button onClick={() => setComposing(c => !c)}
@@ -9444,12 +9456,12 @@ function ForumView({ isDark, isMobile, userId, userTier }: { isDark: boolean; is
         </div>
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' as const, paddingBottom: 12 }}>
           <button onClick={() => setTypeFilter('all')}
-            style={{ background: typeFilter === 'all' ? 'rgba(201,168,76,0.12)' : 'transparent', border: `1px solid ${typeFilter === 'all' ? 'rgba(201,168,76,0.4)' : F_BDR}`, borderRadius: 20, padding: '3px 12px', cursor: 'pointer', fontFamily: cinzel, fontSize: 8, color: typeFilter === 'all' ? G : F_DIM, letterSpacing: '0.08em' }}>
+            style={{ background: typeFilter === 'all' ? 'rgba(201,168,76,0.12)' : 'transparent', border: `1px solid ${typeFilter === 'all' ? 'rgba(201,168,76,0.4)' : F.bdr}`, borderRadius: 20, padding: '3px 12px', cursor: 'pointer', fontFamily: cinzel, fontSize: 8, color: typeFilter === 'all' ? G : F.dim, letterSpacing: '0.08em' }}>
             All
           </button>
           {Object.entries(FORUM_POST_TYPES).map(([k, v]) => (
             <button key={k} onClick={() => setTypeFilter(typeFilter === k ? 'all' : k)}
-              style={{ background: typeFilter === k ? v.bg : 'transparent', border: `1px solid ${typeFilter === k ? v.color : F_BDR}`, borderRadius: 20, padding: '3px 12px', cursor: 'pointer', fontFamily: cinzel, fontSize: 8, color: typeFilter === k ? v.color : F_DIM, letterSpacing: '0.08em' }}>
+              style={{ background: typeFilter === k ? v.bg : 'transparent', border: `1px solid ${typeFilter === k ? v.color : F.bdr}`, borderRadius: 20, padding: '3px 12px', cursor: 'pointer', fontFamily: cinzel, fontSize: 8, color: typeFilter === k ? v.color : F.dim, letterSpacing: '0.08em' }}>
               {v.label}
             </button>
           ))}
@@ -9479,11 +9491,11 @@ function ForumView({ isDark, isMobile, userId, userTier }: { isDark: boolean; is
                 🔒 Soldier+ tier required to post → Upgrade
               </button>
             )}
-            {composing && <ForumPostComposer onPost={onPost} onCancel={() => setComposing(false)} canPost={canPost} />}
+            {composing && <ForumPostComposer onPost={onPost} onCancel={() => setComposing(false)} canPost={canPost} isDark={isDark} />}
             {loading ? (
-              <div style={{ padding: '60px 0', textAlign: 'center' as const, color: F_DIM, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.1em' }}>Loading…</div>
+              <div style={{ padding: '60px 0', textAlign: 'center' as const, color: F.dim, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.1em' }}>Loading…</div>
             ) : displayed.length === 0 ? (
-              <div style={{ padding: '60px 0', textAlign: 'center' as const, color: F_DIM, fontFamily: crimson, fontStyle: 'italic', fontSize: 14 }}>
+              <div style={{ padding: '60px 0', textAlign: 'center' as const, color: F.dim, fontFamily: crimson, fontStyle: 'italic', fontSize: 14 }}>
                 {posts.length === 0 ? 'No posts yet. Start the conversation.' : 'No posts match this filter.'}
               </div>
             ) : (
@@ -9496,7 +9508,7 @@ function ForumView({ isDark, isMobile, userId, userTier }: { isDark: boolean; is
             {hasMore && !search && (
               <div style={{ textAlign: 'center' as const, marginTop: 24 }}>
                 <button onClick={loadMore} disabled={loadingMore}
-                  style={{ background: 'transparent', border: `1px solid ${F_BDR}`, borderRadius: 6, color: F_DIM, fontFamily: cinzel, fontSize: 10, padding: '8px 24px', cursor: 'pointer', letterSpacing: '0.08em' }}>
+                  style={{ background: 'transparent', border: `1px solid ${F.bdr}`, borderRadius: 6, color: F.dim, fontFamily: cinzel, fontSize: 10, padding: '8px 24px', cursor: 'pointer', letterSpacing: '0.08em' }}>
                   {loadingMore ? 'Loading…' : 'Load more'}
                 </button>
               </div>
@@ -9518,12 +9530,12 @@ function ForumView({ isDark, isMobile, userId, userTier }: { isDark: boolean; is
                 </button>
               )}
               {trendingTags.length > 0 && (
-                <div style={{ background: F_SURF, border: `1px solid ${F_BDR}`, borderRadius: 10, padding: '16px 16px' }}>
+                <div style={{ background: F.surf, border: `1px solid ${F.bdr}`, borderRadius: 10, padding: '16px 16px' }}>
                   <div style={{ fontFamily: cinzel, fontSize: 10, color: isDark ? G : '#8B6914', letterSpacing: '0.1em', marginBottom: 12 }}>🔥 Trending Tags</div>
                   <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 6 }}>
                     {trendingTags.map(([tag, count]) => (
                       <button key={tag} onClick={() => setTagFilter(tagFilter === tag ? '' : tag)}
-                        style={{ background: tagFilter === tag ? 'rgba(74,158,232,0.12)' : F_SURF, border: `1px solid ${tagFilter === tag ? 'rgba(74,158,232,0.35)' : F_BDR}`, borderRadius: 20, padding: '3px 10px', cursor: 'pointer', fontFamily: cinzel, fontSize: 8, color: tagFilter === tag ? '#4A9EE8' : F_DIM, letterSpacing: '0.06em' }}>
+                        style={{ background: tagFilter === tag ? 'rgba(74,158,232,0.12)' : F.surf, border: `1px solid ${tagFilter === tag ? 'rgba(74,158,232,0.35)' : F.bdr}`, borderRadius: 20, padding: '3px 10px', cursor: 'pointer', fontFamily: cinzel, fontSize: 8, color: tagFilter === tag ? '#4A9EE8' : F.dim, letterSpacing: '0.06em' }}>
                         #{tag} <span style={{ opacity: 0.6 }}>{count}</span>
                       </button>
                     ))}
@@ -9531,28 +9543,28 @@ function ForumView({ isDark, isMobile, userId, userTier }: { isDark: boolean; is
                 </div>
               )}
               {pinnedPosts.length > 0 && (
-                <div style={{ background: F_SURF, border: `1px solid ${F_BDR}`, borderRadius: 10, padding: '16px 16px' }}>
+                <div style={{ background: F.surf, border: `1px solid ${F.bdr}`, borderRadius: 10, padding: '16px 16px' }}>
                   <div style={{ fontFamily: cinzel, fontSize: 10, color: isDark ? G : '#8B6914', letterSpacing: '0.1em', marginBottom: 12 }}>📌 Pinned</div>
                   <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 8 }}>
                     {pinnedPosts.map(p => (
                       <div key={p.id} style={{ borderLeft: `2px solid rgba(201,168,76,0.3)`, paddingLeft: 10 }}>
-                        <div style={{ fontFamily: cinzel, fontSize: 10, color: F_TXT, lineHeight: 1.4, letterSpacing: '0.03em' }}>{p.title}</div>
-                        <div style={{ fontFamily: cinzel, fontSize: 8, color: F_MUT, marginTop: 3 }}>{p.author_name} · {timeAgo(p.created_at)}</div>
+                        <div style={{ fontFamily: cinzel, fontSize: 10, color: F.txt, lineHeight: 1.4, letterSpacing: '0.03em' }}>{p.title}</div>
+                        <div style={{ fontFamily: cinzel, fontSize: 8, color: F.mut, marginTop: 3 }}>{p.author_name} · {timeAgo(p.created_at)}</div>
                       </div>
                     ))}
                   </div>
                 </div>
               )}
-              <div style={{ background: F_SURF, border: `1px solid ${F_BDR}`, borderRadius: 10, padding: '16px 16px' }}>
+              <div style={{ background: F.surf, border: `1px solid ${F.bdr}`, borderRadius: 10, padding: '16px 16px' }}>
                 <div style={{ fontFamily: cinzel, fontSize: 10, color: isDark ? G : '#8B6914', letterSpacing: '0.1em', marginBottom: 12 }}>Community Stats</div>
                 <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 8 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ fontFamily: crimson, fontSize: 13, color: F_DIM }}>Total Discussions</span>
-                    <span style={{ fontFamily: cinzel, fontSize: 11, color: F_TXT }}>{posts.length}</span>
+                    <span style={{ fontFamily: crimson, fontSize: 13, color: F.dim }}>Total Discussions</span>
+                    <span style={{ fontFamily: cinzel, fontSize: 11, color: F.txt }}>{posts.length}</span>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ fontFamily: crimson, fontSize: 13, color: F_DIM }}>This Week</span>
-                    <span style={{ fontFamily: cinzel, fontSize: 11, color: F_TXT }}>
+                    <span style={{ fontFamily: crimson, fontSize: 13, color: F.dim }}>This Week</span>
+                    <span style={{ fontFamily: cinzel, fontSize: 11, color: F.txt }}>
                       {posts.filter(p => Date.now() - new Date(p.created_at).getTime() < 7 * 86400000).length}
                     </span>
                   </div>
@@ -9578,19 +9590,19 @@ function useFirstTime(key: string): [boolean, () => void] {
   return [show, dismiss]
 }
 
-function OnboardingOverlay({ storageKey, icon, title, points }: {
-  storageKey: string; icon: string; title: string; points: string[]
+function OnboardingOverlay({ storageKey, icon, title, points, isDark = true }: {
+  storageKey: string; icon: string; title: string; points: string[]; isDark?: boolean
 }) {
   const [show, dismiss] = useFirstTime(storageKey)
   if (!show) return null
   return (
     <div style={{ position: 'absolute', inset: 0, background: 'rgba(9,7,15,0.92)', backdropFilter: 'blur(4px)', WebkitBackdropFilter: 'blur(4px)', zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
-      <div style={{ maxWidth: 480, width: '100%', background: '#0f0c07', border: '1px solid rgba(201,168,76,0.25)', borderTop: '2px solid #C9A84C', borderRadius: 8, padding: '32px 28px' }}>
+      <div style={{ maxWidth: 480, width: '100%', background: isDark ? '#0f0c07' : '#F5F2E8', border: '1px solid rgba(201,168,76,0.25)', borderTop: '2px solid #C9A84C', borderRadius: 8, padding: '32px 28px' }}>
         <div style={{ fontSize: 32, marginBottom: 12, textAlign: 'center' as const }}>{icon}</div>
         <div style={{ fontFamily: cinzel, fontSize: 13, color: G, letterSpacing: '0.15em', textTransform: 'uppercase' as const, textAlign: 'center' as const, marginBottom: 20 }}>{title}</div>
         <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 28px', display: 'flex', flexDirection: 'column' as const, gap: 12 }}>
           {points.map((pt, i) => (
-            <li key={i} style={{ display: 'flex', gap: 10, fontFamily: crimson, fontSize: 14, color: '#c8b896', lineHeight: 1.6 }}>
+            <li key={i} style={{ display: 'flex', gap: 10, fontFamily: crimson, fontSize: 14, color: isDark ? '#c8b896' : '#1F1B12', lineHeight: 1.6 }}>
               <span style={{ color: G, flexShrink: 0 }}>⚔</span>
               {pt}
             </li>
@@ -11125,7 +11137,7 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
   const BG    = isDark ? '#0a0a12' : '#FAF8F5'
   const SURF  = isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)'
   const BDR   = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)'
-  const GLD   = '#C9A84C'
+  const GLD   = isDark ? '#C9A84C' : '#8B6914'
   const WMUT  = isDark ? 'rgba(255,255,255,0.4)' : 'rgba(0,0,0,0.45)'
   const WDIM  = isDark ? 'rgba(255,255,255,0.25)' : 'rgba(0,0,0,0.3)'
   const TXT   = isDark ? '#e8dcc8' : '#1a1a2e'
@@ -11138,7 +11150,7 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
         <div style={{ maxWidth: 420, textAlign: 'center' as const }}>
           <div style={{ fontFamily: "'Cinzel',serif", fontSize: 9, letterSpacing: '0.15em', color: G, marginBottom: 12 }}>⚔ DIRECT MESSAGES</div>
           <div style={{ fontSize: 15, color: isDark ? 'rgba(232,224,208,0.6)' : 'rgba(0,0,0,0.6)', marginBottom: 20, lineHeight: 1.6 }}>Direct messaging is available to Soldier members and above.</div>
-          <button onClick={() => beginUpgrade('soldier')} style={{ fontFamily: "'Cinzel',serif", fontSize: 9, letterSpacing: '0.12em', padding: '10px 20px', background: 'rgba(201,168,76,0.15)', border: '1px solid #C9A84C', color: '#C9A84C', borderRadius: 4, cursor: 'pointer' }}>UPGRADE TO SOLDIER →</button>
+          <button onClick={() => beginUpgrade('soldier')} style={{ fontFamily: "'Cinzel',serif", fontSize: 9, letterSpacing: '0.12em', padding: '10px 20px', background: 'rgba(201,168,76,0.15)', border: '1px solid #C9A84C', color: isDark ? '#C9A84C' : '#8B6914', borderRadius: 4, cursor: 'pointer' }}>UPGRADE TO SOLDIER →</button>
         </div>
       </div>
     )
@@ -11173,16 +11185,16 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
     {incomingCall && !activePrayerCall && (
       <div style={{
         position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)',
-        zIndex: 1999, background: '#0D0B14', border: '1px solid rgba(201,168,76,0.5)',
+        zIndex: 1999, background: isDark ? '#0D0B14' : '#EDEBE2', border: '1px solid rgba(201,168,76,0.5)',
         borderRadius: 12, padding: '14px 20px', minWidth: 300,
         boxShadow: '0 16px 48px rgba(0,0,0,0.7)',
         display: 'flex', flexDirection: 'column' as const, gap: 10,
         fontFamily: "'Cinzel',serif",
       }}>
-        <div style={{ fontSize: 10, color: 'rgba(201,168,76,0.7)', letterSpacing: '0.12em' }}>
+        <div style={{ fontSize: 10, color: isDark ? 'rgba(201,168,76,0.7)' : 'rgba(139,105,20,0.7)', letterSpacing: '0.12em' }}>
           🎙 INCOMING PRAYER CALL
         </div>
-        <div style={{ fontSize: 13, color: '#fff', fontWeight: 600 }}>
+        <div style={{ fontSize: 13, color: isDark ? '#fff' : '#1F1B12', fontWeight: 600 }}>
           {incomingCall.caller_name || incomingCall.caller_id?.slice(0, 8) || 'A soldier'} wants to pray
         </div>
         <div style={{ display: 'flex', gap: 10 }}>
@@ -11343,7 +11355,7 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
                       <span style={{ fontFamily: "'Cinzel',serif", fontSize: 13, color: '#b48ee0' }}>{initials}</span>
                     </div>
                     <div>
-                      <div style={{ fontSize: 14, color: '#e8dcc8', fontWeight: 600, fontFamily: "'Cinzel',serif", letterSpacing: '0.04em' }}>{displayName}</div>
+                      <div style={{ fontSize: 14, color: isDark ? '#e8dcc8' : '#1F1B12', fontWeight: 600, fontFamily: "'Cinzel',serif", letterSpacing: '0.04em' }}>{displayName}</div>
                     </div>
                   </div>
                   {/* Row 2 — message */}
@@ -11751,7 +11763,7 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
 
               {/* Description */}
               <div style={{ marginBottom: 16 }}>
-                <label style={{ fontFamily: "'Cinzel',serif", fontSize: 9, color: WMUT, letterSpacing: '0.1em', display: 'block', marginBottom: 6 }}>ASSIGNMENT <span style={{ color: 'rgba(255,255,255,0.3)' }}>(optional)</span></label>
+                <label style={{ fontFamily: "'Cinzel',serif", fontSize: 9, color: WMUT, letterSpacing: '0.1em', display: 'block', marginBottom: 6 }}>ASSIGNMENT <span style={{ color: isDark ? 'rgba(255,255,255,0.3)' : 'rgba(31,27,18,0.7)' }}>(optional)</span></label>
                 <textarea
                   value={ftDescription}
                   onChange={e => setFtDescription(e.target.value.slice(0, 100))}
@@ -11882,7 +11894,7 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
 
               {/* Territory */}
               <div style={{ marginBottom: 16 }}>
-                <label style={{ fontFamily: "'Cinzel',serif", fontSize: 9, color: WMUT, letterSpacing: '0.1em', display: 'block', marginBottom: 6 }}>TERRITORY <span style={{ color: 'rgba(255,255,255,0.3)' }}>(optional)</span></label>
+                <label style={{ fontFamily: "'Cinzel',serif", fontSize: 9, color: WMUT, letterSpacing: '0.1em', display: 'block', marginBottom: 6 }}>TERRITORY <span style={{ color: isDark ? 'rgba(255,255,255,0.3)' : 'rgba(31,27,18,0.7)' }}>(optional)</span></label>
                 <input
                   value={caTerritory}
                   onChange={e => setCaTerritory(e.target.value.slice(0, 80))}
@@ -12107,7 +12119,7 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
             <div style={{ fontFamily: cinzel, fontSize: 13, color: WMUT, letterSpacing: '0.1em', textAlign: 'center' as const }}>
               SELECT A CONVERSATION
             </div>
-            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.2)', textAlign: 'center' as const, maxWidth: 240, lineHeight: 1.6 }}>
+            <div style={{ fontSize: 12, color: isDark ? 'rgba(255,255,255,0.2)' : 'rgba(31,27,18,0.6)', textAlign: 'center' as const, maxWidth: 240, lineHeight: 1.6 }}>
               Choose a direct message from the left, or start a new conversation.
             </div>
           </div>
@@ -12128,7 +12140,7 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <span style={{ fontSize: 13, fontWeight: 600, color: '#fff', fontFamily: "'Cinzel',serif", overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>
+                      <span style={{ fontSize: 13, fontWeight: 600, color: isDark ? '#fff' : '#1F1B12', fontFamily: "'Cinzel',serif", overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>
                         {activeFireTeam.teamName}
                       </span>
                       <span style={{ fontSize: 10, color: '#000', background: 'rgba(201,168,76,0.85)', borderRadius: 10, padding: '2px 8px', fontFamily: "'Cinzel',serif", letterSpacing: '0.06em', flexShrink: 0, fontWeight: 700 }}>
@@ -12147,7 +12159,7 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
                   <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'rgba(107,69,150,0.2)', border: '1px solid rgba(107,69,150,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, flexShrink: 0 }}>⚔</div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <span style={{ fontSize: 13, fontWeight: 600, color: '#fff', fontFamily: "'Cinzel',serif", overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>
+                      <span style={{ fontSize: 13, fontWeight: 600, color: isDark ? '#fff' : '#1F1B12', fontFamily: "'Cinzel',serif", overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>
                         {activeSentinel.partnerName}
                       </span>
                       <span style={{ fontSize: 10, color: '#fff', background: 'rgba(107,69,150,0.7)', borderRadius: 10, padding: '2px 8px', fontFamily: "'Cinzel',serif", letterSpacing: '0.06em', flexShrink: 0, fontWeight: 700 }}>SENTINEL</span>
@@ -12161,7 +12173,7 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
                   <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'rgba(106,172,239,0.15)', border: '1px solid rgba(106,172,239,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, flexShrink: 0 }}>🛡</div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <span style={{ fontSize: 13, fontWeight: 600, color: '#fff', fontFamily: "'Cinzel',serif", overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>
+                      <span style={{ fontSize: 13, fontWeight: 600, color: isDark ? '#fff' : '#1F1B12', fontFamily: "'Cinzel',serif", overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>
                         {activeCoverAll.name}
                       </span>
                       <span style={{ fontSize: 10, color: '#000', background: 'rgba(106,172,239,0.85)', borderRadius: 10, padding: '2px 8px', fontFamily: "'Cinzel',serif", letterSpacing: '0.06em', flexShrink: 0, fontWeight: 700 }}>COVER ALL</span>
@@ -12181,7 +12193,7 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
                     }
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 13, fontWeight: 500, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>
+                    <div style={{ fontSize: 13, fontWeight: 500, color: isDark ? '#fff' : '#1F1B12', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>
                       {activeConvo?.otherMember?.name || 'Unknown'}
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
@@ -12230,7 +12242,7 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
                         background: 'rgba(201,168,76,0.1)', border: '1px solid rgba(201,168,76,0.3)',
                         borderRadius: 10, padding: '4px 12px', cursor: 'pointer',
                         fontFamily: 'var(--font-cinzel,serif)', fontSize: 9, letterSpacing: '0.1em',
-                        color: '#C9A84C', display: 'flex', alignItems: 'center', gap: 5,
+                        color: isDark ? '#C9A84C' : '#8B6914', display: 'flex', alignItems: 'center', gap: 5,
                         touchAction: 'manipulation',
                       }}
                     >
@@ -12267,32 +12279,32 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
                     )}
                     <div style={{ display: 'flex', flexDirection: 'column' as const, alignItems: isOwn ? 'flex-end' : 'flex-start', maxWidth: '72%' }}>
                       {voiceAtt ? (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: isOwn ? 'rgba(201,168,76,0.2)' : 'rgba(255,255,255,0.08)', borderRadius: 20, padding: '8px 12px', maxWidth: 220 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: isOwn ? 'rgba(201,168,76,0.2)' : (isDark ? 'rgba(255,255,255,0.08)' : '#EDEBE2'), borderRadius: 20, padding: '8px 12px', maxWidth: 220 }}>
                           <button style={{ width: 26, height: 26, borderRadius: '50%', background: GLD, border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                             <span style={{ fontSize: 10, color: '#000' }}>▶</span>
                           </button>
                           <div style={{ display: 'flex', gap: 2, alignItems: 'flex-end', height: 22 }}>
                             {waveformBars(msg.id).map((h, i) => (
-                              <div key={i} style={{ width: 3, height: h, borderRadius: 2, background: isOwn ? GLD : 'rgba(255,255,255,0.3)' }} />
+                              <div key={i} style={{ width: 3, height: h, borderRadius: 2, background: isOwn ? GLD : (isDark ? 'rgba(255,255,255,0.3)' : 'rgba(31,27,18,0.4)') }} />
                             ))}
                           </div>
                           <span style={{ fontSize: 10, color: WMUT, flexShrink: 0 }}>{fmtDuration(voiceAtt.duration || 0)}</span>
                         </div>
                       ) : callAtt ? (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'rgba(255,255,255,0.06)', borderRadius: 12, padding: '9px 13px', maxWidth: 200 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: isDark ? 'rgba(255,255,255,0.06)' : '#EDEBE2', borderRadius: 12, padding: '9px 13px', maxWidth: 200 }}>
                           <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'rgba(29,158,117,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                             {callAtt.call_type === 'video' ? <Video size={14} color="#1d9e75" strokeWidth={1.8} /> : <Phone size={14} color="#1d9e75" strokeWidth={1.8} />}
                           </div>
                           <div>
-                            <div style={{ fontSize: 11, fontWeight: 500, color: '#fff' }}>{callAtt.call_type === 'video' ? 'Video call' : 'Audio call'}</div>
+                            <div style={{ fontSize: 11, fontWeight: 500, color: isDark ? '#fff' : '#1F1B12' }}>{callAtt.call_type === 'video' ? 'Video call' : 'Audio call'}</div>
                             <div style={{ fontSize: 10, color: WMUT }}>{fmtDuration(callAtt.duration || 0)}</div>
                           </div>
                         </div>
                       ) : (
                         <div style={{
                           padding: '9px 13px', borderRadius: 16, fontSize: 13, lineHeight: 1.5,
-                          background: isOwn ? GLD : 'rgba(255,255,255,0.08)',
-                          color: isOwn ? '#000' : '#fff',
+                          background: isOwn ? GLD : (isDark ? 'rgba(255,255,255,0.08)' : '#EDEBE2'),
+                          color: isOwn ? '#000' : (isDark ? '#fff' : '#1F1B12'),
                           borderBottomRightRadius: isOwn ? 4 : 16,
                           borderBottomLeftRadius: isOwn ? 16 : 4,
                           wordBreak: 'break-word' as const,
@@ -12300,7 +12312,7 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
                           {msg.text}
                         </div>
                       )}
-                      <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.3)', marginTop: 2, display: 'flex', gap: 4, alignItems: 'center' }}>
+                      <div style={{ fontSize: 9, color: isDark ? 'rgba(255,255,255,0.3)' : 'rgba(31,27,18,0.5)', marginTop: 2, display: 'flex', gap: 4, alignItems: 'center' }}>
                         {relativeTime(msg.created_at)}
                         {isOwn && <span>✓✓</span>}
                       </div>
@@ -12328,8 +12340,8 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
                 onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage() } }}
                 placeholder="Message…"
                 style={{
-                  flex: 1, background: 'rgba(255,255,255,0.07)', border: `1px solid ${BDR}`,
-                  borderRadius: 20, padding: '8px 14px', color: '#fff', fontSize: 13, outline: 'none',
+                  flex: 1, background: isDark ? 'rgba(255,255,255,0.07)' : '#F2F4F7', border: `1px solid ${BDR}`,
+                  borderRadius: 20, padding: '8px 14px', color: isDark ? '#fff' : '#0F1523', fontSize: 13, outline: 'none',
                   fontFamily: 'inherit',
                 }}
               />
@@ -12376,7 +12388,7 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
             }
           </div>
           <div style={{ textAlign: 'center' as const }}>
-            <div style={{ fontSize: 13, fontWeight: 500, color: '#fff' }}>{activeConvo.otherMember?.name}</div>
+            <div style={{ fontSize: 13, fontWeight: 500, color: isDark ? '#fff' : '#1F1B12' }}>{activeConvo.otherMember?.name}</div>
             <div style={{ fontSize: 10, color: activeConvo.otherMember?.online ? '#1d9e75' : WMUT, marginTop: 2 }}>
               {activeConvo.otherMember?.online ? '● Online' : '○ Offline'}
             </div>
@@ -12402,7 +12414,7 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
           <div style={{ width: '100%' }}>
             <div style={{ fontSize: 9, color: WMUT, letterSpacing: '0.1em', textTransform: 'uppercase' as const, marginBottom: 8 }}>Shared Voice</div>
             {messages.filter(m => m.attachments?.some(a => a.type === 'voice')).slice(0, 3).length === 0
-              ? <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.2)', fontStyle: 'italic' }}>None yet</div>
+              ? <div style={{ fontSize: 11, color: isDark ? 'rgba(255,255,255,0.2)' : 'rgba(31,27,18,0.55)', fontStyle: 'italic' }}>None yet</div>
               : messages.filter(m => m.attachments?.some(a => a.type === 'voice')).slice(0, 3).map(m => (
                 <div key={m.id} style={{ fontSize: 11, color: GLD, padding: '4px 0', borderBottom: `1px solid ${BDR}` }}>🎙 {relativeTime(m.created_at)}</div>
               ))
@@ -12411,7 +12423,7 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
           <div style={{ width: '100%', height: 1, background: BDR }} />
           <div style={{ width: '100%' }}>
             <div style={{ fontSize: 9, color: WMUT, letterSpacing: '0.1em', textTransform: 'uppercase' as const, marginBottom: 4 }}>SOL Autoreply</div>
-            <div style={{ fontSize: 11, color: activeConvo.otherMember?.id === 'sol-bot' ? '#1d9e75' : 'rgba(255,255,255,0.3)' }}>
+            <div style={{ fontSize: 11, color: activeConvo.otherMember?.id === 'sol-bot' ? '#1d9e75' : (isDark ? 'rgba(255,255,255,0.3)' : 'rgba(31,27,18,0.5)') }}>
               {activeConvo.otherMember?.id === 'sol-bot' ? '● Active' : '○ Off'}
             </div>
           </div>
@@ -12420,7 +12432,7 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
             <div style={{ width: '100%' }}>
               <div style={{ fontSize: 9, color: WMUT, letterSpacing: '0.1em', textTransform: 'uppercase' as const, marginBottom: 8 }}>Recent Calls</div>
               {recentCalls.length === 0
-                ? <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.2)', fontStyle: 'italic' }}>None yet</div>
+                ? <div style={{ fontSize: 11, color: isDark ? 'rgba(255,255,255,0.2)' : 'rgba(31,27,18,0.55)', fontStyle: 'italic' }}>None yet</div>
                 : recentCalls.map((c, i) => {
                     const dur = c.answered_at && c.ended_at
                       ? Math.max(0, Math.round((Date.parse(c.ended_at) - Date.parse(c.answered_at)) / 1000))
@@ -15016,18 +15028,18 @@ function CommunityPage() {
           <div style={{ maxWidth: 420, textAlign: 'center' as const }}>
             <div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.15em', color: G, marginBottom: 12 }}>⚔ INTEL ROSTER</div>
             <div style={{ fontSize: 15, color: isDark ? 'rgba(232,224,208,0.6)' : 'rgba(0,0,0,0.6)', marginBottom: 20, lineHeight: 1.6 }}>The member roster is available to Soldier members and above.</div>
-            <button onClick={() => beginUpgrade('soldier')} style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.12em', padding: '10px 20px', background: 'rgba(201,168,76,0.15)', border: '1px solid #C9A84C', color: '#C9A84C', borderRadius: 4, cursor: 'pointer' }}>UPGRADE TO SOLDIER →</button>
+            <button onClick={() => beginUpgrade('soldier')} style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.12em', padding: '10px 20px', background: 'rgba(201,168,76,0.15)', border: '1px solid #C9A84C', color: isDark ? '#C9A84C' : '#8B6914', borderRadius: 4, cursor: 'pointer' }}>UPGRADE TO SOLDIER →</button>
           </div>
         </div>
       ) : <MembersView members={members} currentUserId={user?.id || ''} currentUserTier={(user?.publicMetadata?.tier as string) || 'Watchman'} currentUserRole={(user?.publicMetadata?.role as string) || 'member'} onViewProfile={setViewingProfile} onStartDM={(memberId, memberName) => { setPendingDMWith(memberId); setPendingDmName(memberName); setActiveSection('dms') }} onRequestSentinel={async (memberId, memberName) => { const t = await getToken(); if (!t) return; await fetch('/api/stream-messages?action=request-sentinel', { method: 'POST', headers: { Authorization: `Bearer ${t}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ recipientId: memberId, recipientName: memberName }) }).catch(() => {}) }} setActiveSection={setActiveSection} isDark={theme !== 'light'} isMobile={isMobile} />)}
-      {activeSection === 'database'       && <div style={{ position: 'relative', flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}><DatabaseView theme={theme} isMobile={isMobile} isTablet={isTablet} setSidebarOpen={setSidebarOpen} userTier={tier} demons={demons} setActiveSection={setActiveSection} setDossierTabBarHidden={setDossierTabBarHidden} filterSheetOpen={dbFilterSheetOpen} setFilterSheetOpen={setDbFilterSheetOpen} setFilterCount={setDbFilterCount} /><OnboardingOverlay storageKey="onboard_intel_archive" icon="📚" title="INTEL ARCHIVE" points={['Search 285+ spirits by name, kingdom, or manifestation','Click any spirit to open a full intelligence dossier with 4 tabs','Use AI Enhance to deepen any entry with ministry context','Companion spirits are clickable — explore the full demonic hierarchy']} /></div>}
+      {activeSection === 'database'       && <div style={{ position: 'relative', flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}><DatabaseView theme={theme} isMobile={isMobile} isTablet={isTablet} setSidebarOpen={setSidebarOpen} userTier={tier} demons={demons} setActiveSection={setActiveSection} setDossierTabBarHidden={setDossierTabBarHidden} filterSheetOpen={dbFilterSheetOpen} setFilterSheetOpen={setDbFilterSheetOpen} setFilterCount={setDbFilterCount} /><OnboardingOverlay storageKey="onboard_intel_archive" icon="📚" title="INTEL ARCHIVE" points={['Search 285+ spirits by name, kingdom, or manifestation','Click any spirit to open a full intelligence dossier with 4 tabs','Use AI Enhance to deepen any entry with ministry context','Companion spirits are clickable — explore the full demonic hierarchy']} isDark={isDark} /></div>}
       {activeSection === 'investigate'    && (tierLevel >= 2
         ? <InvestigatorView theme={theme} userTier={tier} isMobile={isMobile} setSidebarOpen={setSidebarOpen} setActiveSection={setActiveSection} />
         : <div style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', background: isDark ? '#0D0B14' : '#FAF8F5', padding:'40px 20px' }}>
             <UpgradeGate variant="screen" requiredTier="commander" featureName="Symptom Investigator" description="The Symptom Investigator is a SOL-powered operational intelligence tool available to Commander and General members." isDark={isDark} />
           </div>
       )}
-      {activeSection === 'arsenal'        && <div style={{ position: 'relative', flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}><ArsenalView theme={theme} userTier={tier} isMobile={isMobile} setSidebarOpen={setSidebarOpen} filterSheetOpen={arsenalFilterSheetOpen} setFilterSheetOpen={setArsenalFilterSheetOpen} setFilterCount={setArsenalFilterCount} /><OnboardingOverlay storageKey="onboard_arsenal" icon="✦" title="ARSENAL — MINISTRY RESOURCES" points={['Download protocols, worksheets, and teaching documents','Access level is based on your membership tier','Use Topic and Function filters to find what you need','Spirit Tags show which demons each document addresses']} /></div>}
+      {activeSection === 'arsenal'        && <div style={{ position: 'relative', flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}><ArsenalView theme={theme} userTier={tier} isMobile={isMobile} setSidebarOpen={setSidebarOpen} filterSheetOpen={arsenalFilterSheetOpen} setFilterSheetOpen={setArsenalFilterSheetOpen} setFilterCount={setArsenalFilterCount} /><OnboardingOverlay storageKey="onboard_arsenal" icon="✦" title="ARSENAL — MINISTRY RESOURCES" points={['Download protocols, worksheets, and teaching documents','Access level is based on your membership tier','Use Topic and Function filters to find what you need','Spirit Tags show which demons each document addresses']} isDark={isDark} /></div>}
       {activeSection === 'testimony-wall' && <TestimonyWallView theme={theme} isMobile={isMobile} setSidebarOpen={setSidebarOpen} userId={user?.id || ''} userName={user?.firstName || 'Warrior'} userTier={tier} userImage={user?.imageUrl || ''} />}
       {activeSection === 'assessment'     && <AssessmentUploadView theme={theme} isMobile={isMobile} setSidebarOpen={setSidebarOpen} tier={tier} tierLevel={tierLevel} user={user} getToken={getToken} />}
       {activeSection === 'help'           && <HelpSection />}
@@ -15036,7 +15048,7 @@ function CommunityPage() {
       {activeSection === 'spirit-network' && (tierLevel >= 2
         ? <div style={{ position: 'relative', flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
             <SpiritNetwork demons={demons} isDark={isDark} isMobile={isMobile} userTier={tier} userId={user?.id || ''} onNavigateTo={(section: string) => setActiveSection(section)} getToken={getToken} />
-            <OnboardingOverlay storageKey="onboard_spirit_network" icon="⚔️" title="SPIRIT NETWORK COMMAND CENTER" points={['Search for any spirit to pull its full intelligence profile','The org chart shows where it sits in the demonic hierarchy','Click companion spirit chips to navigate the network','Use breadcrumbs at the top to trace back up the tree']} />
+            <OnboardingOverlay storageKey="onboard_spirit_network" icon="⚔️" title="SPIRIT NETWORK COMMAND CENTER" points={['Search for any spirit to pull its full intelligence profile','The org chart shows where it sits in the demonic hierarchy','Click companion spirit chips to navigate the network','Use breadcrumbs at the top to trace back up the tree']} isDark={isDark} />
           </div>
         : <div style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', background: isDark ? '#0D0B14' : '#FAF8F5', padding:'40px 20px' }}>
             <UpgradeGate variant="screen" requiredTier="commander" featureName="Spirit Network" description="The Spirit Network is an interactive demonic hierarchy map for Commander-tier ministers and above." isDark={isDark} />
@@ -15045,7 +15057,7 @@ function CommunityPage() {
       {activeSection === 'gateway'        && (tierLevel >= 1
         ? <div style={{ position: 'relative', flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
             <GatewayInvestigatorView theme={theme} userTier={tier} isMobile={isMobile} setSidebarOpen={setSidebarOpen} />
-            <OnboardingOverlay storageKey="onboard_gateway" icon="🧱" title="GATEWAY INVESTIGATOR" points={['Enter a spirit name to get its full entry point analysis','Add cultural exposure context for a more targeted report','SOL cross-references legal grounds, trauma patterns, and generational ties','Use this before or during a live deliverance session']} />
+            <OnboardingOverlay storageKey="onboard_gateway" icon="🧱" title="GATEWAY INVESTIGATOR" points={['Enter a spirit name to get its full entry point analysis','Add cultural exposure context for a more targeted report','SOL cross-references legal grounds, trauma patterns, and generational ties','Use this before or during a live deliverance session']} isDark={isDark} />
           </div>
         : <div style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', background: isDark ? '#0D0B14' : '#FAF8F5', padding:'40px 20px' }}>
             <UpgradeGate variant="screen" requiredTier="soldier" featureName="Gateway Investigator" description="The Gateway Investigator identifies cultural entry points for any spirit. Available to Soldier, Commander, and General members." isDark={isDark} />
@@ -15112,7 +15124,7 @@ function CommunityPage() {
         </div>
       )}
       {activeSection === 'ops-dashboard'  && <OpsDashboardView theme={theme} isMobile={isMobile} setSidebarOpen={setSidebarOpen} userId={user?.id || ''} getToken={getToken} setActiveSection={setActiveSection} />}
-      {activeSection === 'forum'          && <div style={{ position: 'relative', flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}><ForumView isDark={isDark} isMobile={isMobile} userId={user?.id || ''} userTier={tier} /><OnboardingOverlay storageKey="onboard_ops_board" icon="💬" title="THE OPS BOARD" points={['Share field reports, revelations, and ministry questions with the community','Post types: Discussion, Question, Revelation, Field Report, Prayer, Resource','Soldier tier and above can create posts — all members can comment','Upvote valuable posts to surface the best intel']} /></div>}
+      {activeSection === 'forum'          && <div style={{ position: 'relative', flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}><ForumView isDark={isDark} isMobile={isMobile} userId={user?.id || ''} userTier={tier} /><OnboardingOverlay storageKey="onboard_ops_board" icon="💬" title="THE OPS BOARD" points={['Share field reports, revelations, and ministry questions with the community','Post types: Discussion, Question, Revelation, Field Report, Prayer, Resource','Soldier tier and above can create posts — all members can comment','Upvote valuable posts to surface the best intel']} isDark={isDark} /></div>}
       {activeSection === 'deliverance-protocol' && (
         tierLevel >= 2
           ? <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: isDark ? '#0D0B14' : '#FAF8F5', overflow: 'hidden' }}>
@@ -15538,7 +15550,7 @@ function CommunityPage() {
             <div style={{ maxWidth: 420, textAlign: 'center' as const }}>
               <div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.15em', color: G, marginBottom: 12 }}>⚔ INTEL ROSTER</div>
               <div style={{ fontSize: 15, color: isDark ? 'rgba(232,224,208,0.6)' : 'rgba(0,0,0,0.6)', marginBottom: 20, lineHeight: 1.6 }}>The member roster is available to Soldier members and above.</div>
-              <button onClick={() => beginUpgrade('soldier')} style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.12em', padding: '10px 20px', background: 'rgba(201,168,76,0.15)', border: '1px solid #C9A84C', color: '#C9A84C', borderRadius: 4, cursor: 'pointer' }}>UPGRADE TO SOLDIER →</button>
+              <button onClick={() => beginUpgrade('soldier')} style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.12em', padding: '10px 20px', background: 'rgba(201,168,76,0.15)', border: '1px solid #C9A84C', color: isDark ? '#C9A84C' : '#8B6914', borderRadius: 4, cursor: 'pointer' }}>UPGRADE TO SOLDIER →</button>
             </div>
           </div>
         ) : (
@@ -15570,7 +15582,7 @@ function CommunityPage() {
         {activeSection === 'database'    && (
           <div style={{ position: 'relative', flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
             <DatabaseView theme={theme} isMobile={isMobile} isTablet={isTablet} setSidebarOpen={setSidebarOpen} userTier={tier} demons={demons} setActiveSection={setActiveSection} setDossierTabBarHidden={setDossierTabBarHidden} filterSheetOpen={dbFilterSheetOpen} setFilterSheetOpen={setDbFilterSheetOpen} setFilterCount={setDbFilterCount} />
-            <OnboardingOverlay storageKey="onboard_intel_archive" icon="📚" title="INTEL ARCHIVE" points={['Search 285+ spirits by name, kingdom, or manifestation','Click any spirit to open a full intelligence dossier with 4 tabs','Use AI Enhance to deepen any entry with ministry context','Companion spirits are clickable — explore the full demonic hierarchy']} />
+            <OnboardingOverlay storageKey="onboard_intel_archive" icon="📚" title="INTEL ARCHIVE" points={['Search 285+ spirits by name, kingdom, or manifestation','Click any spirit to open a full intelligence dossier with 4 tabs','Use AI Enhance to deepen any entry with ministry context','Companion spirits are clickable — explore the full demonic hierarchy']} isDark={isDark} />
           </div>
         )}
         {activeSection === 'investigate' && (tierLevel >= 2
@@ -15582,7 +15594,7 @@ function CommunityPage() {
         {activeSection === 'arsenal'     && (
           <div style={{ position: 'relative', flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
             <ArsenalView theme={theme} userTier={tier} isMobile={isMobile} setSidebarOpen={setSidebarOpen} filterSheetOpen={arsenalFilterSheetOpen} setFilterSheetOpen={setArsenalFilterSheetOpen} setFilterCount={setArsenalFilterCount} />
-            <OnboardingOverlay storageKey="onboard_arsenal" icon="✦" title="ARSENAL — MINISTRY RESOURCES" points={['Download protocols, worksheets, and teaching documents','Access level is based on your membership tier','Use Topic and Function filters to find what you need','Spirit Tags show which demons each document addresses']} />
+            <OnboardingOverlay storageKey="onboard_arsenal" icon="✦" title="ARSENAL — MINISTRY RESOURCES" points={['Download protocols, worksheets, and teaching documents','Access level is based on your membership tier','Use Topic and Function filters to find what you need','Spirit Tags show which demons each document addresses']} isDark={isDark} />
           </div>
         )}
         {activeSection === 'testimony-wall' && (
@@ -15751,7 +15763,7 @@ function CommunityPage() {
         {activeSection === 'spirit-network' && (tierLevel >= 2
           ? <div style={{ position: 'relative', flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
               <SpiritNetwork demons={demons} isDark={isDark} isMobile={isMobile} userTier={tier} userId={user?.id || ''} onNavigateTo={(section: string) => setActiveSection(section)} getToken={getToken} />
-              <OnboardingOverlay storageKey="onboard_spirit_network" icon="⚔️" title="SPIRIT NETWORK COMMAND CENTER" points={['Search for any spirit to pull its full intelligence profile','The org chart shows where it sits in the demonic hierarchy','Click companion spirit chips to navigate the network','Use breadcrumbs at the top to trace back up the tree']} />
+              <OnboardingOverlay storageKey="onboard_spirit_network" icon="⚔️" title="SPIRIT NETWORK COMMAND CENTER" points={['Search for any spirit to pull its full intelligence profile','The org chart shows where it sits in the demonic hierarchy','Click companion spirit chips to navigate the network','Use breadcrumbs at the top to trace back up the tree']} isDark={isDark} />
             </div>
           : <div style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', background: isDark ? '#0D0B14' : '#FAF8F5', padding:'40px 20px' }}>
               <UpgradeGate variant="screen" requiredTier="commander" featureName="Spirit Network" description="The Spirit Network is an interactive demonic hierarchy map for Commander-tier ministers and above." isDark={isDark} />
@@ -15760,7 +15772,7 @@ function CommunityPage() {
         {activeSection === 'gateway' && (tierLevel >= 1
           ? <div style={{ position: 'relative', flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
               <GatewayInvestigatorView theme={theme} userTier={tier} isMobile={isMobile} setSidebarOpen={setSidebarOpen} />
-              <OnboardingOverlay storageKey="onboard_gateway" icon="🧱" title="GATEWAY INVESTIGATOR" points={['Enter a spirit name to get its full entry point analysis','Add cultural exposure context for a more targeted report','SOL cross-references legal grounds, trauma patterns, and generational ties','Use this before or during a live deliverance session']} />
+              <OnboardingOverlay storageKey="onboard_gateway" icon="🧱" title="GATEWAY INVESTIGATOR" points={['Enter a spirit name to get its full entry point analysis','Add cultural exposure context for a more targeted report','SOL cross-references legal grounds, trauma patterns, and generational ties','Use this before or during a live deliverance session']} isDark={isDark} />
             </div>
           : <div style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', background: isDark ? '#0D0B14' : '#FAF8F5', padding:'40px 20px' }}>
               <UpgradeGate variant="screen" requiredTier="soldier" featureName="Gateway Investigator" description="The Gateway Investigator identifies cultural entry points for any spirit. Available to Soldier, Commander, and General members." isDark={isDark} />
@@ -15814,7 +15826,7 @@ function CommunityPage() {
         {activeSection === 'forum'       && (
           <div style={{ position: 'relative', flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
             <ForumView isDark={isDark} isMobile={isMobile} userId={user?.id || ''} userTier={tier} />
-            <OnboardingOverlay storageKey="onboard_ops_board" icon="💬" title="THE OPS BOARD" points={['Share field reports, revelations, and ministry questions with the community','Post types: Discussion, Question, Revelation, Field Report, Prayer, Resource','Soldier tier and above can create posts — all members can comment','Upvote valuable posts to surface the best intel']} />
+            <OnboardingOverlay storageKey="onboard_ops_board" icon="💬" title="THE OPS BOARD" points={['Share field reports, revelations, and ministry questions with the community','Post types: Discussion, Question, Revelation, Field Report, Prayer, Resource','Soldier tier and above can create posts — all members can comment','Upvote valuable posts to surface the best intel']} isDark={isDark} />
           </div>
         )}
       </div>
