@@ -8325,10 +8325,19 @@ function DocumentsView({ getToken, isDark, demons }: {
   const [pullFromDB, setPullFromDB] = useState(true)
   const [specialInstr, setSpecialInstr] = useState('')
   const [generating, setGenerating] = useState(false)
+  const [genStage, setGenStage]     = useState('')
+  const [genBgBanner, setGenBgBanner] = useState(false)
   const [genError, setGenError]     = useState('')
   const [document, setDocument]     = useState<any>(null)
   const [savingToArsenal, setSavingToArsenal] = useState(false)
   const [arsenalMsg, setArsenalMsg] = useState('')
+  const docPollRef   = useRef<ReturnType<typeof setInterval> | null>(null)
+  const docBgTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  useEffect(() => () => {
+    if (docPollRef.current)   clearInterval(docPollRef.current)
+    if (docBgTimerRef.current) clearTimeout(docBgTimerRef.current)
+  }, [])
 
   const template = DOC_TEMPLATES[selectedTemplate]
 
@@ -8336,9 +8345,20 @@ function DocumentsView({ getToken, isDark, demons }: {
     ? demons.find(d => d.name?.toLowerCase() === subject.trim().toLowerCase())
     : null
 
+  function docStageLabel(s: string): string {
+    if (s === 'queued')     return '⏳ Queued...'
+    if (s === 'preparing')  return '⏳ Preparing...'
+    if (s === 'building')   return '⏳ Gathering context...'
+    if (s === 'generating') return '⏳ Generating...'
+    if (s === 'finalizing') return '⏳ Finalizing...'
+    return '⏳ Generating...'
+  }
+
   async function generate() {
     if (!subject.trim()) { setGenError('Subject required'); return }
-    setGenerating(true); setGenError(''); setDocument(null)
+    if (docPollRef.current)   { clearInterval(docPollRef.current);   docPollRef.current   = null }
+    if (docBgTimerRef.current) { clearTimeout(docBgTimerRef.current); docBgTimerRef.current = null }
+    setGenerating(true); setGenError(''); setDocument(null); setGenStage('queued'); setGenBgBanner(false)
     try {
       const token = await getToken()
       const res = await fetch('/api/admin-generate-document', {
@@ -8353,15 +8373,48 @@ function DocumentsView({ getToken, isDark, demons }: {
           specialInstructions: specialInstr.trim() || null,
         }),
       })
-      const text = await res.text()
       let d: any
-      try { d = JSON.parse(text) } catch { throw new Error('Invalid response from server') }
+      try { d = await res.json() } catch { throw new Error('Invalid response from server') }
+      if (res.status === 429) {
+        setGenError(d.error || 'Daily limit reached.')
+        setGenerating(false); setGenStage(''); return
+      }
       if (!res.ok) throw new Error(d.error || `Server error ${res.status}`)
-      setDocument(d.document)
+
+      const jobId: string = d.jobId
+      docBgTimerRef.current = setTimeout(() => setGenBgBanner(true), 8000)
+
+      docPollRef.current = setInterval(async () => {
+        try {
+          const pollToken = await getToken()
+          const pollRes = await fetch(`/api/job-status?jobId=${jobId}`, { headers: { Authorization: `Bearer ${pollToken}` } })
+          if (!pollRes.ok) return
+          const job = await pollRes.json()
+          setGenStage(job.stage ?? job.status ?? '')
+
+          if (job.status === 'complete') {
+            clearInterval(docPollRef.current!); docPollRef.current = null
+            if (docBgTimerRef.current) { clearTimeout(docBgTimerRef.current); docBgTimerRef.current = null }
+            setGenBgBanner(false)
+            const doc = job.result_json?.document || null
+            setDocument(doc)
+            if (!doc) setGenError('No document received. Please try again.')
+            setGenStage(''); setGenerating(false)
+          } else if (job.status === 'failed') {
+            clearInterval(docPollRef.current!); docPollRef.current = null
+            if (docBgTimerRef.current) { clearTimeout(docBgTimerRef.current); docBgTimerRef.current = null }
+            setGenBgBanner(false)
+            setGenError(job.error_message || 'Generation failed. Please try again.')
+            setGenStage(''); setGenerating(false)
+          }
+        } catch { /* network hiccup — keep polling */ }
+      }, 3000)
+
     } catch(e: any) {
       setGenError(e.message || 'Generation failed')
+      setGenerating(false); setGenStage(''); setGenBgBanner(false)
+      if (docBgTimerRef.current) { clearTimeout(docBgTimerRef.current); docBgTimerRef.current = null }
     }
-    setGenerating(false)
   }
 
   async function saveToArsenal() {
@@ -8483,8 +8536,14 @@ function DocumentsView({ getToken, isDark, demons }: {
 
               <button onClick={generate} disabled={generating || !subject.trim()}
                 style={{ width: '100%', padding: '14px', background: subject.trim() ? G : 'rgba(201,168,76,0.3)', border: 'none', borderRadius: 8, color: subject.trim() ? '#0D0B14' : MUT, fontFamily: cinzel, fontSize: 12, letterSpacing: '0.1em', cursor: subject.trim() ? 'pointer' : 'not-allowed', fontWeight: 700, opacity: generating ? 0.7 : 1 }}>
-                {generating ? '⏳ Generating...' : '✦ Generate Document'}
+                {generating ? docStageLabel(genStage) : '✦ Generate Document'}
               </button>
+
+              {genBgBanner && (
+                <div style={{ fontFamily: crimson, fontSize: 13, color: MUT, marginTop: 10, padding: '8px 12px', background: 'rgba(201,168,76,0.06)', border: `1px solid ${BDR2}`, borderRadius: 6 }}>
+                  SOL is still working. Check My SOL Jobs for the result when ready.
+                </div>
+              )}
             </div>
 
             {/* Sections preview */}

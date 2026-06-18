@@ -8972,6 +8972,22 @@ function renderSolOpenResult(job: any, isDark: boolean, onOpenProtocol: (r: any)
       return <button onClick={() => onNavigate('gateway')} style={btnOutline}>🚪 OPEN GATEWAY REPORT</button>
     case 'dream_interpretation':
       return <a href="/community/dream-interpreter" style={{ ...btnOutline, textDecoration: 'none', display: 'inline-block' }}>🌙 DREAM INTERPRETER</a>
+    case 'generate_document': {
+      const gDoc = job.result_json?.document
+      if (!gDoc) return null
+      const firstSection = gDoc.sections?.[0]
+      return (
+        <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 8 }}>
+          <div style={{ fontFamily: "'Cinzel', serif", fontSize: 11, color: isDark ? G : '#8B6914', letterSpacing: '0.08em' }}>{gDoc.title}</div>
+          {firstSection && (
+            <div style={{ fontFamily: crimson, fontSize: 13, color: isDark ? '#8B7355' : '#574B33', lineHeight: 1.6 }}>
+              {String(firstSection.content || '').slice(0, 200)}{String(firstSection.content || '').length > 200 ? '…' : ''}
+            </div>
+          )}
+          <button onClick={() => onNavigate('document-creator')} style={btnOutline}>📄 OPEN DOCUMENT CREATOR</button>
+        </div>
+      )
+    }
     case 'content_gen':
       if (!job.result_json) return null
       return (
@@ -10429,14 +10445,34 @@ function DocumentCreatorView({ theme, isMobile, getToken }: any) {
   const [subject, setSubject] = useState('')
   const [instructions, setInstructions] = useState('')
   const [generating, setGenerating] = useState(false)
+  const [stage, setStage] = useState('')
+  const [bgBanner, setBgBanner] = useState(false)
   const [error, setError] = useState('')
   const [doc, setDoc] = useState<any>(null)
+  const pollRef   = useRef<ReturnType<typeof setInterval> | null>(null)
+  const bgTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  useEffect(() => () => {
+    if (pollRef.current)   clearInterval(pollRef.current)
+    if (bgTimerRef.current) clearTimeout(bgTimerRef.current)
+  }, [])
 
   const template = COMM_DOC_TEMPLATES[selectedIdx]
 
+  function docStageLabel(s: string): string {
+    if (s === 'queued')     return '⟳ QUEUED...'
+    if (s === 'preparing')  return '⟳ PREPARING...'
+    if (s === 'building')   return '⟳ GATHERING CONTEXT...'
+    if (s === 'generating') return '⟳ GENERATING...'
+    if (s === 'finalizing') return '⟳ FINALIZING...'
+    return '⟳ GENERATING...'
+  }
+
   async function generate() {
     if (!subject.trim()) { setError('Please enter a subject'); return }
-    setGenerating(true); setError(''); setDoc(null)
+    if (pollRef.current)   { clearInterval(pollRef.current);  pollRef.current   = null }
+    if (bgTimerRef.current) { clearTimeout(bgTimerRef.current); bgTimerRef.current = null }
+    setGenerating(true); setError(''); setDoc(null); setStage('queued'); setBgBanner(false)
     try {
       const token = await getToken()
       const res = await fetch('/api/generate-document', {
@@ -10451,10 +10487,46 @@ function DocumentCreatorView({ theme, isMobile, getToken }: any) {
         }),
       })
       const data = await res.json()
+      if (res.status === 429) {
+        setError(data.error || 'Daily limit reached.')
+        setGenerating(false); setStage(''); return
+      }
       if (!res.ok) throw new Error(data.error || `Error ${res.status}`)
-      setDoc(data.document)
-    } catch (e: any) { setError(e.message || 'Generation failed') }
-    setGenerating(false)
+
+      const jobId: string = data.jobId
+      bgTimerRef.current = setTimeout(() => setBgBanner(true), 8000)
+
+      pollRef.current = setInterval(async () => {
+        try {
+          const pollToken = await getToken()
+          const pollRes = await fetch(`/api/job-status?jobId=${jobId}`, { headers: { Authorization: `Bearer ${pollToken}` } })
+          if (!pollRes.ok) return
+          const job = await pollRes.json()
+          setStage(job.stage ?? job.status ?? '')
+
+          if (job.status === 'complete') {
+            clearInterval(pollRef.current!); pollRef.current = null
+            if (bgTimerRef.current) { clearTimeout(bgTimerRef.current); bgTimerRef.current = null }
+            setBgBanner(false)
+            const document = job.result_json?.document || null
+            setDoc(document)
+            if (!document) setError('No document received. Please try again.')
+            setStage(''); setGenerating(false)
+          } else if (job.status === 'failed') {
+            clearInterval(pollRef.current!); pollRef.current = null
+            if (bgTimerRef.current) { clearTimeout(bgTimerRef.current); bgTimerRef.current = null }
+            setBgBanner(false)
+            setError(job.error_message || 'Generation failed. Please try again.')
+            setStage(''); setGenerating(false)
+          }
+        } catch { /* network hiccup — keep polling */ }
+      }, 3000)
+
+    } catch (e: any) {
+      setError(e.message || 'Generation failed')
+      setGenerating(false); setStage(''); setBgBanner(false)
+      if (bgTimerRef.current) { clearTimeout(bgTimerRef.current); bgTimerRef.current = null }
+    }
   }
 
   return (
@@ -10511,9 +10583,15 @@ function DocumentCreatorView({ theme, isMobile, getToken }: any) {
         {error && <div style={{ fontFamily: crimson, fontSize: 13, color: '#f87171', marginBottom: 12 }}>{error}</div>}
 
         <button onClick={generate} disabled={generating || !subject.trim()}
-          style={{ padding: '11px 28px', background: generating ? 'rgba(201,168,76,0.15)' : GC, border: 'none', borderRadius: 6, color: generating ? GC : '#0D0B14', fontFamily: cinzel, fontSize: 11, letterSpacing: '0.1em', cursor: generating ? 'default' : 'pointer', opacity: !subject.trim() ? 0.5 : 1, marginBottom: 28 }}>
-          {generating ? '⟳ GENERATING...' : `✦ GENERATE ${template.name.toUpperCase()}`}
+          style={{ padding: '11px 28px', background: generating ? 'rgba(201,168,76,0.15)' : GC, border: 'none', borderRadius: 6, color: generating ? GC : '#0D0B14', fontFamily: cinzel, fontSize: 11, letterSpacing: '0.1em', cursor: generating ? 'default' : 'pointer', opacity: !subject.trim() ? 0.5 : 1, marginBottom: 12 }}>
+          {generating ? docStageLabel(stage) : `✦ GENERATE ${template.name.toUpperCase()}`}
         </button>
+
+        {bgBanner && (
+          <div style={{ fontFamily: crimson, fontSize: 13, color: isDark ? '#8B7355' : '#574B33', marginBottom: 16, padding: '8px 12px', background: 'rgba(201,168,76,0.06)', border: '1px solid rgba(201,168,76,0.15)', borderRadius: 6 }}>
+            SOL is still working — navigate to <strong>My SOL Jobs</strong> to check the result later.
+          </div>
+        )}
 
         {/* Generated document */}
         {doc && (
