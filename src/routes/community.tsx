@@ -8610,6 +8610,358 @@ function MyIntelView({ theme, isMobile, getToken }: any) {
 
 
 
+// ── MY SOL JOBS VIEW ───────────────────────────────────────────────────────────
+
+const SOL_JOB_TYPE_LABELS: Record<string, string> = {
+  spirit_enrich:         'Spirit Enrich',
+  deliverance_protocol:  'Deliverance Protocol',
+  dream_interpretation:  'Dream Interpretation',
+  research_drop_spirits: 'Research Drop',
+  gateway_investigation: 'Gateway Investigation',
+  content_gen:           'Content Generation',
+  patristic_scan:        'Source Scan',
+}
+
+function renderSolInputSummary(jobType: string, params: any, txt: string, mut: string): React.ReactNode {
+  if (!params) return null
+  const field = (label: string, value: string | undefined) => value ? (
+    <div key={label} style={{ display: 'flex', gap: 6, marginBottom: 4 }}>
+      <span style={{ fontFamily: cinzel, fontSize: 8, color: mut, letterSpacing: '0.06em', flexShrink: 0, minWidth: 68, paddingTop: 2 }}>{label}</span>
+      <span style={{ fontFamily: crimson, fontSize: 13, color: txt, lineHeight: 1.4 }}>{value}</span>
+    </div>
+  ) : null
+  switch (jobType) {
+    case 'spirit_enrich':
+      return <>{field('Spirit', params.spiritSlug || params.spiritName || '—')}</>
+    case 'deliverance_protocol': {
+      if (params.mode === 'manifestation') {
+        const d = String(params.manifestationDescription || '')
+        return <>{field('Mode', 'Manifestation')}{field('Description', d.length > 200 ? d.slice(0, 200) + '…' : d)}</>
+      }
+      const name = params.spiritData?.name || params.spiritName || params.manifestationCandidates?.[0]?.name
+      const cluster = (params.spiritNames as string[] | undefined)?.slice(0, 5).join(', ')
+      return <>{field('Spirit', name || '—')}{cluster ? field('Cluster', cluster) : null}</>
+    }
+    case 'dream_interpretation': {
+      const d = String(params.dreamDescription || '')
+      return <>{field('Dream', d.length > 200 ? d.slice(0, 200) + '…' : d)}</>
+    }
+    case 'research_drop_spirits':
+      return <>{field('Resource ID', params.resourceId || '—')}</>
+    case 'gateway_investigation': {
+      const ctx = params.personContext ? String(params.personContext).slice(0, 120) : undefined
+      return <>{field('Spirit', params.spiritName || '—')}{ctx ? field('Context', ctx) : null}</>
+    }
+    case 'content_gen':
+      return <>{field('Type', params.contentType || '—')}{params.title ? field('Title', String(params.title)) : null}</>
+    default:
+      return <pre style={{ fontFamily: crimson, fontSize: 11, color: mut, overflow: 'auto', maxHeight: 120, margin: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>{JSON.stringify(params, null, 2)}</pre>
+  }
+}
+
+function renderSolOpenResult(job: any, isDark: boolean, onOpenProtocol: (r: any) => void, onNavigate: (s: string) => void): React.ReactNode {
+  const btnPrimary: React.CSSProperties = { background: G, color: '#0D0B14', border: 'none', borderRadius: 6, padding: '7px 16px', fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: 'pointer', fontWeight: 700 }
+  const btnOutline: React.CSSProperties = { background: 'transparent', color: isDark ? G : '#8B6914', border: `1px solid ${G}66`, borderRadius: 6, padding: '7px 16px', fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: 'pointer' }
+  switch (job.job_type) {
+    case 'deliverance_protocol':
+      if (!job.result_json?.protocol) return null
+      return <button onClick={() => onOpenProtocol(job.result_json)} style={btnPrimary}>⚔ OPEN PROTOCOL</button>
+    case 'spirit_enrich': {
+      const n = job.result_json?.spiritName || job.input_params?.spiritSlug || ''
+      return <button onClick={() => onNavigate('database')} style={btnOutline}>📖 SPIRIT DOSSIER{n ? ` — ${n}` : ''}</button>
+    }
+    case 'research_drop_spirits': {
+      const n = (job.result_json?.spiritsFound ?? 0) as number
+      return <div style={{ fontFamily: crimson, fontSize: 13, color: '#5fae6f' }}>✓ {n} spirit{n !== 1 ? 's' : ''} staged for review</div>
+    }
+    case 'gateway_investigation':
+      if (!job.result_json?.report) return null
+      return <button onClick={() => onNavigate('gateway')} style={btnOutline}>🚪 OPEN GATEWAY REPORT</button>
+    case 'dream_interpretation':
+      return <a href="/community/dream-interpreter" style={{ ...btnOutline, textDecoration: 'none', display: 'inline-block' }}>🌙 DREAM INTERPRETER</a>
+    case 'content_gen':
+      if (!job.result_json) return null
+      return (
+        <div style={{ fontFamily: crimson, fontSize: 14, color: isDark ? '#c8b99a' : '#2D2924', lineHeight: 1.7, maxHeight: 200, overflowY: 'auto', background: 'rgba(201,168,76,0.04)', borderRadius: 6, padding: '10px 12px' }}>
+          {typeof job.result_json === 'string' ? job.result_json : (job.result_json?.content || job.result_json?.text || JSON.stringify(job.result_json, null, 2))}
+        </div>
+      )
+    default:
+      return null
+  }
+}
+
+function MySolJobsView({ theme, isMobile, getToken, onOpenProtocol, onNavigate }: {
+  theme: string
+  isMobile: boolean
+  getToken: () => Promise<string | null>
+  onOpenProtocol: (result: any) => void
+  onNavigate: (section: string) => void
+}) {
+  const isDark = theme !== 'light'
+  const bg   = isDark ? '#0D0B14' : '#EDEBE2'
+  const surf = isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.03)'
+  const bdr  = isDark ? 'rgba(201,168,76,0.18)' : 'rgba(201,168,76,0.3)'
+  const txt  = isDark ? '#E8D5B0' : '#1F1B12'
+  const mut  = isDark ? '#8B7355' : '#574B33'
+
+  const [jobs,          setJobs]          = useState<any[]>([])
+  const [loading,       setLoading]       = useState(true)
+  const [loadError,     setLoadError]     = useState(false)
+  const [filterJobType, setFilterJobType] = useState('')
+  const [filterStatus,  setFilterStatus]  = useState('')
+  const [hasMore,       setHasMore]       = useState(false)
+  const [cursor,        setCursor]        = useState<string | null>(null)
+  const [expandedIds,   setExpandedIds]   = useState<Set<string>>(new Set())
+  const [loadingMore,   setLoadingMore]   = useState(false)
+  const pollRef          = useRef<ReturnType<typeof setInterval> | null>(null)
+  const filterJobTypeRef = useRef('')
+  const filterStatusRef  = useRef('')
+
+  useEffect(() => () => { if (pollRef.current) clearInterval(pollRef.current) }, [])
+  useEffect(() => { filterJobTypeRef.current = filterJobType }, [filterJobType])
+  useEffect(() => { filterStatusRef.current  = filterStatus  }, [filterStatus])
+
+  async function doFetch(jt: string, st: string, before?: string | null): Promise<{ jobs: any[]; hasMore: boolean; nextCursor: string | null }> {
+    const token = await getToken()
+    if (!token) throw new Error('no token')
+    const p = new URLSearchParams({ limit: '25' })
+    if (jt) p.set('job_type', jt)
+    if (st) p.set('status', st)
+    if (before) p.set('before', before)
+    const res = await fetch(`/api/my-sol-jobs?${p}`, { headers: { Authorization: `Bearer ${token}` } })
+    if (!res.ok) throw new Error('fetch failed')
+    return res.json()
+  }
+
+  function syncPoll(freshJobs: any[]) {
+    const inFlight = freshJobs.some(j => j.status === 'queued' || j.status === 'running')
+    if (inFlight && !pollRef.current) {
+      pollRef.current = setInterval(async () => {
+        try {
+          const d = await doFetch(filterJobTypeRef.current, filterStatusRef.current)
+          setJobs(d.jobs)
+          setHasMore(d.hasMore)
+          setCursor(d.nextCursor)
+          if (!d.jobs.some((j: any) => j.status === 'queued' || j.status === 'running')) {
+            clearInterval(pollRef.current!)
+            pollRef.current = null
+          }
+        } catch { /* network hiccup — keep polling */ }
+      }, 3000)
+    } else if (!inFlight && pollRef.current) {
+      clearInterval(pollRef.current)
+      pollRef.current = null
+    }
+  }
+
+  async function loadJobs(replace = true, before?: string | null) {
+    if (replace) { setLoading(true); setLoadError(false) } else setLoadingMore(true)
+    try {
+      const d = await doFetch(filterJobType, filterStatus, before)
+      const merged = replace ? d.jobs : [...jobs, ...d.jobs]
+      if (replace) setJobs(d.jobs); else setJobs(merged)
+      setHasMore(d.hasMore)
+      setCursor(d.nextCursor)
+      syncPoll(merged)
+    } catch { setLoadError(true) }
+    finally { setLoading(false); setLoadingMore(false) }
+  }
+
+  useEffect(() => {
+    if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null }
+    loadJobs(true)
+  }, [filterJobType, filterStatus]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  function toggleId(id: string) {
+    setExpandedIds(prev => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n })
+  }
+
+  const JOB_TYPE_OPTS = [
+    { v: '',                       l: 'All Types' },
+    { v: 'deliverance_protocol',   l: 'Deliverance Protocol' },
+    { v: 'spirit_enrich',          l: 'Spirit Enrich' },
+    { v: 'research_drop_spirits',  l: 'Research Drop' },
+    { v: 'gateway_investigation',  l: 'Gateway Investigation' },
+    { v: 'dream_interpretation',   l: 'Dream Interpretation' },
+    { v: 'content_gen',            l: 'Content Generation' },
+  ]
+  const STATUS_OPTS: string[] = ['', 'queued', 'running', 'complete', 'failed']
+  const STATUS_LABEL: Record<string, string> = { '': 'All', queued: 'Queued', running: 'Running', complete: 'Complete', failed: 'Failed' }
+
+  function jobDuration(job: any): string {
+    if (!job.started_at || !job.completed_at) return ''
+    const s = Math.round((new Date(job.completed_at).getTime() - new Date(job.started_at).getTime()) / 1000)
+    return s < 60 ? `${s}s` : `${Math.floor(s / 60)}m ${s % 60}s`
+  }
+
+  if (loadError && jobs.length === 0) return (
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: bg, padding: '40px 20px' }}>
+      <div style={{ fontFamily: cinzel, fontSize: 13, color: mut, marginBottom: 16, textAlign: 'center' }}>Couldn't load your SOL jobs — refresh to try again.</div>
+      <button onClick={() => loadJobs(true)} style={{ background: G, color: '#0D0B14', border: 'none', borderRadius: 6, padding: '8px 20px', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', cursor: 'pointer' }}>↺ REFRESH</button>
+    </div>
+  )
+
+  return (
+    <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden' as const, touchAction: 'pan-y', padding: isMobile ? '16px' : '24px 32px', background: bg, minHeight: 0 }}>
+      <style>{`@keyframes sol-job-pulse{0%,100%{opacity:1}50%{opacity:0.45}}`}</style>
+      <div style={{ maxWidth: 860, margin: '0 auto' }}>
+
+        {!isMobile && (
+          <div style={{ marginBottom: 20 }}>
+            <h2 style={{ fontFamily: cinzel, color: isDark ? G : '#8B6914', fontSize: 22, margin: '0 0 4px', letterSpacing: '0.08em' }}>My SOL Jobs</h2>
+            <p style={{ color: mut, fontSize: 13, margin: 0, fontFamily: crimson }}>Every SOL analysis — running or complete. Pick up where you left off.</p>
+          </div>
+        )}
+
+        {/* Filter row */}
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' as const, marginBottom: 20 }}>
+          <select value={filterJobType} onChange={e => setFilterJobType(e.target.value)}
+            style={{ background: isDark ? '#0f0e16' : '#fff', border: `1px solid ${bdr}`, borderRadius: 6, padding: '6px 10px', color: txt, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.06em', cursor: 'pointer', outline: 'none' }}>
+            {JOB_TYPE_OPTS.map(o => <option key={o.v} value={o.v}>{o.l}</option>)}
+          </select>
+          <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' as const }}>
+            {STATUS_OPTS.map(s => (
+              <button key={s} onClick={() => setFilterStatus(s)}
+                style={{ padding: '4px 10px', borderRadius: 20, fontFamily: cinzel, fontSize: 8, letterSpacing: '0.08em', cursor: 'pointer', border: `1px solid ${filterStatus === s ? G : bdr}`, background: filterStatus === s ? `${G}22` : 'transparent', color: filterStatus === s ? (isDark ? G : '#8B6914') : mut }}>
+                {STATUS_LABEL[s]}
+              </button>
+            ))}
+          </div>
+          <button onClick={() => loadJobs(true)} style={{ marginLeft: 'auto', background: 'transparent', border: `1px solid ${bdr}`, borderRadius: 6, padding: '5px 12px', color: isDark ? G : '#8B6914', fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: 'pointer' }}>
+            ↺ REFRESH
+          </button>
+        </div>
+
+        {loading ? (
+          <div style={{ textAlign: 'center' as const, padding: 40, color: mut, fontFamily: crimson, fontStyle: 'italic' }}>Loading SOL jobs…</div>
+        ) : jobs.length === 0 ? (
+          <div style={{ background: surf, border: `1px solid ${bdr}`, borderRadius: 12, padding: '48px 24px', textAlign: 'center' as const }}>
+            <div style={{ fontSize: 36, marginBottom: 16 }}>⚡</div>
+            <div style={{ fontFamily: cinzel, fontSize: 13, color: isDark ? G : '#8B6914', letterSpacing: '0.06em', marginBottom: 8 }}>No SOL Jobs Yet</div>
+            <div style={{ fontFamily: crimson, fontSize: 14, color: mut, lineHeight: 1.7, marginBottom: 24 }}>
+              Generate a Deliverance Protocol, run a Dream Interpretation, or investigate a Gateway — your work will land here.
+            </div>
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' as const }}>
+              <button onClick={() => onNavigate('deliverance-protocol')} style={{ background: G, color: '#0D0B14', border: 'none', borderRadius: 6, padding: '8px 16px', fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: 'pointer' }}>⚔ DELIVERANCE PROTOCOL</button>
+              <button onClick={() => { window.location.href = '/community/dream-interpreter' }} style={{ background: 'transparent', color: isDark ? G : '#8B6914', border: `1px solid ${G}`, borderRadius: 6, padding: '8px 16px', fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: 'pointer' }}>🌙 DREAM INTERPRETER</button>
+              <button onClick={() => onNavigate('gateway')} style={{ background: 'transparent', color: isDark ? G : '#8B6914', border: `1px solid ${bdr}`, borderRadius: 6, padding: '8px 16px', fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: 'pointer' }}>🚪 GATEWAY INVESTIGATOR</button>
+            </div>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 8 }}>
+            {jobs.map(job => {
+              const expanded = expandedIds.has(job.id)
+              const label    = SOL_JOB_TYPE_LABELS[job.job_type as string] || job.job_type
+              const dur      = jobDuration(job)
+              const badgeStyle = ((): React.CSSProperties => {
+                if (job.status === 'running')  return { color: G, border: `1px solid ${G}66`, background: `${G}11`, animationName: 'sol-job-pulse', animationDuration: '1.5s', animationTimingFunction: 'ease-in-out', animationIterationCount: 'infinite' }
+                if (job.status === 'complete') return { color: '#5fae6f', border: '1px solid #5fae6f66', background: '#5fae6f11' }
+                if (job.status === 'failed')   return { color: '#ef4444', border: '1px solid #ef444466', background: '#ef444411' }
+                return { color: mut, border: `1px solid ${mut}44`, background: `${mut}11` }
+              })()
+              return (
+                <div key={job.id} style={{ background: surf, border: `1px solid ${bdr}`, borderRadius: 10, overflow: 'hidden' }}>
+                  {/* Row header */}
+                  <div onClick={() => toggleId(job.id)}
+                    style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 14px', cursor: 'pointer' }}>
+                    <span style={{ color: isDark ? '#5a4f3a' : '#8B7355', fontSize: 10, flexShrink: 0, display: 'inline-block', transform: expanded ? 'rotate(90deg)' : 'none', transition: 'transform 0.15s' }}>▶</span>
+                    <span style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.1em', borderRadius: 10, padding: '2px 8px', flexShrink: 0, ...badgeStyle }}>
+                      {(job.status as string).toUpperCase()}
+                    </span>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontFamily: cinzel, fontSize: 10, color: txt, letterSpacing: '0.06em', marginBottom: job.input_params ? 2 : 0 }}>{label}</div>
+                      {(() => { const s = (() => {
+                        const p = job.input_params
+                        if (!p) return ''
+                        if (job.job_type === 'deliverance_protocol') return p.spiritData?.name || p.spiritName || p.manifestationCandidates?.[0]?.name || (p.mode === 'manifestation' ? (p.manifestationDescription || '').slice(0, 80) : '') || ''
+                        if (job.job_type === 'spirit_enrich') return p.spiritSlug || p.spiritName || ''
+                        if (job.job_type === 'dream_interpretation') return (p.dreamDescription || '').slice(0, 80)
+                        if (job.job_type === 'gateway_investigation') return p.spiritName || ''
+                        if (job.job_type === 'content_gen') return [p.contentType, p.title].filter(Boolean).join(' · ')
+                        return ''
+                      })(); return s ? <div style={{ fontFamily: crimson, fontSize: 13, color: mut, lineHeight: 1.4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{s}</div> : null })()}
+                    </div>
+                    <div style={{ flexShrink: 0, textAlign: 'right' as const }}>
+                      <div style={{ fontFamily: cinzel, fontSize: 8, color: mut, letterSpacing: '0.04em' }}>{timeAgo(job.created_at)}</div>
+                      {job.stage && job.status !== 'complete' && job.status !== 'failed' && (
+                        <div style={{ fontFamily: cinzel, fontSize: 7, color: isDark ? '#5a4f3a' : '#8B7355', letterSpacing: '0.04em', marginTop: 2 }}>{job.stage}</div>
+                      )}
+                      {dur && <div style={{ fontFamily: cinzel, fontSize: 7, color: isDark ? '#5a4f3a' : '#8B7355', letterSpacing: '0.04em', marginTop: 2 }}>{dur}</div>}
+                    </div>
+                  </div>
+
+                  {/* Progress bar for running */}
+                  {job.status === 'running' && typeof job.progress === 'number' && (
+                    <div style={{ height: 2, background: isDark ? 'rgba(255,255,255,0.06)' : '#EEE9DA' }}>
+                      <div style={{ height: '100%', width: `${job.progress}%`, background: G, transition: 'width 0.5s' }} />
+                    </div>
+                  )}
+
+                  {/* Expanded panel */}
+                  {expanded && (
+                    <div style={{ padding: '12px 14px', borderTop: `1px solid ${bdr}` }}>
+                      {/* Input summary */}
+                      {job.input_params && (
+                        <div style={{ marginBottom: 14 }}>
+                          <div style={{ fontFamily: cinzel, fontSize: 8, color: mut, letterSpacing: '0.1em', textTransform: 'uppercase' as const, marginBottom: 6 }}>Input</div>
+                          {renderSolInputSummary(job.job_type, job.input_params, txt, mut)}
+                        </div>
+                      )}
+
+                      {/* Queued / running indicator */}
+                      {(job.status === 'queued' || job.status === 'running') && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', background: `${G}09`, border: `1px solid ${G}33`, borderRadius: 6, marginBottom: 10 }}>
+                          <span style={{ color: G, fontSize: 14, animationName: 'sol-job-pulse', animationDuration: '1.5s', animationIterationCount: 'infinite', animationTimingFunction: 'ease-in-out' }}>⚡</span>
+                          <span style={{ fontFamily: crimson, fontSize: 14, color: isDark ? '#c8b99a' : '#2D2924' }}>
+                            {job.status === 'queued' ? 'Queued — will begin processing shortly…' : `Running: ${job.stage || '…'} · ${job.progress ?? 0}%`}
+                          </span>
+                        </div>
+                      )}
+
+                      {/* Failed: error box */}
+                      {job.status === 'failed' && job.error_message && (
+                        <div style={{ padding: '10px 12px', background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.25)', borderRadius: 6, marginBottom: 10 }}>
+                          <div style={{ fontFamily: cinzel, fontSize: 8, color: '#ef4444', letterSpacing: '0.1em', marginBottom: 4 }}>ERROR</div>
+                          <div style={{ fontFamily: crimson, fontSize: 13, color: '#f87171', lineHeight: 1.5, wordBreak: 'break-word' as const }}>{job.error_message}</div>
+                        </div>
+                      )}
+
+                      {/* Complete: Open Result CTA */}
+                      {job.status === 'complete' && (
+                        <div style={{ marginBottom: 4 }}>
+                          {renderSolOpenResult(job, isDark, onOpenProtocol, onNavigate)}
+                        </div>
+                      )}
+
+                      {/* Tier ≥ 4: cost footer */}
+                      {(job as any).model_used !== undefined && (
+                        <div style={{ marginTop: 10, paddingTop: 8, borderTop: `1px solid ${bdr}`, display: 'flex', gap: 16 }}>
+                          {(job as any).model_used && <span style={{ fontFamily: cinzel, fontSize: 8, color: isDark ? '#3a3428' : '#8B7355', letterSpacing: '0.04em' }}>{(job as any).model_used}</span>}
+                          {(job as any).tokens_used != null && <span style={{ fontFamily: cinzel, fontSize: 8, color: isDark ? '#3a3428' : '#8B7355', letterSpacing: '0.04em' }}>{Number((job as any).tokens_used).toLocaleString()} tokens</span>}
+                          {(job as any).cost_estimate != null && <span style={{ fontFamily: cinzel, fontSize: 8, color: isDark ? '#3a3428' : '#8B7355', letterSpacing: '0.04em' }}>${Number((job as any).cost_estimate).toFixed(4)}</span>}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+
+            {/* Load more */}
+            {hasMore && (
+              <button onClick={() => loadJobs(false, cursor)} disabled={loadingMore}
+                style={{ width: '100%', padding: '10px', background: 'transparent', border: `1px solid ${bdr}`, borderRadius: 8, color: isDark ? G : '#8B6914', fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: loadingMore ? 'not-allowed' : 'pointer', opacity: loadingMore ? 0.5 : 1 }}>
+                {loadingMore ? 'LOADING…' : 'LOAD MORE'}
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
 // ── TIME AGO HELPER ────────────────────────────────────────
 function timeAgo(dateStr: string | null | undefined): string {
   if (!dateStr) return ''
@@ -13941,7 +14293,7 @@ function CommunityPage() {
   }
 
   // ── NAV HELPERS ────────────────────────────────────────────
-  const INTELLIGENCE_SECTS = new Set(['database', 'investigate', 'body-map', 'spirit-network', 'gateway', 'fringe-feed', 'ask-sol', 'my-intel'])
+  const INTELLIGENCE_SECTS = new Set(['database', 'investigate', 'body-map', 'spirit-network', 'gateway', 'fringe-feed', 'ask-sol', 'my-intel', 'my-sol-jobs'])
   const ARCHIVE_SECTS       = new Set(['investigate', 'body-map', 'spirit-network', 'gateway'])
   const intelOpen    = intelligenceOpen || INTELLIGENCE_SECTS.has(activeSection)
   const archiveOpen  = intelArchiveOpen || ARCHIVE_SECTS.has(activeSection)
@@ -14295,6 +14647,7 @@ function CommunityPage() {
           {pageLink('Dream Interpreter', <Moon size={15} strokeWidth={1.6} />,   '/community/dream-interpreter')}
           {row('Weekly Intel',   <Antenna size={15} strokeWidth={1.6} />,        activeSection === 'intel',          () => go('intel'))}
           {row('My Intel',       <FolderOpen size={15} strokeWidth={1.6} />,     activeSection === 'my-intel',       () => go('my-intel'))}
+          {row('My SOL Jobs',    <Zap size={15} strokeWidth={1.6} />,             activeSection === 'my-sol-jobs',    () => go('my-sol-jobs'))}
           {pageLink('Scripture Study',   <BookOpen size={15} strokeWidth={1.6} />, '/community/scripture')}
 
           {grpHdr('Growth')}
@@ -14513,6 +14866,15 @@ function CommunityPage() {
             <span>Ask SOL</span>
           </a>
           {navItem('My Intel', 'my-intel', <span style={{ fontSize: 14, lineHeight: 1 }}>📋</span>)}
+          <div style={{ paddingLeft: 16 }}>
+            <button onClick={() => { setActiveSection('my-sol-jobs'); if (isMobile) setSidebarOpen(false) }}
+              style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '6px 16px', background: activeSection === 'my-sol-jobs' ? 'rgba(201,168,76,0.06)' : 'transparent', border: 'none', borderLeft: activeSection === 'my-sol-jobs' ? '2px solid rgba(201,168,76,0.5)' : '2px solid rgba(201,168,76,0.1)', cursor: 'pointer', fontFamily: cinzel, fontSize: 12, letterSpacing: '0.08em', color: activeSection === 'my-sol-jobs' ? navGold : (isDark ? '#9a8874' : '#7a6858'), textAlign: 'left' as const, boxSizing: 'border-box' as const }}
+              onMouseEnter={e => { if (activeSection !== 'my-sol-jobs') { e.currentTarget.style.color = navGold; e.currentTarget.style.borderLeftColor = 'rgba(201,168,76,0.5)' } }}
+              onMouseLeave={e => { if (activeSection !== 'my-sol-jobs') { e.currentTarget.style.color = isDark ? '#9a8874' : '#7a6858'; e.currentTarget.style.borderLeftColor = 'rgba(201,168,76,0.1)' } }}>
+              <Zap size={14} strokeWidth={1.6} />
+              <span>My SOL Jobs</span>
+            </button>
+          </div>
           <div style={{ display: 'flex', alignItems: 'center' }}>
             <button
               onClick={() => { setActiveSection('database'); if (isMobile) setSidebarOpen(false) }}
@@ -14706,6 +15068,7 @@ function CommunityPage() {
       {activeSection === 'events'         && <EventsView theme={theme} isMobile={isMobile} setSidebarOpen={setSidebarOpen} userTier={tier} getToken={getToken} />}
       {activeSection === 'feedback'       && <FeedbackView theme={theme} userTier={tier} isMobile={isMobile} setSidebarOpen={setSidebarOpen} userId={user?.id || ''} userName={`${user?.firstName || ''} ${user?.lastName || ''}`.trim() || 'Warrior'} />}
       {activeSection === 'my-intel'       && <MyIntelView theme={theme} isMobile={isMobile} setSidebarOpen={setSidebarOpen} getToken={getToken} />}
+      {activeSection === 'my-sol-jobs'    && <MySolJobsView theme={theme} isMobile={isMobile} getToken={getToken} onOpenProtocol={(result: any) => { setStpResult(result); setActiveSection('deliverance-protocol'); if (isMobile) setSidebarOpen(false) }} onNavigate={(section: string) => { setActiveSection(section); if (isMobile) setSidebarOpen(false) }} />}
       {activeSection === 'daily-brief'    && <DailyDevotionView theme={theme} isMobile={isMobile} setSidebarOpen={setSidebarOpen} userTier={tier} userId={user?.id || ''} />}
       {activeSection === 'sol' && (
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column' as const, background: isDark ? '#0f0c07' : '#FAF8F5', overflow: 'hidden' }}>
@@ -15445,6 +15808,7 @@ function CommunityPage() {
         {activeSection === 'events'      && <EventsView theme={theme} isMobile={isMobile} setSidebarOpen={setSidebarOpen} userTier={tier} getToken={getToken} />}
         {activeSection === 'feedback'    && <FeedbackView theme={theme} userTier={tier} isMobile={isMobile} setSidebarOpen={setSidebarOpen} userId={user?.id || ''} userName={`${user?.firstName || ''} ${user?.lastName || ''}`.trim() || 'Warrior'} />}
         {activeSection === 'my-intel'       && <MyIntelView theme={theme} isMobile={isMobile} setSidebarOpen={setSidebarOpen} getToken={getToken} />}
+        {activeSection === 'my-sol-jobs'    && <MySolJobsView theme={theme} isMobile={isMobile} getToken={getToken} onOpenProtocol={(result: any) => { setStpResult(result); setActiveSection('deliverance-protocol') }} onNavigate={(section: string) => { setActiveSection(section) }} />}
         {activeSection === 'daily-brief'    && <DailyDevotionView theme={theme} isMobile={isMobile} setSidebarOpen={setSidebarOpen} userTier={tier} userId={user?.id || ''} />}
         {activeSection === 'ops-dashboard'  && <OpsDashboardView theme={theme} isMobile={isMobile} setSidebarOpen={setSidebarOpen} userId={user?.id || ''} getToken={getToken} setActiveSection={setActiveSection} />}
         {activeSection === 'forum'       && (
