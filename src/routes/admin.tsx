@@ -15221,6 +15221,46 @@ function EnrichmentHistory({ getToken, isDark }: { getToken: any; isDark: boolea
   )
 }
 
+const L2_LAYERS = [
+  { key: 'layer1_gateways', label: 'L1 · GATEWAYS', fields: [
+    ['entry_points', 'Entry Points'], ['legal_rights', 'Legal Rights'],
+    ['transmission_vectors', 'Transmission Vectors'], ['demonic_agreements', 'Demonic Agreements'],
+  ]},
+  { key: 'layer2_manifestations', label: 'L2 · MANIFESTATIONS', fields: [
+    ['manifestation', 'Manifestation'], ['symptoms', 'Symptoms'],
+    ['personality_presentation', 'Personality Presentation'],
+    ['session_indicators', 'Session Indicators'], ['primary_battlefield', 'Primary Battlefield'],
+  ]},
+  { key: 'layer3_network', label: 'L3 · NETWORK', fields: [
+    ['strongman', 'Strongman'], ['parent_strongman', 'Parent Strongman'],
+    ['companion_spirits', 'Companion Spirits'], ['cluster_spirits', 'Cluster Spirits'],
+    ['related_spirits', 'Related Spirits'],
+  ]},
+  { key: 'layer4_line', label: 'L4 · BLOODLINE & TERRITORY', fields: [
+    ['source_origin', 'Source Origin'], ['cultural_presence', 'Cultural Presence'],
+    ['etymology_notes', 'Etymology Notes'], ['archaeology_notes', 'Archaeology Notes'],
+    ['is_generational', 'Is Generational'], ['is_territorial', 'Is Territorial'],
+    ['institutional_expression', 'Institutional Expression'],
+  ]},
+  { key: 'layer5_body_regions', label: 'L5 · BODY REGIONS', fields: null },
+  { key: 'layer6_scripture', label: 'L6 · SCRIPTURE', fields: [
+    ['scripture', 'Scripture'], ['scripture_context', 'Scripture Context'],
+    ['counter_scriptures', 'Counter Scriptures'], ['biblical_umbrella', 'Biblical Umbrella'],
+  ]},
+  { key: 'layer7_counter_strategies', label: 'L7 · COUNTER STRATEGIES', fields: [
+    ['deliverance_sequence', 'Deliverance Sequence'], ['prayer_points', 'Prayer Points'],
+    ['session_trigger_questions', 'Session Trigger Questions'],
+    ['resistance_signature', 'Resistance Signature'],
+    ['aftercare_notes', 'Aftercare Notes'], ['operational_notes', 'Operational Notes'],
+  ]},
+]
+
+function l2ConfChip(c: number): { bg: string; color: string; border: string } {
+  if (c >= 4) return { bg: 'rgba(201,168,76,0.12)', color: '#C9A84C', border: 'rgba(201,168,76,0.3)' }
+  if (c === 3) return { bg: 'rgba(180,180,180,0.06)', color: '#888', border: 'rgba(180,180,180,0.18)' }
+  return { bg: 'rgba(100,100,100,0.04)', color: '#555', border: 'rgba(100,100,100,0.12)' }
+}
+
 function EnrichmentSuggestions({ getToken, isDark }: { getToken: any; isDark: boolean }) {
   const [suggestions, setSuggestions] = useState<any[]>([])
   const [loading, setLoading]         = useState(true)
@@ -15241,6 +15281,7 @@ function EnrichmentSuggestions({ getToken, isDark }: { getToken: any; isDark: bo
   const [actionFilter, setActionFilter]       = useState<string>('all')
   const [adversarialFilter, setAdversarialFilter] = useState<string>('all')
   const [expandedIds, setExpandedIds]             = useState<Set<string>>(new Set())
+  const [expandedLayers, setExpandedLayers]       = useState<Set<string>>(new Set())
 
   const cinzel  = "'Cinzel', serif"
   const crimson = "'Crimson Pro', serif"
@@ -15730,6 +15771,91 @@ function EnrichmentSuggestions({ getToken, isDark }: { getToken: any; isDark: bo
                     )}
                   </>
                 )}
+              </div>
+            )
+          })()}
+          {/* Layer 2 Raw Intel */}
+          {s.layer2_raw && (() => {
+            const l2   = s.layer2_raw as any
+            const meta = l2._meta || {}
+            return (
+              <div style={{ marginTop: 14, borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: 12 }}>
+                <div style={{ fontFamily: cinzel, fontSize: 7, color: '#5a4e36', letterSpacing: '0.12em', marginBottom: 8 }}>◈ LAYER 2 INTEL</div>
+                {/* Meta strip */}
+                <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 10, marginBottom: 10, padding: '5px 8px', background: 'rgba(255,255,255,0.015)', border: '1px solid rgba(255,255,255,0.04)', borderRadius: 3 }}>
+                  {meta.extraction_completeness && (
+                    <span style={{ fontFamily: cinzel, fontSize: 7, color: '#6b5e45', letterSpacing: '0.08em' }}>COMPLETENESS: {String(meta.extraction_completeness).toUpperCase()}</span>
+                  )}
+                  <span style={{ fontFamily: cinzel, fontSize: 7, color: meta.target_spirit_attested === false ? '#d97706' : '#6b5e45', letterSpacing: '0.08em' }}>
+                    ATTESTED: {meta.target_spirit_attested === false ? 'NO' : meta.target_spirit_attested ? 'YES' : '—'}
+                  </span>
+                  {typeof meta.fields_left_blank_count === 'number' && (
+                    <span style={{ fontFamily: cinzel, fontSize: 7, color: '#6b5e45', letterSpacing: '0.08em' }}>BLANKS: {meta.fields_left_blank_count}</span>
+                  )}
+                  {meta.notes_for_reviewer && (
+                    <span style={{ fontFamily: "'Crimson Pro', serif", fontSize: 11, color: '#d97706', fontStyle: 'italic' }}>Note: {meta.notes_for_reviewer}</span>
+                  )}
+                </div>
+                {/* Layer sections */}
+                {L2_LAYERS.map(layer => {
+                  const lk      = `${s.id}:${layer.key}`
+                  const isOpen  = expandedLayers.has(lk)
+                  const lData   = l2[layer.key]
+                  if (!lData || (Array.isArray(lData) && lData.length === 0 && !isOpen)) return null
+                  if (!Array.isArray(lData) && typeof lData === 'object' && Object.values(lData).every(v => v == null)) return null
+                  return (
+                    <div key={layer.key} style={{ marginBottom: 3, border: '1px solid rgba(255,255,255,0.03)', borderRadius: 3 }}>
+                      <button
+                        onClick={() => setExpandedLayers(prev => { const n = new Set(prev); if (n.has(lk)) n.delete(lk); else n.add(lk); return n })}
+                        style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 6, padding: '5px 8px', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left' as const }}
+                      >
+                        <svg viewBox="0 0 8 8" width="6" height="6" style={{ flexShrink: 0, color: '#5a4e36', transform: isOpen ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 0.1s' }}><path d="M2 1 L6 4 L2 7" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                        <span style={{ fontFamily: cinzel, fontSize: 7, color: '#5a4e36', letterSpacing: '0.1em' }}>{layer.label}</span>
+                      </button>
+                      {isOpen && (
+                        <div style={{ padding: '0 8px 8px' }}>
+                          {layer.key === 'layer5_body_regions' ? (
+                            (lData as any[]).length === 0
+                              ? <span style={{ fontFamily: "'Crimson Pro', serif", fontSize: 11, color: '#5a4e36', fontStyle: 'italic' }}>No body regions extracted</span>
+                              : (lData as any[]).map((br: any, i: number) => {
+                                  const cc = l2ConfChip(br.confidence ?? 3)
+                                  return (
+                                    <div key={i} style={{ marginBottom: 5 }}>
+                                      <span style={{ fontFamily: cinzel, fontSize: 7, letterSpacing: '0.06em', padding: '1px 4px', borderRadius: 3, background: cc.bg, color: cc.color, border: `1px solid ${cc.border}` }}>{br.confidence}</span>
+                                      <span style={{ fontFamily: cinzel, fontSize: 9, color: '#6b5e45', marginLeft: 5 }}>{br.region}</span>
+                                      {br.symptom && <span style={{ fontFamily: "'Crimson Pro', serif", fontSize: 11, color: '#4a3f2f', marginLeft: 5 }}>— {br.symptom}</span>}
+                                      {br.excerpt && <div style={{ fontFamily: "'Crimson Pro', serif", fontSize: 11, color: '#4a3f2f', fontStyle: 'italic', marginTop: 2, paddingLeft: 14 }}>"{(br.excerpt as string).slice(0, 120)}{br.excerpt.length > 120 ? '...' : ''}"</div>}
+                                    </div>
+                                  )
+                                })
+                          ) : (
+                            (layer.fields as [string, string][]).map(([fk, fl]) => {
+                              const f = (lData as any)[fk]
+                              if (!f) return null
+                              const cc = l2ConfChip(f.confidence ?? 3)
+                              return (
+                                <div key={fk} style={{ marginBottom: 7 }}>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 2 }}>
+                                    <span style={{ fontFamily: cinzel, fontSize: 7, color: '#4a3f2f', letterSpacing: '0.08em' }}>{fl.toUpperCase()}</span>
+                                    <span style={{ fontFamily: cinzel, fontSize: 7, padding: '0px 4px', borderRadius: 3, background: cc.bg, color: cc.color, border: `1px solid ${cc.border}` }}>{f.confidence}</span>
+                                  </div>
+                                  <div style={{ fontFamily: "'Crimson Pro', serif", fontSize: 12, color: '#6b5e45', lineHeight: 1.5 }}>
+                                    {typeof f.value === 'boolean' ? (f.value ? 'Yes' : 'No') : f.value}
+                                  </div>
+                                  {f.excerpt && (
+                                    <div style={{ fontFamily: "'Crimson Pro', serif", fontSize: 11, color: '#4a3f2f', fontStyle: 'italic', marginTop: 2, paddingLeft: 8, borderLeft: '1px solid rgba(255,255,255,0.04)' }}>
+                                      "{(f.excerpt as string).slice(0, 160)}{f.excerpt.length > 160 ? '...' : ''}"
+                                    </div>
+                                  )}
+                                </div>
+                              )
+                            })
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
               </div>
             )
           })()}
