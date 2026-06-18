@@ -1,6 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useAuth, useUser } from '@clerk/tanstack-start'
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { CommunitySidebarShell } from '@/components/CommunitySidebarShell'
 import { SolIcon } from '@/components/SolIcon'
 
@@ -42,11 +42,31 @@ function AskSolPage() {
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
-  const endRef = useRef<HTMLDivElement>(null)
+  const [stage, setStage] = useState('')
+  const [bgBanner, setBgBanner] = useState(false)
+  const endRef    = useRef<HTMLDivElement>(null)
+  const pollRef   = useRef<ReturnType<typeof setInterval> | null>(null)
+  const bgTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  useEffect(() => {
+    return () => {
+      if (pollRef.current)   clearInterval(pollRef.current)
+      if (bgTimerRef.current) clearTimeout(bgTimerRef.current)
+    }
+  }, [])
 
   const tier = ((user?.publicMetadata?.tier as string) || '').toLowerCase()
   const userName = user?.firstName || user?.username || ''
   const userTierLabel = tier === 'watchman' || tier === 'free' || !tier ? 'WATCHMAN' : tier.toUpperCase()
+
+  function stageLabel(s: string): string {
+    if (s === 'queued')     return 'SOL is queued…'
+    if (s === 'preparing')  return 'SOL is preparing…'
+    if (s === 'searching')  return 'SOL is searching WRI intelligence…'
+    if (s === 'thinking')   return 'SOL is analyzing…'
+    if (s === 'finalizing') return 'Finalizing response…'
+    return 'SOL is working…'
+  }
 
   async function send() {
     const msg = input.trim()
@@ -54,25 +74,67 @@ function AskSolPage() {
     setInput('')
     setMessages(prev => [...prev, { role: 'user', content: msg }])
     setLoading(true)
+    setStage('queued')
     setTimeout(() => endRef.current?.scrollIntoView({ behavior: 'smooth' }), 50)
 
     try {
       const token = await getToken()
-      const res = await fetch('/api/ai-assistant', {
+      const res = await fetch('/api/ask-sol', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-        body: JSON.stringify({ message: msg, history: messages, feature: 'ask_dake' }),
+        body: JSON.stringify({ message: msg, history: messages }),
       })
       const data = await res.json()
+
       if (res.status === 429) {
         setMessages(prev => [...prev, { role: 'assistant', content: `**Limit Reached** — ${data.error || 'Daily limit reached.'} [Upgrade your membership](/membership) to continue.` }])
-      } else {
-        setMessages(prev => [...prev, { role: 'assistant', content: data.response || 'No response received.' }])
+        setLoading(false); setStage('')
+        setTimeout(() => endRef.current?.scrollIntoView({ behavior: 'smooth' }), 50)
+        return
       }
-    } catch {
-      setMessages(prev => [...prev, { role: 'assistant', content: 'Unable to connect. Please try again.' }])
-    } finally {
-      setLoading(false)
+      if (!res.ok) {
+        setMessages(prev => [...prev, { role: 'assistant', content: `SOL error: ${data.error || res.status}. Please try again.` }])
+        setLoading(false); setStage('')
+        setTimeout(() => endRef.current?.scrollIntoView({ behavior: 'smooth' }), 50)
+        return
+      }
+
+      const jobId: string = data.jobId
+
+      if (bgTimerRef.current) clearTimeout(bgTimerRef.current)
+      bgTimerRef.current = setTimeout(() => setBgBanner(true), 8000)
+
+      if (pollRef.current) clearInterval(pollRef.current)
+      pollRef.current = setInterval(async () => {
+        try {
+          const pollToken = await getToken()
+          const pollRes = await fetch(`/api/job-status?jobId=${jobId}`, { headers: { Authorization: `Bearer ${pollToken}` } })
+          if (!pollRes.ok) return
+          const job = await pollRes.json()
+          setStage(job.stage ?? job.status ?? '')
+
+          if (job.status === 'complete') {
+            clearInterval(pollRef.current!); pollRef.current = null
+            if (bgTimerRef.current) { clearTimeout(bgTimerRef.current); bgTimerRef.current = null }
+            setBgBanner(false)
+            setMessages(prev => [...prev, { role: 'assistant', content: job.result_json?.response || 'No response received.' }])
+            setStage(''); setLoading(false)
+            setTimeout(() => endRef.current?.scrollIntoView({ behavior: 'smooth' }), 50)
+          } else if (job.status === 'failed') {
+            clearInterval(pollRef.current!); pollRef.current = null
+            if (bgTimerRef.current) { clearTimeout(bgTimerRef.current); bgTimerRef.current = null }
+            setBgBanner(false)
+            setMessages(prev => [...prev, { role: 'assistant', content: job.error_message || 'SOL could not complete this query. Please try again.' }])
+            setStage(''); setLoading(false)
+            setTimeout(() => endRef.current?.scrollIntoView({ behavior: 'smooth' }), 50)
+          }
+        } catch { /* network hiccup — keep polling */ }
+      }, 3000)
+
+    } catch (err: any) {
+      setMessages(prev => [...prev, { role: 'assistant', content: `Unable to connect. ${err?.message || 'Please try again.'}` }])
+      setStage(''); setLoading(false); setBgBanner(false)
+      if (bgTimerRef.current) { clearTimeout(bgTimerRef.current); bgTimerRef.current = null }
       setTimeout(() => endRef.current?.scrollIntoView({ behavior: 'smooth' }), 50)
     }
   }
@@ -143,8 +205,13 @@ function AskSolPage() {
             <div style={{ display: 'flex', justifyContent: 'flex-start' }}>
               <div style={{ background: SURF2, border: `1px solid ${BDR}`, borderLeft: `3px solid ${G}`, borderRadius: '0 12px 12px 0', padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 8 }}>
                 <SolIcon size={11} />
-                <span style={{ fontFamily: crimson, fontSize: 14, color: '#6b5e45', fontStyle: 'italic' }}>Analyzing…</span>
+                <span style={{ fontFamily: crimson, fontSize: 14, color: '#6b5e45', fontStyle: 'italic' }}>{stageLabel(stage)}</span>
               </div>
+            </div>
+          )}
+          {bgBanner && (
+            <div style={{ background: 'rgba(201,168,76,0.08)', border: `1px solid ${BDR}`, borderRadius: 8, padding: '10px 14px', fontFamily: crimson, fontSize: 13, color: DIM, textAlign: 'center' }}>
+              SOL is still working — you can navigate away and check <strong style={{ color: G }}>My SOL Jobs</strong> for the result.
             </div>
           )}
           <div ref={endRef} />
