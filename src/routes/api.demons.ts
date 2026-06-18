@@ -69,6 +69,29 @@ const SECTION_LABELS: Record<string, { label: string; tier: string }> = {
   institutionalExpression: { label: 'Institutional Expression', tier: 'general' },
 }
 
+function buildAllowSet(level: number): Set<string> {
+  const allowed = new Set<string>()
+  for (let l = 0; l <= level; l++) for (const k of TIER_FIELDS[l]) allowed.add(k)
+  return allowed
+}
+
+function buildLockedSections(level: number): string[] {
+  const locked: string[] = []
+  for (let l = level + 1; l <= 3; l++) {
+    for (const k of TIER_FIELDS[l]) {
+      const s = SECTION_LABELS[k]
+      if (s) locked.push(`${s.label}@${s.tier}`)
+    }
+  }
+  return locked
+}
+
+function stripToTier(obj: Record<string, any>, allowed: Set<string>): Record<string, any> {
+  const entry: Record<string, any> = {}
+  for (const k of allowed) if (k in obj) entry[k] = obj[k]
+  return entry
+}
+
 const { token: airtableToken } = JSON.parse(process.env.AIRTABLE || '{}')
 const { url: supabaseUrl, serviceRoleKey: supabaseServiceKey } = JSON.parse(process.env.SUPABASE || '{}')
 
@@ -148,7 +171,35 @@ export const Route = createFileRoute('/api/demons')({
       GET: async ({ request }) => {
         const authRes = await requireAuth(request)
         if (authRes instanceof Response) return authRes
+
+        const reqUrl = new URL(request.url)
+        const slugParam = reqUrl.searchParams.get('slug')
+        const uuidParam = reqUrl.searchParams.get('uuid')
+        const singleMode = !!(slugParam || uuidParam)
+
+        const level = Math.max(0, Math.min(3, authRes.level))
+        const allowed = buildAllowSet(level)
+        const lockedSections = buildLockedSections(level)
+
         try {
+          if (singleMode) {
+            if (!USE_SUPABASE_DEMONS) {
+              return Response.json({ error: 'single_fetch_unavailable' }, { status: 501 })
+            }
+            const supabase = createClient(supabaseUrl, supabaseServiceKey)
+            const q = slugParam
+              ? supabase.from('spirits').select('*').eq('slug', slugParam)
+              : supabase.from('spirits').select('*').eq('id', uuidParam!)
+            const { data, error } = await q.maybeSingle()
+            if (error) {
+              console.error('[api.demons] single fetch error:', error.message)
+              return Response.json({ error: 'fetch_failed' }, { status: 500 })
+            }
+            if (!data) return Response.json({ error: 'not_found' }, { status: 404 })
+            const demon = stripToTier(mapSpiritRow(data, 0), allowed)
+            return Response.json({ demon, lockedSections })
+          }
+
           let demons: any[]
 
           if (USE_SUPABASE_DEMONS) {
@@ -275,29 +326,7 @@ export const Route = createFileRoute('/api/demons')({
               .filter((d: any) => d.name && d.name !== 'Primary Name')
           }
 
-          // Server-side strip keyed off the VERIFIED level. Build the cumulative
-          // allow-set for the caller, then copy ONLY those keys into each entry —
-          // higher-tier values never enter an under-tier payload. Cap at 3 so
-          // minister/admin (level >= 4) receive every field.
-          const level = Math.max(0, Math.min(3, authRes.level))
-          const allowed = new Set<string>()
-          for (let l = 0; l <= level; l++) for (const k of TIER_FIELDS[l]) allowed.add(k)
-
-          // Names/tiers of sections above the caller's level — no values.
-          const lockedSections: string[] = []
-          for (let l = level + 1; l <= 3; l++) {
-            for (const k of TIER_FIELDS[l]) {
-              const s = SECTION_LABELS[k]
-              if (s) lockedSections.push(`${s.label}@${s.tier}`)
-            }
-          }
-
-          const payload = demons.map((d: any) => {
-            const entry: any = {}
-            for (const k of allowed) if (k in d) entry[k] = d[k]
-            return entry
-          })
-
+          const payload = demons.map((d: any) => stripToTier(d, allowed))
           return Response.json({ demons: payload, total: payload.length, lockedSections })
         } catch (err: any) {
           return Response.json({ error: err.message }, { status: 500 })
