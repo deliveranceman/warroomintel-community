@@ -3218,7 +3218,7 @@ function FieldMinistryView({ theme, userTier: _userTier, isMobile }: {
                 <span style={{
                   fontSize: 8, fontFamily: "'Cinzel', serif", letterSpacing: '0.06em',
                   color: TIER_COLORS[article.min_tier] || mut,
-                  background: 'rgba(255,255,255,0.04)', padding: '2px 5px', borderRadius: 3,
+                  background: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.05)', padding: '2px 5px', borderRadius: 3,
                   whiteSpace: 'nowrap', flexShrink: 0,
                 }}>
                   {article.min_tier.toUpperCase()}
@@ -3706,7 +3706,7 @@ function WeeklyIntelView({ theme, userTier, isMobile, setActiveSection }: {
               const _userLevel = getAccessLevel({ tier: userTier, role: (user?.publicMetadata?.role as string) || '' })
               return (
                 <>
-                  {arsenalLoading && <div style={{ color: 'rgba(201,168,76,0.5)', fontSize: 11, padding: '8px 0' }}>Loading...</div>}
+                  {arsenalLoading && <div style={{ color: isDark ? 'rgba(201,168,76,0.5)' : 'rgba(139,105,20,0.5)', fontSize: 11, padding: '8px 0' }}>Loading...</div>}
                   {arsenalDrops.map(r => {
                     const hasAccess = _userLevel >= _ttl(r.topic)
 return (
@@ -3715,7 +3715,7 @@ return (
                         <div style={{ fontFamily: cinzel, fontSize: 10, color: GG, marginBottom: 3 }}>
                           {r.title?.length > 42 ? r.title.slice(0, 42) + '...' : r.title}
                         </div>
-                        <div style={{ fontSize: 9, color: 'rgba(201,168,76,0.5)', textTransform: 'uppercase' as const, letterSpacing: '0.08em' }}>
+                        <div style={{ fontSize: 9, color: isDark ? 'rgba(201,168,76,0.5)' : 'rgba(139,105,20,0.5)', textTransform: 'uppercase' as const, letterSpacing: '0.08em' }}>
                           {hasAccess ? r.topic : '🔒 ' + r.topic + ' tier required'}
                         </div>
                       </div>
@@ -3759,7 +3759,7 @@ return (
                     <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 8 }}>
                       {POLL_OPTIONS.map(opt => (
                         <button key={opt.id} type="button" onClick={() => handlePollVote(opt.id)}
-                          style={{ textAlign: 'left' as const, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(201,168,76,0.2)', borderRadius: 8, padding: '10px 14px', cursor: 'pointer', fontFamily: cinzel, fontSize: 11, color: GG, letterSpacing: '0.06em', touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent' }}>
+                          style={{ textAlign: 'left' as const, background: isDark ? 'rgba(255,255,255,0.03)' : '#FFFFFF', border: '1px solid rgba(201,168,76,0.2)', borderRadius: 8, padding: '10px 14px', cursor: 'pointer', fontFamily: cinzel, fontSize: 11, color: GG, letterSpacing: '0.06em', touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent' }}>
                           {opt.label}
                         </button>
                       ))}
@@ -3776,7 +3776,7 @@ return (
                               <span>{opt.label}</span>
                               <span>{pct}%</span>
                             </div>
-                            <div style={{ height: 6, borderRadius: 3, background: 'rgba(255,255,255,0.06)', border: isChosen ? '1px solid rgba(201,168,76,0.5)' : 'none' }}>
+                            <div style={{ height: 6, borderRadius: 3, background: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.08)', border: isChosen ? '1px solid rgba(201,168,76,0.5)' : 'none' }}>
                               <div style={{ height: '100%', borderRadius: 3, width: `${pct}%`, background: isChosen ? 'rgba(201,168,76,0.6)' : 'rgba(201,168,76,0.2)', transition: 'width 0.4s ease' }} />
                             </div>
                           </div>
@@ -7047,7 +7047,7 @@ function FringeIntelView({ theme, isMobile, userTier }: any) {
                   <span style={{fontFamily:cinzel,fontSize:9,letterSpacing:'0.12em',color:'#AFA9EC'}}>CLASSIFIED DOSSIER</span>
                   <span style={{fontFamily:cinzel,fontSize:8,background:'rgba(216,90,48,0.15)',color:'#E87070',padding:'2px 8px',borderRadius:20,letterSpacing:'0.1em'}}>COMING SOON</span>
                 </div>
-                <div style={{fontFamily:cinzel,fontSize:15,color:'#EEEDFE',letterSpacing:'0.04em',marginBottom:8}}>The Nazi Occult Kingdom: Thule to Paperclip to Now</div>
+                <div style={{fontFamily:cinzel,fontSize:15,color:isDark ? '#EEEDFE' : '#1a1410',letterSpacing:'0.04em',marginBottom:8}}>The Nazi Occult Kingdom: Thule to Paperclip to Now</div>
                 <p style={{fontFamily:crimson,fontSize:14,color:MUT,lineHeight:1.65}}>The Third Reich as a fully operational demonic kingdom. Gary Wayne documents the Ariosophy religion, the bloodline genealogies of the Nazi elite, their Messiah-figure Fuhrer, the counterfeit millennium of the Thousand-Year Reich, and how Operation Paperclip transferred the entire apparatus — scientists, occult knowledge, and demonic allegiance — into the CIA and NASA. The spirit did not die in the bunker. Interactive network map included. Sources: Gary Wayne, Tom Horn, Timothy Alberino.</p>
               </div>
             </>
@@ -7058,7 +7058,7 @@ function FringeIntelView({ theme, isMobile, userTier }: any) {
               <p style={{fontFamily:crimson,fontSize:14,color:MUT,lineHeight:1.65,marginBottom:20,maxWidth:480,margin:'0 auto 20px'}}>Government programs, CERN and interdimensional technology, Nephilim bloodline networks, the transhumanist mark agenda, and the globalist control grid — available to Soldier rank and above.</p>
               <div style={{display:'flex',gap:8,justifyContent:'center',flexWrap:'wrap' as const,marginBottom:20}}>
                 {['Govt Programs','Transhumanism','Occult Ops','NWO Watch'].map(l=>(
-                  <span key={l} style={{fontFamily:cinzel,fontSize:9,letterSpacing:'0.08em',border:'1px solid rgba(201,168,76,0.2)',color:'rgba(201,168,76,0.4)',padding:'4px 12px',borderRadius:20}}>🔒 {l.toUpperCase()}</span>
+                  <span key={l} style={{fontFamily:cinzel,fontSize:9,letterSpacing:'0.08em',border:'1px solid rgba(201,168,76,0.2)',color:isDark ? 'rgba(201,168,76,0.4)' : 'rgba(160,120,48,0.4)',padding:'4px 12px',borderRadius:20}}>🔒 {l.toUpperCase()}</span>
                 ))}
               </div>
               <button onClick={() => beginUpgrade('soldier')} style={{fontFamily:cinzel,fontSize:11,letterSpacing:'0.1em',background:'rgba(201,168,76,0.12)',color:G2,border:'1px solid '+G2,borderRadius:6,padding:'10px 28px',cursor:'pointer'}}>UPGRADE TO SOLDIER — $19/mo</button>
