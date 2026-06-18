@@ -9029,7 +9029,7 @@ function ForumTagInput({ tags, onChange, isDark = true }: { tags: string[]; onCh
     if (e.key === 'Backspace' && !input && tags.length) onChange(tags.slice(0, -1))
   }
   return (
-    <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 6, padding: '6px 10px', background: F_SURF2, border: `1px solid ${F.bdr}`, borderRadius: 6, cursor: 'text', minHeight: 38, alignItems: 'center' }}
+    <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 6, padding: '6px 10px', background: isDark ? F_SURF2 : '#FFFFFF', border: `1px solid ${F.bdr}`, borderRadius: 6, cursor: 'text', minHeight: 38, alignItems: 'center' }}
       onClick={e => (e.currentTarget.querySelector('input') as HTMLInputElement)?.focus()}>
       {tags.map(t => (
         <span key={t} style={{ background: 'rgba(74,158,232,0.12)', color: '#4A9EE8', fontFamily: cinzel, fontSize: 9, padding: '2px 8px', borderRadius: 10, border: '1px solid rgba(74,158,232,0.3)', display: 'flex', alignItems: 'center', gap: 4 }}>
@@ -9073,7 +9073,7 @@ function ForumPostComposer({ onPost, onCancel, canPost, isDark = true }: { onPos
   const [submitting,  setSubmitting]  = useState(false)
   const [error,       setError]       = useState('')
   const tc = FORUM_POST_TYPES[postType]
-  const inputSt: React.CSSProperties = { width: '100%', background: F_SURF2, border: `1px solid ${F.bdr}`, borderRadius: 6, padding: '9px 12px', color: F.txt, fontFamily: crimson, fontSize: 14, outline: 'none', boxSizing: 'border-box' as const }
+  const inputSt: React.CSSProperties = { width: '100%', background: isDark ? F_SURF2 : '#FFFFFF', border: `1px solid ${F.bdr}`, borderRadius: 6, padding: '9px 12px', color: F.txt, fontFamily: crimson, fontSize: 14, outline: 'none', boxSizing: 'border-box' as const }
 
   async function fetchOg(url: string) {
     if (!url.trim()) return
@@ -9144,7 +9144,7 @@ function ForumPostComposer({ onPost, onCancel, canPost, isDark = true }: { onPos
         <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
           <button type="button" onClick={onCancel} style={{ background: 'transparent', border: `1px solid ${F.bdr}`, borderRadius: 6, color: F.dim, fontFamily: cinzel, fontSize: 9, padding: '8px 18px', cursor: 'pointer', letterSpacing: '0.08em' }}>Cancel</button>
           <button type="button" onClick={submit} disabled={submitting || !canPost}
-            style={{ background: canPost ? 'rgba(201,168,76,0.15)' : 'rgba(255,255,255,0.04)', border: `1px solid ${canPost ? 'rgba(201,168,76,0.4)' : F.bdr}`, borderRadius: 6, color: canPost ? G : F.mut, fontFamily: cinzel, fontSize: 9, padding: '8px 20px', cursor: canPost ? 'pointer' : 'not-allowed', letterSpacing: '0.08em', opacity: submitting ? 0.6 : 1 }}>
+            style={{ background: canPost ? (isDark ? 'rgba(201,168,76,0.15)' : 'linear-gradient(135deg, #B8860B, #8B6914)') : (isDark ? 'rgba(255,255,255,0.04)' : '#FFFFFF'), border: `1px solid ${canPost ? (isDark ? 'rgba(201,168,76,0.4)' : '#8B6914') : F.bdr}`, borderRadius: 6, color: canPost ? (isDark ? G : '#0D0B14') : F.mut, fontFamily: cinzel, fontSize: 9, padding: '8px 20px', cursor: canPost ? 'pointer' : 'not-allowed', letterSpacing: '0.08em', opacity: submitting ? 0.6 : 1 }}>
             {submitting ? 'Posting…' : 'Post'}
           </button>
         </div>
@@ -9161,7 +9161,7 @@ function ForumPostEditForm({ post, onSave, onCancel, isDark = true }: any) {
   const [tags,   setTags]   = useState<string[]>(post.tags || [])
   const [saving, setSaving] = useState(false)
   const [error,  setError]  = useState('')
-  const inputSt: React.CSSProperties = { width: '100%', background: F_SURF2, border: `1px solid ${F.bdr}`, borderRadius: 6, padding: '8px 12px', color: F.txt, fontFamily: crimson, fontSize: 13, outline: 'none', boxSizing: 'border-box' as const }
+  const inputSt: React.CSSProperties = { width: '100%', background: isDark ? F_SURF2 : '#FFFFFF', border: `1px solid ${F.bdr}`, borderRadius: 6, padding: '8px 12px', color: F.txt, fontFamily: crimson, fontSize: 13, outline: 'none', boxSizing: 'border-box' as const }
 
   async function save() {
     if (!title.trim()) { setError('Title required'); return }
@@ -9235,7 +9235,7 @@ function ForumCommentsSection({ postId, commentCount: _commentCount, userId, isM
       {loading && <div style={{ color: F.dim, fontFamily: cinzel, fontSize: 9, padding: '8px 0' }}>Loading…</div>}
       <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 8, marginBottom: 14 }}>
         {comments.map(c => (
-          <div key={c.id} style={{ background: F_SURF2, borderRadius: 8, padding: '10px 14px' }}>
+          <div key={c.id} style={{ background: isDark ? F_SURF2 : '#F5F2E8', borderRadius: 8, padding: '10px 14px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, flexWrap: 'wrap' as const }}>
               <span style={{ fontFamily: cinzel, fontSize: 10, color: G, letterSpacing: '0.05em' }}>{c.author_name}</span>
               <ForumTierPill tier={c.author_tier} />
@@ -9251,7 +9251,7 @@ function ForumCommentsSection({ postId, commentCount: _commentCount, userId, isM
       <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end' }}>
         <textarea placeholder="Write a comment… (Cmd+Enter to submit)" value={draft} onChange={e => setDraft(e.target.value)}
           onKeyDown={e => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) submit() }}
-          rows={2} style={{ flex: 1, background: F_SURF2, border: `1px solid ${F.bdr}`, borderRadius: 6, padding: '8px 10px', color: F.txt, fontFamily: crimson, fontSize: 13, outline: 'none', resize: 'none' as const }} />
+          rows={2} style={{ flex: 1, background: isDark ? F_SURF2 : '#FFFFFF', border: `1px solid ${F.bdr}`, borderRadius: 6, padding: '8px 10px', color: F.txt, fontFamily: crimson, fontSize: 13, outline: 'none', resize: 'none' as const }} />
         <button onClick={canComment ? submit : () => beginUpgrade('soldier')} disabled={canComment && (submitting || !draft.trim())}
           style={{ background: 'rgba(201,168,76,0.12)', border: '1px solid rgba(201,168,76,0.35)', borderRadius: 6, color: G, fontFamily: cinzel, fontSize: 9, padding: '9px 14px', cursor: 'pointer', opacity: (canComment && (!draft.trim() || submitting)) ? 0.4 : 1, whiteSpace: 'nowrap' as const, letterSpacing: '0.08em' }}>
           {submitting ? '…' : 'Reply'}
@@ -9421,10 +9421,11 @@ function ForumView({ isDark, isMobile, userId, userTier }: { isDark: boolean; is
   const pinnedPosts  = posts.filter(p => p.pinned)
 
   const sortBtnSt = (s: string): React.CSSProperties => ({
-    background: sort === s ? 'rgba(201,168,76,0.12)' : 'transparent',
-    border: `1px solid ${sort === s ? 'rgba(201,168,76,0.4)' : 'transparent'}`,
+    background: sort === s ? (isDark ? 'rgba(201,168,76,0.12)' : '#F5F2E8') : (isDark ? 'transparent' : '#FFFFFF'),
+    border: `1px solid ${sort === s ? (isDark ? 'rgba(201,168,76,0.4)' : '#8B6914') : (isDark ? 'transparent' : '#D8D1BE')}`,
     borderRadius: 6, padding: '6px 16px', cursor: 'pointer', fontFamily: cinzel, fontSize: 10,
-    color: sort === s ? G : F.dim, letterSpacing: '0.08em',
+    color: sort === s ? (isDark ? G : '#604408') : (isDark ? F.dim : '#574B33'), letterSpacing: '0.08em',
+    boxShadow: sort === s && !isDark ? 'inset 0 1px 2px rgba(139,105,20,0.08)' : undefined,
   })
 
   return (
@@ -9439,7 +9440,7 @@ function ForumView({ isDark, isMobile, userId, userTier }: { isDark: boolean; is
           <button onClick={() => setSort('top')} style={sortBtnSt('top')}>⬆ Top</button>
           <div style={{ flex: 1, maxWidth: 280 }}>
             <input placeholder="Search posts…" value={search} onChange={e => setSearch(e.target.value)}
-              style={{ width: '100%', background: F_SURF2, border: `1px solid ${F.bdr}`, borderRadius: 6, padding: '6px 12px', color: F.txt, fontFamily: crimson, fontSize: 13, outline: 'none', boxSizing: 'border-box' as const }} />
+              style={{ width: '100%', background: isDark ? F_SURF2 : '#FFFFFF', border: `1px solid ${F.bdr}`, borderRadius: 6, padding: '6px 12px', color: F.txt, fontFamily: crimson, fontSize: 13, outline: 'none', boxSizing: 'border-box' as const }} />
           </div>
           {!isMobile && canPost && (
             <button onClick={() => setComposing(c => !c)}
@@ -9456,12 +9457,12 @@ function ForumView({ isDark, isMobile, userId, userTier }: { isDark: boolean; is
         </div>
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' as const, paddingBottom: 12 }}>
           <button onClick={() => setTypeFilter('all')}
-            style={{ background: typeFilter === 'all' ? 'rgba(201,168,76,0.12)' : 'transparent', border: `1px solid ${typeFilter === 'all' ? 'rgba(201,168,76,0.4)' : F.bdr}`, borderRadius: 20, padding: '3px 12px', cursor: 'pointer', fontFamily: cinzel, fontSize: 8, color: typeFilter === 'all' ? G : F.dim, letterSpacing: '0.08em' }}>
+            style={{ background: typeFilter === 'all' ? (isDark ? 'rgba(201,168,76,0.12)' : '#F5F2E8') : (isDark ? 'transparent' : '#FFFFFF'), border: `1px solid ${typeFilter === 'all' ? (isDark ? 'rgba(201,168,76,0.4)' : '#8B6914') : F.bdr}`, borderRadius: 20, padding: '3px 12px', cursor: 'pointer', fontFamily: cinzel, fontSize: 8, color: typeFilter === 'all' ? (isDark ? G : '#604408') : F.dim, letterSpacing: '0.08em', boxShadow: typeFilter === 'all' && !isDark ? 'inset 0 1px 2px rgba(139,105,20,0.08)' : undefined }}>
             All
           </button>
           {Object.entries(FORUM_POST_TYPES).map(([k, v]) => (
             <button key={k} onClick={() => setTypeFilter(typeFilter === k ? 'all' : k)}
-              style={{ background: typeFilter === k ? v.bg : 'transparent', border: `1px solid ${typeFilter === k ? v.color : F.bdr}`, borderRadius: 20, padding: '3px 12px', cursor: 'pointer', fontFamily: cinzel, fontSize: 8, color: typeFilter === k ? v.color : F.dim, letterSpacing: '0.08em' }}>
+              style={{ background: typeFilter === k ? (isDark ? v.bg : '#F5F2E8') : (isDark ? 'transparent' : '#FFFFFF'), border: `1px solid ${typeFilter === k ? (isDark ? v.color : '#8B6914') : F.bdr}`, borderRadius: 20, padding: '3px 12px', cursor: 'pointer', fontFamily: cinzel, fontSize: 8, color: typeFilter === k ? (isDark ? v.color : '#604408') : F.dim, letterSpacing: '0.08em', boxShadow: typeFilter === k && !isDark ? 'inset 0 1px 2px rgba(139,105,20,0.08)' : undefined }}>
               {v.label}
             </button>
           ))}
@@ -11644,10 +11645,10 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
 
       {/* ── Sentinel Picker modal ── */}
       {showSentinelPicker && (
-          <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 1100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
-            <div style={{ background: '#0f0e1a', border: '1px solid rgba(107,69,150,0.5)', borderRadius: 12, padding: 24, maxWidth: 420, width: '100%', maxHeight: '80vh', display: 'flex', flexDirection: 'column', boxShadow: '0 24px 60px rgba(0,0,0,0.7)' }}>
+          <div style={{ position: 'fixed', inset: 0, background: isDark ? 'rgba(0,0,0,0.75)' : 'rgba(0,0,0,0.4)', zIndex: 1100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+            <div style={{ background: isDark ? '#0f0e1a' : '#FFFFFF', border: `1px solid ${isDark ? 'rgba(107,69,150,0.5)' : '#D8D1BE'}`, borderRadius: 12, padding: 24, maxWidth: 420, width: '100%', maxHeight: '80vh', display: 'flex', flexDirection: 'column', boxShadow: isDark ? '0 24px 60px rgba(0,0,0,0.7)' : '0 10px 40px rgba(60,45,15,0.15)' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6, flexShrink: 0 }}>
-                <span style={{ fontFamily: "'Cinzel',serif", fontSize: 14, color: '#b48ee0', letterSpacing: '0.1em', fontWeight: 700 }}>⚔ REQUEST SENTINEL</span>
+                <span style={{ fontFamily: "'Cinzel',serif", fontSize: 14, color: isDark ? '#b48ee0' : '#5B21B6', letterSpacing: '0.1em', fontWeight: 700 }}>⚔ REQUEST SENTINEL</span>
                 <button type="button" onClick={() => setShowSentinelPicker(false)} style={{ background: 'none', border: 'none', color: WMUT, cursor: 'pointer', fontSize: 18, lineHeight: 1, touchAction: 'manipulation' }}>✕</button>
               </div>
               <div style={{ fontFamily: "'Crimson Text',serif", fontSize: 13, color: WMUT, marginBottom: 16, fontStyle: 'italic', flexShrink: 0 }}>
@@ -11658,7 +11659,7 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
                 onChange={e => setSentinelSearch(e.target.value)}
                 placeholder="Search members by name…"
                 autoFocus
-                style={{ width: '100%', padding: '9px 12px', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(107,69,150,0.4)', borderRadius: 8, color: '#fff', fontSize: 13, outline: 'none', boxSizing: 'border-box', marginBottom: 12, fontFamily: "'Crimson Text',serif", flexShrink: 0 }}
+                style={{ width: '100%', padding: '9px 12px', background: isDark ? 'rgba(255,255,255,0.06)' : '#FFFFFF', border: `1px solid ${isDark ? 'rgba(107,69,150,0.4)' : '#D8D1BE'}`, borderRadius: 8, color: isDark ? '#fff' : '#1F1B12', fontSize: 13, outline: 'none', boxSizing: 'border-box', marginBottom: 12, fontFamily: "'Crimson Text',serif", flexShrink: 0 }}
               />
               <div style={{ flex: 1, overflowY: 'auto', border: `1px solid ${BDR}`, borderRadius: 8 }}>
                 {loadingMembers ? (
@@ -11676,11 +11677,11 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
                       <div style={{ width: 34, height: 34, borderRadius: '50%', background: 'rgba(107,69,150,0.2)', border: '1px solid rgba(107,69,150,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, overflow: 'hidden' }}>
                         {m.imageUrl
                           ? <img src={m.imageUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                          : <span style={{ fontFamily: "'Cinzel',serif", fontSize: 11, color: '#b48ee0' }}>{(m.name || '?').split(' ').map((w: string) => w[0]).join('').toUpperCase().slice(0, 2)}</span>
+                          : <span style={{ fontFamily: "'Cinzel',serif", fontSize: 11, color: isDark ? '#b48ee0' : '#5B21B6' }}>{(m.name || '?').split(' ').map((w: string) => w[0]).join('').toUpperCase().slice(0, 2)}</span>
                         }
                       </div>
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 13, color: '#e8dcc8', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.name}</div>
+                        <div style={{ fontSize: 13, color: isDark ? '#e8dcc8' : '#1F1B12', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.name}</div>
                         <div style={{ fontSize: 10, color: WMUT, textTransform: 'capitalize' }}>{m.tier}</div>
                       </div>
                       {sentinelSent.includes(m.id) ? (
@@ -11698,7 +11699,7 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
                             }).then(r => r.json()).catch(() => null)
                             if (res?.ok) setSentinelSent(prev => [...prev, m.id])
                           }}
-                          style={{ fontSize: 11, color: '#b48ee0', background: 'transparent', border: '1px solid rgba(107,69,150,0.5)', borderRadius: 4, padding: '4px 10px', cursor: 'pointer', fontFamily: "'Cinzel',serif", letterSpacing: '0.04em', flexShrink: 0, touchAction: 'manipulation' }}
+                          style={{ fontSize: 11, color: isDark ? '#b48ee0' : '#5B21B6', background: isDark ? 'transparent' : 'rgba(91,33,182,0.08)', border: `1px solid ${isDark ? 'rgba(107,69,150,0.5)' : '#5B21B6'}`, borderRadius: 4, padding: '4px 10px', cursor: 'pointer', fontFamily: "'Cinzel',serif", letterSpacing: '0.04em', flexShrink: 0, touchAction: 'manipulation' }}
                         >⚔ Request</button>
                       )}
                     </div>
@@ -11708,7 +11709,7 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
               <button
                 type="button"
                 onClick={() => setShowSentinelPicker(false)}
-                style={{ marginTop: 16, background: 'none', border: 'none', color: '#b48ee0', cursor: 'pointer', fontSize: 13, padding: '8px 0', fontFamily: "'Cinzel',serif", letterSpacing: '0.06em', flexShrink: 0 }}
+                style={{ marginTop: 16, background: 'none', border: 'none', color: isDark ? '#b48ee0' : '#574B33', cursor: 'pointer', fontSize: 13, padding: '8px 0', fontFamily: "'Cinzel',serif", letterSpacing: '0.06em', flexShrink: 0 }}
               >Close</button>
             </div>
           </div>
@@ -12126,7 +12127,7 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
         ) : (
           <>
             {/* Chat header */}
-            <div style={{ padding: '10px 16px', borderBottom: `1px solid ${BDR}`, display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0, background: 'rgba(0,0,0,0.2)' }}>
+            <div style={{ padding: '10px 16px', borderBottom: `1px solid ${BDR}`, display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0, background: isDark ? 'rgba(0,0,0,0.2)' : '#F5F2E8' }}>
               {isMobileLayout && (
                 <button onClick={() => setMobileView('list')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: WMUT, padding: '4px', display: 'flex' }}>
                   <ChevronLeft size={20} strokeWidth={2} />
@@ -12257,7 +12258,7 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
             </div>
 
             {/* Messages area */}
-            <div style={{ flex: 1, overflowY: 'auto' as const, padding: '16px', display: 'flex', flexDirection: 'column' as const, gap: 10, background: 'rgba(0,0,0,0.2)' }}>
+            <div style={{ flex: 1, overflowY: 'auto' as const, padding: '16px', display: 'flex', flexDirection: 'column' as const, gap: 10, background: isDark ? 'rgba(0,0,0,0.2)' : '#FFFFFF' }}>
               {loadingMessages ? (
                 <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: WMUT, fontSize: 13 }}>Loading…</div>
               ) : messages.length === 0 ? (
@@ -12328,7 +12329,7 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
               padding: '10px 12px',
               paddingBottom: `calc(10px + env(safe-area-inset-bottom, 0px))`,
               borderTop: `1px solid ${BDR}`,
-              background: 'rgba(0,0,0,0.3)',
+              background: isDark ? 'rgba(0,0,0,0.3)' : '#F5F2E8',
               display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0,
             }}>
               <button style={{ background: 'none', border: 'none', cursor: 'pointer', color: WMUT, padding: 4, display: 'flex' }} title="Attach image">
