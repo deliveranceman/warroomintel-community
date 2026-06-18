@@ -53,9 +53,9 @@ const SOURCE_STRIPE: Record<SourceType, string> = {
 }
 
 const SOURCE_BADGE_BG: Record<SourceType, string> = {
-  spirit:   'rgba(201,168,76,0.12)',
-  library:  'rgba(91,139,181,0.15)',
-  resource: 'rgba(95,174,111,0.15)',
+  spirit:   'var(--gold-dim)',
+  library:  'var(--info-bg)',
+  resource: 'var(--ok-bg)',
 }
 
 const SOURCE_BADGE_COLOR: Record<SourceType, string> = {
@@ -280,7 +280,7 @@ function SearchPage() {
           {error && (
             <div style={{
               padding: '10px 14px', marginBottom: 16,
-              background: 'rgba(200,74,74,0.08)',
+              background: 'var(--crit-bg)',
               border: '1px solid rgba(200,74,74,0.25)',
               borderRadius: 8,
             }}>
@@ -411,7 +411,7 @@ function HitCard({ hit }: { hit: SearchHit }) {
         <div style={{
           display: 'flex', alignItems: 'center', gap: 10,
           padding: '8px 12px', marginTop: 4,
-          background: 'rgba(0,0,0,0.15)',
+          background: 'var(--surface3)',
           borderRadius: 5,
         }}>
           <span style={{ color: 'var(--gold)', fontSize: 14, flexShrink: 0 }}>⚔</span>
