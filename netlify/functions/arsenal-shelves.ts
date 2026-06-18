@@ -35,9 +35,13 @@ export default async function handler(req: Request) {
 
   // Allowed tier list for the "For Your Watch" shelf: every ladder rung at or below the user.
   // Case-normalize at query time — the tier column is mixed-case (watchman/Soldier/Free/etc).
-  // 'free' is watchman-equivalent. Followup (out of scope): lowercase-normalize the column to drop LOWER().
+  // PostgREST .in() is exact-match, so include BOTH the lowercase and Title-case form of each
+  // allowed rung to emulate LOWER(tier) IN (...). Title-case rows (Soldier/Commander/Free) exist
+  // in the data and would otherwise be silently dropped. Mirrors arsenal-resources.ts's dual-casing.
+  // 'free' is watchman-equivalent. Followup (out of scope): lowercase-normalize the column to drop this.
   const allowedTiers = ['watchman', 'free', 'soldier', 'commander', 'general', 'minister', 'commandant']
     .filter(t => tierLevel(t) <= userLevel)
+    .flatMap(t => [t, t.charAt(0).toUpperCase() + t.slice(1)])
 
   const base = () => supabase
     .from('resources')
