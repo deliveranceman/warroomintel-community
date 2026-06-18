@@ -13223,7 +13223,7 @@ function CommunityPage() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
     try { return localStorage.getItem('sidebar_collapsed') === 'true' } catch { return false }
   })
-  const [activeSection, setActiveSection] = useState('daily-brief')
+  const [activeSection, setActiveSection] = useState('ops-dashboard')
   const [createIntent, setCreateIntent] = useState<null | 'fire-team' | 'cover-all' | 'sentinel'>(null)
   const [openChannelIntent, setOpenChannelIntent] = useState<null | { channelId: string; kind: 'fire-team' | 'cover-all' | 'sentinel'; title: string; subtitle?: string; raw?: any }>(null)
   const sidebarScrollRef = useRef<HTMLDivElement>(null)
@@ -13250,17 +13250,10 @@ function CommunityPage() {
   }, [activeSection])
 
   const [fringeExpanded, setFringeExpanded]     = useState(false)
-  const [intelligenceOpen, setIntelligenceOpen] = useState(() => {
-    try { return localStorage.getItem('sidebar_intelligence_open') !== 'false' } catch { return true }
-  })
+  const [briefsOpen, setBriefsOpen]             = useState(false)
+  const [solOpen, setSolOpen]                   = useState(false)
   const [intelArchiveOpen, setIntelArchiveOpen] = useState(() => {
     try { return localStorage.getItem('sidebar_intel_archive_open') !== 'false' } catch { return true }
-  })
-  const [fieldOpsOpen, setFieldOpsOpen] = useState(() => {
-    try { return localStorage.getItem('sidebar_field_ops_open') !== 'false' } catch { return true }
-  })
-  const [fieldMinistryOpen, setFieldMinistryOpen] = useState(() => {
-    try { return localStorage.getItem('sidebar_field_ministry_open') !== 'false' } catch { return false }
   })
   const [tooltipVisible, setTooltipVisible]     = useState<string | null>(null)
 
@@ -14368,9 +14361,7 @@ function CommunityPage() {
   }
 
   // ── NAV HELPERS ────────────────────────────────────────────
-  const INTELLIGENCE_SECTS = new Set(['database', 'investigate', 'body-map', 'spirit-network', 'gateway', 'fringe-feed', 'ask-sol', 'my-intel', 'my-sol-jobs'])
   const ARCHIVE_SECTS       = new Set(['investigate', 'body-map', 'spirit-network', 'gateway'])
-  const intelOpen    = intelligenceOpen || INTELLIGENCE_SECTS.has(activeSection)
   const archiveOpen  = intelArchiveOpen || ARCHIVE_SECTS.has(activeSection)
 
   const chevronStyle = (open: boolean): React.CSSProperties => ({
@@ -14382,13 +14373,6 @@ function CommunityPage() {
     <div style={{ padding: '12px 16px 4px 16px', fontFamily: cinzel, fontSize: 9, letterSpacing: '0.18em', color: isDark ? '#7a6d58' : '#5C5248' }}>
       {label}
     </div>
-  )
-
-  const collapsibleSection = (label: string, open: boolean, toggle: () => void) => sidebarCollapsed && !isMobile ? null : (
-    <button onClick={toggle} style={{ display: 'flex', alignItems: 'center', width: '100%', padding: '12px 16px 4px 16px', background: 'transparent', border: 'none', cursor: 'pointer', textAlign: 'left' as const, boxSizing: 'border-box' as const }}>
-      <span style={{ flex: 1, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.18em', color: isDark ? '#7a6d58' : '#5C5248', textTransform: 'uppercase' as const }}>{label}</span>
-      <span style={chevronStyle(open)}>›</span>
-    </button>
   )
 
   const NAV_DEFAULT = isDark ? '#b8a98a' : '#3d2e1e'
@@ -14705,34 +14689,47 @@ function CommunityPage() {
         {/* Scrollable groups */}
         <div style={{ flex: 1, overflowY: 'auto' as const, paddingBottom: 'calc(env(safe-area-inset-bottom) + 16px)' }}>
           {grpHdr('Community')}
+          {row('Ops Dashboard', <Zap size={15} strokeWidth={1.6} />,            activeSection === 'ops-dashboard',  () => go('ops-dashboard'))}
+          {row('Daily Brief',    <span style={{ fontSize: 14, lineHeight: 1 }}>☀</span>, activeSection === 'daily-brief', () => go('daily-brief'))}
+          {row('Weekly Intel',   <Antenna size={15} strokeWidth={1.6} />,        activeSection === 'intel',          () => go('intel'))}
+          {pageLink('Ask SOL',           <SolIcon size={15} />,                  '/community/ask-sol')}
+          {row('My SOL Jobs',    <Zap size={15} strokeWidth={1.6} />,             activeSection === 'my-sol-jobs',    () => go('my-sol-jobs'))}
+          {row('Fringe Feed',    <Radio size={15} strokeWidth={1.6} />,          activeSection === 'fringe-feed',    () => go('fringe-feed'))}
+          {row('Ops Board',      <MessageSquare size={15} strokeWidth={1.6} />,  activeSection === 'forum',          () => go('forum'))}
           {row('Sitrep',         <Radio size={15} strokeWidth={1.6} />,          activeSection === 'sitrep',         () => go('sitrep'))}
+          {row('Events',         <Calendar size={15} strokeWidth={1.6} />,       activeSection === 'events',         () => go('events'))}
+          {row('Field Teams',    <Users size={15} strokeWidth={1.6} />,          activeSection === 'field-teams',    () => go('field-teams'))}
           {row('War Room',       <Sword size={15} strokeWidth={1.6} />,          activeSection === 'war-room',       () => go('war-room'))}
           {row('Prayer',         <Heart size={15} strokeWidth={1.6} />,          activeSection === 'prayer-wall',    () => go('prayer-wall'))}
           {row('Testimony',      <Cross size={15} strokeWidth={1.6} />,          activeSection === 'testimony-wall', () => go('testimony-wall'))}
-          {row('Ops Board',      <MessageSquare size={15} strokeWidth={1.6} />,  activeSection === 'forum',          () => go('forum'))}
           {row('Field Ministry', <BookOpen size={15} strokeWidth={1.6} />,       activeSection === 'field-ministry', () => go('field-ministry'))}
-          {row('Field Teams',    <Users size={15} strokeWidth={1.6} />,          activeSection === 'field-teams',    () => go('field-teams'))}
+          {row('Feedback',       <MessageSquare size={15} strokeWidth={1.6} />,  activeSection === 'feedback',       () => go('feedback'))}
 
-          {grpHdr('Intelligence')}
+          {isOpsAllowed && <>
+            {grpHdr('Operations')}
+            {row('Session Center', <Shield size={15} strokeWidth={1.6} />,       activeSection === 'session-center', () => go('session-center'))}
+            {pageLink('Case Files',        <FolderOpen size={15} strokeWidth={1.6} />, '/community/field-ops')}
+            {row('Document Creator', <FileText size={15} strokeWidth={1.6} />,    activeSection === 'document-creator', () => go('document-creator'))}
+            {role === 'minister' && row('Assessment', <FileText size={15} strokeWidth={1.6} />, activeSection === 'assessment', () => go('assessment'))}
+          </>}
+
+          {grpHdr('Foundation')}
+          {row('Arsenal',        <Archive size={15} strokeWidth={1.6} />,        activeSection === 'arsenal',        () => go('arsenal'))}
+          {pageLink('Scripture',         <BookOpen size={15} strokeWidth={1.6} />, '/community/scripture')}
+          {row('Training',       <GraduationCap size={15} strokeWidth={1.6} />,  activeSection === 'training',       () => go('training'))}
+          {pageLink('QRF',               <Radio size={15} strokeWidth={1.6} />,   '/community/qrf')}
+
+          {grpHdr('Intel Archive')}
+          {row('My Intel',       <FolderOpen size={15} strokeWidth={1.6} />,     activeSection === 'my-intel',       () => go('my-intel'))}
           {row('Intel Archive',  <FolderArchive size={15} strokeWidth={1.6} />,  activeSection === 'database',       () => go('database'))}
-          {row('Arsenal',        <Sword size={15} strokeWidth={1.6} />,          activeSection === 'arsenal',        () => go('arsenal'))}
           {row('Symptom',        <Search size={15} strokeWidth={1.6} />,         activeSection === 'investigate',    () => go('investigate'))}
           {row('Body Map',       <Map size={15} strokeWidth={1.6} />,            activeSection === 'body-map',       () => go('body-map'))}
+          {row('Spirit Network', <Network size={15} strokeWidth={1.6} />,        activeSection === 'spirit-network', () => go('spirit-network'))}
           {row('Gateway',        <DoorOpen size={15} strokeWidth={1.6} />,       activeSection === 'gateway',        () => go('gateway'))}
           {pageLink('Dream Interpreter', <Moon size={15} strokeWidth={1.6} />,   '/community/dream-interpreter')}
-          {row('Weekly Intel',   <Antenna size={15} strokeWidth={1.6} />,        activeSection === 'intel',          () => go('intel'))}
-          {row('My Intel',       <FolderOpen size={15} strokeWidth={1.6} />,     activeSection === 'my-intel',       () => go('my-intel'))}
-          {row('My SOL Jobs',    <Zap size={15} strokeWidth={1.6} />,             activeSection === 'my-sol-jobs',    () => go('my-sol-jobs'))}
-          {pageLink('Scripture Study',   <BookOpen size={15} strokeWidth={1.6} />, '/community/scripture')}
-
-          {grpHdr('Growth')}
-          {row('Daily Devotion', <span style={{ fontSize: 14, lineHeight: 1 }}>☀</span>, activeSection === 'daily-brief', () => go('daily-brief'))}
-          {row('Training',       <GraduationCap size={15} strokeWidth={1.6} />,  activeSection === 'training',       () => go('training'))}
 
           {grpHdr('Account')}
           {row('Profile',        <Eye size={15} strokeWidth={1.6} />,            false,                               () => { setEditingProfile(true); closeDrawer() })}
-          {row('Session Center', <Shield size={15} strokeWidth={1.6} />,         activeSection === 'session-center', () => go('session-center'))}
-          {isOpsAllowed && row('Ops Dashboard', <Zap size={15} strokeWidth={1.6} />, activeSection === 'ops-dashboard', () => go('ops-dashboard'))}
           {row('Settings',       <Settings size={15} strokeWidth={1.6} />,       false,                               () => { setEditingProfile(true); closeDrawer() })}
         </div>
       </div>
@@ -14851,69 +14848,90 @@ function CommunityPage() {
 
         {/* ── COMMUNITY ── */}
         {sectionLabel('Community')}
-        {navItem('Daily Brief', 'daily-brief', <span style={{ fontSize: 14, lineHeight: 1 }}>☀️</span>)}
-        {navItem('SITREP', 'sitrep', <span style={{ fontSize: 14, lineHeight: 1 }}>📡</span>)}
-        {navItem('Weekly Intel', 'intel', <Antenna size={16} strokeWidth={1.6} />)}
-        {navItem('Ops Board', 'forum', <MessageSquare size={16} strokeWidth={1.6} />)}
-        {/* ── Field Ministry (expandable) ── */}
-        {(sidebarCollapsed && !isMobile) ? navItem('Field Ministry', 'field-ministry', <BookOpen size={16} strokeWidth={1.6} />) : (
+        {navItem('Ops Dashboard', 'ops-dashboard', <Zap size={16} strokeWidth={1.6} />)}
+
+        {/* ── Intelligence (sub-divider) ── */}
+        {sectionLabel('Intelligence')}
+        {/* Briefs (expandable) */}
+        {(sidebarCollapsed && !isMobile) ? navItem('Briefs', 'daily-brief', <span style={{ fontSize: 14, lineHeight: 1 }}>☀️</span>) : (
           <>
             <button
-              onClick={() => {
-                const next = !fieldMinistryOpen
-                setFieldMinistryOpen(next)
-                try { localStorage.setItem('sidebar_field_ministry_open', String(next)) } catch {}
-              }}
-              style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 16px', background: 'transparent', border: 'none', borderLeft: `2px solid transparent`, fontFamily: cinzel, fontSize: 12, letterSpacing: '0.1em', color: (['field-ministry','field-teams'].includes(activeSection)) ? navGold : NAV_DEFAULT, cursor: 'pointer', textAlign: 'left' as const, boxSizing: 'border-box' as const, transition: 'all 0.15s' }}
+              onClick={() => setBriefsOpen(o => !o)}
+              style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 16px', background: 'transparent', border: 'none', borderLeft: `2px solid transparent`, fontFamily: cinzel, fontSize: 12, letterSpacing: '0.1em', color: (['daily-brief','intel'].includes(activeSection)) ? navGold : NAV_DEFAULT, cursor: 'pointer', textAlign: 'left' as const, boxSizing: 'border-box' as const, transition: 'all 0.15s' }}
             >
-              <span style={{ display: 'flex', alignItems: 'center', width: 20, flexShrink: 0 }}><BookOpen size={16} strokeWidth={1.6} /></span>
-              <span style={{ flex: 1 }}>Field Ministry</span>
-              <span style={chevronStyle(fieldMinistryOpen || ['field-ministry','field-teams'].includes(activeSection))}>›</span>
+              <span style={{ display: 'flex', alignItems: 'center', width: 20, flexShrink: 0 }}><Antenna size={16} strokeWidth={1.6} /></span>
+              <span style={{ flex: 1 }}>Briefs</span>
+              <span style={chevronStyle(briefsOpen || ['daily-brief','intel'].includes(activeSection))}>›</span>
             </button>
-            <div style={{ overflow: 'hidden', maxHeight: (fieldMinistryOpen || ['field-ministry','field-teams'].includes(activeSection)) ? 200 : 0, transition: 'max-height 0.2s ease' }}>
-              {navItem('Ministry Hub', 'field-ministry', <span style={{ fontSize: 13, lineHeight: 1 }}>✝</span>)}
-              {navItem('Field Teams', 'field-teams', <span style={{ fontSize: 13, lineHeight: 1 }}>⚔</span>)}
+            <div style={{ overflow: 'hidden', maxHeight: (briefsOpen || ['daily-brief','intel'].includes(activeSection)) ? 200 : 0, transition: 'max-height 0.2s ease' }}>
+              {navItem('Daily Brief', 'daily-brief', <span style={{ fontSize: 14, lineHeight: 1 }}>☀️</span>)}
+              {navItem('Weekly Intel', 'intel', <Antenna size={16} strokeWidth={1.6} />)}
             </div>
           </>
         )}
-        {navItem('Training', 'training', <span style={{ fontSize: 15, lineHeight: 1 }}>🎬</span>)}
-        {navItem('Events', 'events', <Calendar size={16} strokeWidth={1.6} />)}
-        {navItem('Feedback', 'feedback', <span style={{ fontSize: 14, lineHeight: 1 }}>💬</span>)}
-
-        {/* ── FIELD OPS (Commander+) ── */}
-        {(['commander', 'general'].includes(((user?.publicMetadata?.tier as string) || '').toLowerCase()) || (user?.publicMetadata?.role as string) === 'minister') && (
+        {/* SOL (expandable) */}
+        {(sidebarCollapsed && !isMobile) ? navItem('SOL', 'my-sol-jobs', <SolIcon size={16} />) : (
           <>
-            {collapsibleSection('Field Ops', fieldOpsOpen, () => {
-              const next = !fieldOpsOpen
-              setFieldOpsOpen(next)
-              try { localStorage.setItem('sidebar_field_ops_open', String(next)) } catch {}
-            })}
-            <div style={{ overflow: 'hidden', maxHeight: (fieldOpsOpen || ['ops-dashboard','session-center','document-creator'].includes(activeSection)) ? 500 : 0, transition: 'max-height 0.2s ease' }}>
-              <button onClick={() => { setActiveSection('ops-dashboard'); if (isMobile) setSidebarOpen(false) }}
-                data-active={activeSection === 'ops-dashboard' ? 'true' : undefined}
-                style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 16px', background: activeSection === 'ops-dashboard' ? 'rgba(201,168,76,0.1)' : 'transparent', border: 'none', borderLeft: `2px solid ${activeSection === 'ops-dashboard' ? navGold : 'transparent'}`, fontFamily: cinzel, fontSize: 12, letterSpacing: '0.1em', color: activeSection === 'ops-dashboard' ? navGold : NAV_DEFAULT, cursor: 'pointer', textAlign: 'left' as const, boxSizing: 'border-box' as const, transition: 'all 0.15s' }}>
-                <span style={{ display: 'flex', alignItems: 'center', width: 20, flexShrink: 0 }}><Zap size={14} strokeWidth={1.6} /></span>
-                <span>Ops Dashboard</span>
-              </button>
-              <a href="/community/field-ops" style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 16px', background: 'transparent', textDecoration: 'none', borderLeft: '2px solid transparent', fontFamily: cinzel, fontSize: 12, letterSpacing: '0.1em', color: NAV_DEFAULT, transition: 'all 0.15s', boxSizing: 'border-box' as const }}
+            <button
+              onClick={() => setSolOpen(o => !o)}
+              style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 16px', background: 'transparent', border: 'none', borderLeft: `2px solid transparent`, fontFamily: cinzel, fontSize: 12, letterSpacing: '0.1em', color: (activeSection === 'my-sol-jobs') ? navGold : NAV_DEFAULT, cursor: 'pointer', textAlign: 'left' as const, boxSizing: 'border-box' as const, transition: 'all 0.15s' }}
+            >
+              <span style={{ display: 'flex', alignItems: 'center', width: 20, flexShrink: 0 }}><SolIcon size={16} /></span>
+              <span style={{ flex: 1 }}>SOL</span>
+              <span style={chevronStyle(solOpen || activeSection === 'my-sol-jobs')}>›</span>
+            </button>
+            <div style={{ overflow: 'hidden', maxHeight: (solOpen || activeSection === 'my-sol-jobs') ? 200 : 0, transition: 'max-height 0.2s ease' }}>
+              <a href="/community/ask-sol" style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 16px', background: 'transparent', textDecoration: 'none', borderLeft: '2px solid transparent', fontFamily: cinzel, fontSize: 12, letterSpacing: '0.1em', color: NAV_DEFAULT, transition: 'all 0.15s', boxSizing: 'border-box' as const }}
                 onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(201,168,76,0.05)'; (e.currentTarget as HTMLElement).style.color = navGold }}
                 onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent'; (e.currentTarget as HTMLElement).style.color = NAV_DEFAULT }}>
-                <span style={{ display: 'flex', alignItems: 'center', width: 20, flexShrink: 0 }}><FolderOpen size={14} strokeWidth={1.6} /></span>
-                <span>Case Files</span>
+                <span style={{ display: 'flex', alignItems: 'center', width: 20, flexShrink: 0 }}><SolIcon size={14} /></span>
+                <span>Ask SOL</span>
               </a>
-              <button onClick={() => { setActiveSection('session-center'); if (isMobile) setSidebarOpen(false) }}
-                data-active={activeSection === 'session-center' ? 'true' : undefined}
-                style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 16px', background: activeSection === 'session-center' ? 'rgba(201,168,76,0.1)' : 'transparent', border: 'none', borderLeft: `2px solid ${activeSection === 'session-center' ? navGold : 'transparent'}`, fontFamily: cinzel, fontSize: 12, letterSpacing: '0.1em', color: activeSection === 'session-center' ? navGold : NAV_DEFAULT, cursor: 'pointer', textAlign: 'left' as const, boxSizing: 'border-box' as const, transition: 'all 0.15s' }}>
-                <span style={{ display: 'flex', alignItems: 'center', width: 20, flexShrink: 0 }}><Sword size={14} strokeWidth={1.6} /></span>
-                <span>Session Center</span>
-              </button>
-              <button onClick={() => { setActiveSection('document-creator'); if (isMobile) setSidebarOpen(false) }}
-                data-active={activeSection === 'document-creator' ? 'true' : undefined}
-                style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 16px', background: activeSection === 'document-creator' ? 'rgba(201,168,76,0.1)' : 'transparent', border: 'none', borderLeft: `2px solid ${activeSection === 'document-creator' ? navGold : 'transparent'}`, fontFamily: cinzel, fontSize: 12, letterSpacing: '0.1em', color: activeSection === 'document-creator' ? navGold : NAV_DEFAULT, cursor: 'pointer', textAlign: 'left' as const, boxSizing: 'border-box' as const, transition: 'all 0.15s' }}>
-                <span style={{ display: 'flex', alignItems: 'center', width: 20, flexShrink: 0 }}><FileText size={14} strokeWidth={1.6} /></span>
-                <span>Document Creator</span>
-              </button>
+              {navItem('My SOL Jobs', 'my-sol-jobs', <Zap size={16} strokeWidth={1.6} />)}
             </div>
+          </>
+        )}
+        {/* Fringe Intelligence (expandable) — pulled out of the old Intelligence tree */}
+        <button onClick={() => setFringeExpanded(e => !e)} style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 16px', background: 'transparent', border: 'none', cursor: 'pointer', fontFamily: cinzel, fontSize: 12, letterSpacing: '0.1em', color: activeSection === 'fringe-feed' ? navGold : NAV_DEFAULT, textAlign: 'left' as const, boxSizing: 'border-box' as const }}>
+          <span style={{ display: 'flex', alignItems: 'center', width: 20, flexShrink: 0 }}><Eye size={14} strokeWidth={1.6} /></span>
+          <span style={{ flex: 1 }}>Fringe Intelligence</span>
+          <span style={{ fontSize: 10, color: isDark ? '#6b5e45' : '#5C5248', display: 'inline-block', transform: (fringeExpanded || activeSection === 'fringe-feed') ? 'rotate(90deg)' : 'none', transition: 'transform 0.2s' }}>›</span>
+        </button>
+        {(fringeExpanded || activeSection === 'fringe-feed') && (
+          <div style={{ paddingLeft: 16, borderLeft: '1px solid rgba(201,168,76,0.1)', marginLeft: 16 }}>
+            {navItem('The Feed', 'fringe-feed', <Radio size={16} strokeWidth={1.6} />)}
+            {([{ label: 'The Archive', icon: <FolderArchive size={13} strokeWidth={1.6} /> }, { label: 'Fringe Chat', icon: <MessageSquare size={13} strokeWidth={1.6} /> }, { label: 'Courses', icon: <GraduationCap size={13} strokeWidth={1.6} /> }] as { label: string; icon: React.ReactNode }[]).map(({ label, icon }) => (
+              <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 16px', opacity: 0.45 }}>
+                <span style={{ display: 'flex', alignItems: 'center', width: 20 }}>{icon}</span>
+                <span style={{ fontFamily: cinzel, fontSize: 11, letterSpacing: '0.08em', color: isDark ? '#6b5e45' : '#5C5248', flex: 1 }}>{label}</span>
+                <span style={{ fontSize: 8, fontFamily: cinzel, background: 'rgba(201,168,76,0.1)', color: isDark ? '#8B7355' : '#574B33', padding: '1px 6px', borderRadius: 3 }}>SOON</span>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* ── Community Life (sub-divider) ── */}
+        {sectionLabel('Community Life')}
+        {navItem('Ops Board', 'forum', <MessageSquare size={16} strokeWidth={1.6} />)}
+        {navItem('SITREP', 'sitrep', <span style={{ fontSize: 14, lineHeight: 1 }}>📡</span>)}
+        {navItem('Events', 'events', <Calendar size={16} strokeWidth={1.6} />)}
+        {navItem('Field Teams', 'field-teams', <span style={{ fontSize: 13, lineHeight: 1 }}>⚔</span>)}
+        {/* Ministry Hub removed from sidebar — route preserved for future Training redesign */}
+        {navItem('Feedback', 'feedback', <span style={{ fontSize: 14, lineHeight: 1 }}>💬</span>)}
+
+        {/* ── OPERATIONS (Commander+/Minister) ── */}
+        {(['commander', 'general'].includes(((user?.publicMetadata?.tier as string) || '').toLowerCase()) || (user?.publicMetadata?.role as string) === 'minister') && (
+          <>
+            {sectionLabel('Operations')}
+            {navItem('Session Center', 'session-center', <Sword size={16} strokeWidth={1.6} />)}
+            <a href="/community/field-ops" style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 16px', background: 'transparent', textDecoration: 'none', borderLeft: '2px solid transparent', fontFamily: cinzel, fontSize: 12, letterSpacing: '0.1em', color: NAV_DEFAULT, transition: 'all 0.15s', boxSizing: 'border-box' as const }}
+              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(201,168,76,0.05)'; (e.currentTarget as HTMLElement).style.color = navGold }}
+              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent'; (e.currentTarget as HTMLElement).style.color = NAV_DEFAULT }}>
+              <span style={{ display: 'flex', alignItems: 'center', width: 20, flexShrink: 0 }}><FolderOpen size={14} strokeWidth={1.6} /></span>
+              <span>Case Files</span>
+            </a>
+            {navItem('Document Creator', 'document-creator', <FileText size={16} strokeWidth={1.6} />)}
+            {(user?.publicMetadata?.role as string) === 'minister' && navItem('Assessment', 'assessment', <FileText size={16} strokeWidth={1.6} />)}
           </>
         )}
 
@@ -14926,30 +14944,18 @@ function CommunityPage() {
           <span style={{ display: 'flex', alignItems: 'center', width: 20, flexShrink: 0 }}><BookOpen size={14} /></span>
           <span>Scripture</span>
         </a>
+        {navItem('Training', 'training', <span style={{ fontSize: 15, lineHeight: 1 }}>🎬</span>)}
+        <a href="/community/qrf" style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 16px', background: 'transparent', textDecoration: 'none', borderLeft: '2px solid transparent', fontFamily: cinzel, fontSize: 12, letterSpacing: '0.1em', color: NAV_DEFAULT, transition: 'all 0.15s', boxSizing: 'border-box' as const }}
+          onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(201,168,76,0.05)'; (e.currentTarget as HTMLElement).style.color = navGold }}
+          onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent'; (e.currentTarget as HTMLElement).style.color = NAV_DEFAULT }}>
+          <span style={{ display: 'flex', alignItems: 'center', width: 20, flexShrink: 0 }}><Radio size={14} strokeWidth={1.6} /></span>
+          <span>QRF</span>
+        </a>
 
-        {/* ── INTELLIGENCE ── */}
-        {collapsibleSection('Intelligence', intelOpen, () => {
-          const next = !intelligenceOpen
-          setIntelligenceOpen(next)
-          try { localStorage.setItem('sidebar_intelligence_open', String(next)) } catch {}
-        })}
-        <div style={{ overflow: 'hidden', maxHeight: intelOpen ? 800 : 0, transition: 'max-height 0.2s ease' }}>
-          <a href="/community/ask-sol" style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 16px', background: 'transparent', textDecoration: 'none', borderLeft: '2px solid transparent', fontFamily: cinzel, fontSize: 12, letterSpacing: '0.1em', color: NAV_DEFAULT, transition: 'all 0.15s', boxSizing: 'border-box' as const }}
-            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(201,168,76,0.05)'; (e.currentTarget as HTMLElement).style.color = navGold; (e.currentTarget as HTMLElement).style.borderLeftColor = navGold }}
-            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent'; (e.currentTarget as HTMLElement).style.color = NAV_DEFAULT; (e.currentTarget as HTMLElement).style.borderLeftColor = 'transparent' }}>
-            <span style={{ display: 'flex', alignItems: 'center', width: 20, flexShrink: 0 }}><SolIcon size={14} /></span>
-            <span>Ask SOL</span>
-          </a>
-          {navItem('My Intel', 'my-intel', <span style={{ fontSize: 14, lineHeight: 1 }}>📋</span>)}
-          <div style={{ paddingLeft: 16 }}>
-            <button onClick={() => { setActiveSection('my-sol-jobs'); if (isMobile) setSidebarOpen(false) }}
-              style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '6px 16px', background: activeSection === 'my-sol-jobs' ? 'rgba(201,168,76,0.06)' : 'transparent', border: 'none', borderLeft: activeSection === 'my-sol-jobs' ? '2px solid rgba(201,168,76,0.5)' : '2px solid rgba(201,168,76,0.1)', cursor: 'pointer', fontFamily: cinzel, fontSize: 12, letterSpacing: '0.08em', color: activeSection === 'my-sol-jobs' ? navGold : (isDark ? '#9a8874' : '#7a6858'), textAlign: 'left' as const, boxSizing: 'border-box' as const }}
-              onMouseEnter={e => { if (activeSection !== 'my-sol-jobs') { e.currentTarget.style.color = navGold; e.currentTarget.style.borderLeftColor = 'rgba(201,168,76,0.5)' } }}
-              onMouseLeave={e => { if (activeSection !== 'my-sol-jobs') { e.currentTarget.style.color = isDark ? '#9a8874' : '#7a6858'; e.currentTarget.style.borderLeftColor = 'rgba(201,168,76,0.1)' } }}>
-              <Zap size={14} strokeWidth={1.6} />
-              <span>My SOL Jobs</span>
-            </button>
-          </div>
+        {/* ── INTEL ARCHIVE ── (old Intelligence wrapper dissolved; My Intel stays put, archive sub-tree unchanged) */}
+        {sectionLabel('Intel Archive')}
+        {navItem('My Intel', 'my-intel', <span style={{ fontSize: 14, lineHeight: 1 }}>📋</span>)}
+        <div>
           <div style={{ display: 'flex', alignItems: 'center' }}>
             <button
               onClick={() => { setActiveSection('database'); if (isMobile) setSidebarOpen(false) }}
@@ -15003,24 +15009,6 @@ function CommunityPage() {
               )}
             </div>
           </div>
-
-          <button onClick={() => setFringeExpanded(e => !e)} style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 16px', background: 'transparent', border: 'none', cursor: 'pointer', fontFamily: cinzel, fontSize: 12, letterSpacing: '0.1em', color: activeSection === 'fringe-feed' ? navGold : NAV_DEFAULT, textAlign: 'left' as const, boxSizing: 'border-box' as const }}>
-            <span style={{ display: 'flex', alignItems: 'center', width: 20, flexShrink: 0 }}><Eye size={14} strokeWidth={1.6} /></span>
-            <span style={{ flex: 1 }}>Fringe Intelligence</span>
-            <span style={{ fontSize: 10, color: isDark ? '#6b5e45' : '#5C5248', display: 'inline-block', transform: fringeExpanded ? 'rotate(90deg)' : 'none', transition: 'transform 0.2s' }}>›</span>
-          </button>
-          {fringeExpanded && (
-            <div style={{ paddingLeft: 16, borderLeft: '1px solid rgba(201,168,76,0.1)', marginLeft: 16 }}>
-              {navItem('The Feed', 'fringe-feed', <Radio size={16} strokeWidth={1.6} />)}
-              {([{ label: 'The Archive', icon: <FolderArchive size={13} strokeWidth={1.6} /> }, { label: 'Fringe Chat', icon: <MessageSquare size={13} strokeWidth={1.6} /> }, { label: 'Courses', icon: <GraduationCap size={13} strokeWidth={1.6} /> }] as { label: string; icon: React.ReactNode }[]).map(({ label, icon }) => (
-                <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 16px', opacity: 0.45 }}>
-                  <span style={{ display: 'flex', alignItems: 'center', width: 20 }}>{icon}</span>
-                  <span style={{ fontFamily: cinzel, fontSize: 11, letterSpacing: '0.08em', color: isDark ? '#6b5e45' : '#5C5248', flex: 1 }}>{label}</span>
-                  <span style={{ fontSize: 8, fontFamily: cinzel, background: 'rgba(201,168,76,0.1)', color: isDark ? '#8B7355' : '#574B33', padding: '1px 6px', borderRadius: 3 }}>SOON</span>
-                </div>
-              ))}
-            </div>
-          )}
         </div>
 
         {/* ── ADMIN (minister only) ── */}

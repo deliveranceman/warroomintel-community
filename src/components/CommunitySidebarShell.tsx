@@ -4,8 +4,8 @@ import {
   MessageSquare, Inbox, Heart, Users, HelpCircle,
   Archive, Sword, Library, Search, Map, Network, Eye,
   Calendar, Antenna, FolderOpen, Settings, ClipboardList,
-  MapPin, DoorOpen, Moon, Radio, FolderArchive, GraduationCap,
-  Star, Clapperboard, Shield, BookOpen, Home, Zap,
+  DoorOpen, Moon, Radio, FolderArchive, GraduationCap,
+  Star, Shield, BookOpen, Home, Zap,
 } from 'lucide-react'
 
 interface Props {
@@ -29,14 +29,12 @@ export function CommunitySidebarShell({ activeItem, fillViewport, children }: Pr
   const { user } = useUser()
   const { signOut } = useAuth()
 
-  const [intelligenceOpen, setIntelligenceOpen] = useState(() => {
-    try { return localStorage.getItem('sidebar_intelligence_open') !== 'false' } catch { return true }
+  const [briefsOpen, setBriefsOpen]   = useState(false)
+  const [solOpen, setSolOpen]         = useState(false)
+  const [fringeExpanded, setFringeExpanded] = useState(false)
+  const [archiveOpen, setArchiveOpen] = useState(() => {
+    try { return localStorage.getItem('sidebar_intel_archive_open') !== 'false' } catch { return true }
   })
-  const [fieldOpsOpen, setFieldOpsOpen] = useState(() => {
-    try { return localStorage.getItem('sidebar_field_ops_open') !== 'false' } catch { return true }
-  })
-  const [fringeExpanded, setFringeExpanded]   = useState(false)
-  const [trainingExpanded, setTrainingExpanded] = useState(false)
   const [sidebarSearchVal, setSidebarSearchVal] = useState('')
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false)
   const sidebarSearchRef = useRef<HTMLInputElement>(null)
@@ -48,6 +46,10 @@ export function CommunitySidebarShell({ activeItem, fillViewport, children }: Pr
   const isCommander = tierLevel >= 2 || isMinister
 
   const isActive = (...labels: string[]) => labels.includes(activeItem)
+
+  const briefsActive  = briefsOpen  || isActive('Daily Brief', 'Weekly Intel')
+  const solActive     = solOpen     || isActive('Ask SOL', 'My SOL Jobs')
+  const archiveActive = archiveOpen || isActive('Symptom Investigator', 'Body Map', 'Spirit Network', 'Gateway Investigator', 'Dream Interpreter')
 
   const sidebarScrollRef = useRef<HTMLDivElement>(null)
   useEffect(() => {
@@ -141,19 +143,34 @@ export function CommunitySidebarShell({ activeItem, fillViewport, children }: Pr
     </div>
   )
 
-  const collapsibleHeader = (label: string, open: boolean, toggle: () => void) => (
-    <button
-      onClick={toggle}
-      style={{
-        display: 'flex', alignItems: 'center', width: '100%',
-        padding: '12px 16px 4px 16px',
-        background: 'transparent', border: 'none', cursor: 'pointer',
-        textAlign: 'left', boxSizing: 'border-box',
-      }}
-    >
-      <span style={{ flex: 1, fontFamily: 'var(--font-label)', fontSize: 9, letterSpacing: '0.18em', color: 'var(--muted)', textTransform: 'uppercase' as const }}>{label}</span>
-      <span style={{ fontSize: 12, color: 'var(--muted)', display: 'inline-block', transform: open ? 'rotate(90deg)' : 'none', transition: 'transform 0.2s' }}>›</span>
-    </button>
+  const collapseParent = (
+    label: string,
+    icon: React.ReactNode,
+    open: boolean,
+    toggle: () => void,
+    body: React.ReactNode,
+  ) => (
+    <>
+      <button
+        onClick={toggle}
+        style={{
+          display: 'flex', alignItems: 'center', gap: 8,
+          width: '100%', padding: '8px 16px', boxSizing: 'border-box',
+          background: 'transparent', border: 'none', cursor: 'pointer',
+          fontFamily: cinzel, fontSize: 12, letterSpacing: '0.1em',
+          color: NAV_DEFAULT, textAlign: 'left' as const,
+        }}
+        onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = navGold }}
+        onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = NAV_DEFAULT }}
+      >
+        <span style={{ display: 'flex', alignItems: 'center', width: 20, flexShrink: 0 }}>{icon}</span>
+        <span style={{ flex: 1 }}>{label}</span>
+        <span style={{ fontSize: 10, color: 'var(--muted)', display: 'inline-block', transform: open ? 'rotate(90deg)' : 'none', transition: 'transform 0.2s' }}>›</span>
+      </button>
+      <div style={{ overflow: 'hidden', maxHeight: open ? 600 : 0, transition: 'max-height 0.2s ease' }}>
+        {body}
+      </div>
+    </>
   )
 
   const initials = user?.firstName?.[0] || user?.username?.[0] || 'W'
@@ -286,106 +303,29 @@ export function CommunitySidebarShell({ activeItem, fillViewport, children }: Pr
 
           {/* ── COMMUNITY ── */}
           {sectionLabel('Community')}
-          {navLink('Weekly Intel',   '/community',             <Antenna      size={16} strokeWidth={1.6} />)}
-          {navLink('Ops Board',      '/community',             <MessageSquare size={16} strokeWidth={1.6} />)}
-          {navLink('Field Ministry', '/community',             <BookOpen     size={16} strokeWidth={1.6} />)}
+          {navLink('Ops Dashboard', '/community', <Home size={16} strokeWidth={1.6} />)}
 
-          {/* ── FIELD OPS (commander+) ── */}
-          {isCommander && (
+          {/* Intelligence */}
+          {sectionLabel('Intelligence')}
+          {collapseParent('Briefs', <Antenna size={16} strokeWidth={1.6} />, briefsActive, () => setBriefsOpen(o => !o), (
             <>
-              {collapsibleHeader('Field Ops', fieldOpsOpen, () => {
-                const next = !fieldOpsOpen
-                setFieldOpsOpen(next)
-                try { localStorage.setItem('sidebar_field_ops_open', String(next)) } catch {}
-              })}
-              <div style={{ overflow: 'hidden', maxHeight: fieldOpsOpen ? 200 : 0, transition: 'max-height 0.2s ease' }}>
-                {navLink('Case Files', '/community/field-ops', <FolderOpen size={14} strokeWidth={1.6} />, ['Field Ops'])}
-                {navLink('Session Notes', '/community/field-ops', <Sword size={14} strokeWidth={1.6} />, ['Field Ops'])}
-              </div>
+              {navLink('Daily Brief',  '/community', <Radio   size={14} strokeWidth={1.6} />)}
+              {navLink('Weekly Intel', '/community', <Antenna size={14} strokeWidth={1.6} />)}
             </>
-          )}
-
-          {/* ── FOUNDATION ── */}
-          {sectionLabel('Foundation')}
-          {navLink('Arsenal',      '/arsenal',                 <Archive  size={16} strokeWidth={1.6} />)}
-          {navLink('Scripture',    '/community/scripture',     <BookOpen size={14} strokeWidth={1.6} />)}
-
-          {/* ── INTELLIGENCE (collapsible) ── */}
-          {collapsibleHeader('Intelligence', intelligenceOpen, () => {
-            const next = !intelligenceOpen
-            setIntelligenceOpen(next)
-            try { localStorage.setItem('sidebar_intelligence_open', String(next)) } catch {}
-          })}
-          <div style={{ overflow: 'hidden', maxHeight: intelligenceOpen ? 600 : 0, transition: 'max-height 0.2s ease' }}>
-            {navLink('Ask SOL', '/community/ask-sol', <Eye size={14} strokeWidth={1.6} />, ['Ask SOL'])}
-            {navLink('Intel Archive', '/community', <Library size={14} strokeWidth={1.6} />)}
-            <div style={{ paddingLeft: 16 }}>
-              {subNavLink('Symptom Investigator', '/community',                        <Search   size={11} strokeWidth={1.6} />)}
-              {subNavLink('Body Map',             '/community',                        <Map      size={11} strokeWidth={1.6} />)}
-              {subNavLink('Spirit Network',       '/community',                        <Network  size={11} strokeWidth={1.6} />)}
-              {subNavLink('Gateway Investigator', '/community',                        <DoorOpen size={11} strokeWidth={1.6} />)}
-              {subNavLink('Dream Interpreter',    '/community/dream-interpreter',      <Moon     size={11} strokeWidth={1.6} />)}
-            </div>
-
-            {/* Fringe Intelligence expandable */}
-            <button
-              onClick={() => setFringeExpanded(e => !e)}
-              style={{
-                display: 'flex', alignItems: 'center', gap: 8,
-                width: '100%', padding: '8px 16px', boxSizing: 'border-box',
-                background: 'transparent', border: 'none', cursor: 'pointer',
-                fontFamily: cinzel, fontSize: 12, letterSpacing: '0.1em',
-                color: NAV_DEFAULT, textAlign: 'left' as const,
-              }}
-            >
-              <span style={{ display: 'flex', alignItems: 'center', width: 20, flexShrink: 0 }}><Eye size={14} strokeWidth={1.6} /></span>
-              <span style={{ flex: 1 }}>Fringe Intelligence</span>
-              <span style={{ fontSize: 10, color: 'var(--muted)', display: 'inline-block', transform: fringeExpanded ? 'rotate(90deg)' : 'none', transition: 'transform 0.2s' }}>›</span>
-            </button>
-            {fringeExpanded && (
-              <div style={{ paddingLeft: 16, borderLeft: '1px solid rgba(201,168,76,0.1)', marginLeft: 16 }}>
-                {navLink('The Feed', '/community', <Radio size={16} strokeWidth={1.6} />)}
-                {([
-                  { label: 'The Archive', icon: <FolderArchive size={13} strokeWidth={1.6} /> },
-                  { label: 'Fringe Chat', icon: <MessageSquare size={13} strokeWidth={1.6} /> },
-                  { label: 'Courses',     icon: <GraduationCap size={13} strokeWidth={1.6} /> },
-                ] as { label: string; icon: React.ReactNode }[]).map(({ label, icon }) => (
-                  <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 16px', opacity: 0.45 }}>
-                    <span style={{ display: 'flex', alignItems: 'center', width: 20 }}>{icon}</span>
-                    <span style={{ fontFamily: cinzel, fontSize: 11, letterSpacing: '0.08em', color: 'var(--muted)', flex: 1 }}>{label}</span>
-                    <span style={{ fontSize: 8, fontFamily: cinzel, background: 'rgba(201,168,76,0.1)', color: 'var(--muted)', padding: '1px 6px', borderRadius: 3 }}>SOON</span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* ── FIELD OPERATIONS ── */}
-          {sectionLabel('Field Operations')}
-          {navLink('Spiritual Mapping', '/community/spiritual-mapping', <MapPin      size={14} strokeWidth={1.6} />)}
-          {navLink('Assessment',        '/community',                  <ClipboardList size={16} strokeWidth={1.6} />)}
-
-          {/* ── TRAINING (collapsible) ── */}
-          <button
-            onClick={() => setTrainingExpanded(e => !e)}
-            style={{
-              display: 'flex', alignItems: 'center', gap: 8, width: '100%',
-              padding: '10px 16px 6px', boxSizing: 'border-box',
-              background: 'transparent', border: 'none', cursor: 'pointer',
-              fontFamily: 'var(--font-label)', fontSize: 9, letterSpacing: '0.18em',
-              color: 'var(--muted)', textTransform: 'uppercase' as const,
-              textAlign: 'left' as const,
-            }}
-          >
-            <span style={{ flex: 1 }}>Training</span>
-            <span style={{ fontSize: 10, display: 'inline-block', transform: trainingExpanded ? 'rotate(90deg)' : 'none', transition: 'transform 0.2s' }}>›</span>
-          </button>
-          {trainingExpanded && (
+          ))}
+          {collapseParent('SOL', <Eye size={16} strokeWidth={1.6} />, solActive, () => setSolOpen(o => !o), (
             <>
-              {navLink('Courses', '/community', <Clapperboard size={16} strokeWidth={1.6} />)}
+              {navLink('Ask SOL',     '/community/ask-sol', <Eye           size={14} strokeWidth={1.6} />, ['Ask SOL'])}
+              {navLink('My SOL Jobs', '/community',         <ClipboardList size={14} strokeWidth={1.6} />)}
+            </>
+          ))}
+          {collapseParent('Fringe Intelligence', <Radio size={16} strokeWidth={1.6} />, fringeExpanded, () => setFringeExpanded(e => !e), (
+            <>
+              {navLink('The Feed', '/community', <Radio size={14} strokeWidth={1.6} />)}
               {([
-                { label: "General's Table", icon: <Star  size={13} strokeWidth={1.6} /> },
-                { label: 'Protocols',       icon: <Sword size={13} strokeWidth={1.6} /> },
+                { label: 'The Archive', icon: <FolderArchive size={13} strokeWidth={1.6} /> },
+                { label: 'Fringe Chat', icon: <MessageSquare size={13} strokeWidth={1.6} /> },
+                { label: 'Courses',     icon: <GraduationCap size={13} strokeWidth={1.6} /> },
               ] as { label: string; icon: React.ReactNode }[]).map(({ label, icon }) => (
                 <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 16px', opacity: 0.45 }}>
                   <span style={{ display: 'flex', alignItems: 'center', width: 20 }}>{icon}</span>
@@ -394,10 +334,50 @@ export function CommunitySidebarShell({ activeItem, fillViewport, children }: Pr
                 </div>
               ))}
             </>
+          ))}
+
+          {/* Community Life */}
+          {sectionLabel('Community Life')}
+          {navLink('Ops Board',   '/community', <MessageSquare size={16} strokeWidth={1.6} />)}
+          {navLink('Sitrep',      '/community', <Antenna       size={16} strokeWidth={1.6} />)}
+          {navLink('Events',      '/community', <Calendar      size={16} strokeWidth={1.6} />)}
+          {navLink('Field Teams', '/community', <Users         size={16} strokeWidth={1.6} />)}
+          {/* Field Ministry removed from sidebar — route preserved for future Training redesign */}
+
+          {/* ── OPERATIONS (commander+) ── */}
+          {isCommander && (
+            <>
+              {sectionLabel('Operations')}
+              {navLink('Session Center',   '/community',           <Sword         size={16} strokeWidth={1.6} />)}
+              {navLink('Case Files',       '/community/field-ops', <FolderOpen    size={16} strokeWidth={1.6} />, ['Field Ops'])}
+              {navLink('Document Creator', '/community',           <Library       size={16} strokeWidth={1.6} />)}
+              {isMinister && navLink('Assessment', '/community',   <ClipboardList size={16} strokeWidth={1.6} />)}
+            </>
           )}
 
-          {/* ── EVENTS ── */}
-          {navLink('Events', '/community', <Calendar size={16} strokeWidth={1.6} />)}
+          {/* ── FOUNDATION ── */}
+          {sectionLabel('Foundation')}
+          {navLink('Arsenal',   '/arsenal',             <Archive       size={16} strokeWidth={1.6} />)}
+          {navLink('Scripture', '/community/scripture', <BookOpen      size={16} strokeWidth={1.6} />)}
+          {navLink('Training',  '/community',           <GraduationCap size={16} strokeWidth={1.6} />)}
+          {navLink('QRF',       '/community/qrf',       <Radio         size={16} strokeWidth={1.6} />)}
+
+          {/* ── INTEL ARCHIVE ── */}
+          {sectionLabel('Intel Archive')}
+          {navLink('My Intel', '/community', <Star size={16} strokeWidth={1.6} />)}
+          {collapseParent('Intel Archive', <Library size={16} strokeWidth={1.6} />, archiveActive, () => {
+            const next = !archiveOpen
+            setArchiveOpen(next)
+            try { localStorage.setItem('sidebar_intel_archive_open', String(next)) } catch {}
+          }, (
+            <div style={{ paddingLeft: 16 }}>
+              {subNavLink('Symptom Investigator', '/community',                   <Search   size={11} strokeWidth={1.6} />)}
+              {subNavLink('Body Map',             '/community',                   <Map      size={11} strokeWidth={1.6} />)}
+              {subNavLink('Spirit Network',       '/community',                   <Network  size={11} strokeWidth={1.6} />)}
+              {subNavLink('Gateway Investigator', '/community',                   <DoorOpen size={11} strokeWidth={1.6} />)}
+              {subNavLink('Dream Interpreter',    '/community/dream-interpreter', <Moon     size={11} strokeWidth={1.6} />)}
+            </div>
+          ))}
 
           {/* ── ADMIN (minister only) ── */}
           {isMinister && (

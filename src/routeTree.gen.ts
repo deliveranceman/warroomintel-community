@@ -30,13 +30,14 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminIndexRouteImport } from './routes/admin.index'
 import { Route as ProductsProductIdRouteImport } from './routes/products/$productId'
 import { Route as CommunitySpiritualMappingRouteImport } from './routes/community_.spiritual-mapping'
+import { Route as CommunitySearchRouteImport } from './routes/community_.search'
 import { Route as CommunityScriptureRouteImport } from './routes/community_.scripture'
+import { Route as CommunityQrfRouteImport } from './routes/community_.qrf'
 import { Route as CommunityForumRouteImport } from './routes/community_.forum'
 import { Route as CommunityFieldOpsRouteImport } from './routes/community_.field-ops'
 import { Route as CommunityFieldManualRouteImport } from './routes/community_.field-manual'
 import { Route as CommunityDreamInterpreterRouteImport } from './routes/community_.dream-interpreter'
 import { Route as CommunityAskSolRouteImport } from './routes/community_.ask-sol'
-import { Route as CommunitySearchRouteImport } from './routes/community_.search'
 import { Route as ApiWarroomChatRouteImport } from './routes/api.warroom-chat'
 import { Route as ApiUserTierRouteImport } from './routes/api.user-tier'
 import { Route as ApiUpdateProfileRouteImport } from './routes/api.update-profile'
@@ -45,6 +46,7 @@ import { Route as ApiSubmitAssessmentRouteImport } from './routes/api.submit-ass
 import { Route as ApiSmSubmissionRouteImport } from './routes/api.sm-submission'
 import { Route as ApiSmRegionsRouteImport } from './routes/api.sm-regions'
 import { Route as ApiSmAssessmentRouteImport } from './routes/api.sm-assessment'
+import { Route as ApiSearchRouteImport } from './routes/api.search'
 import { Route as ApiResourcesDebugRouteImport } from './routes/api.resources-debug'
 import { Route as ApiResourcesRouteImport } from './routes/api.resources'
 import { Route as ApiResourceDownloadRouteImport } from './routes/api.resource-download'
@@ -52,7 +54,6 @@ import { Route as ApiMnVerifyRouteImport } from './routes/api.mn-verify'
 import { Route as ApiGetMembersRouteImport } from './routes/api.get-members'
 import { Route as ApiGenerateSummaryRouteImport } from './routes/api.generate-summary'
 import { Route as ApiGenerateFieldCardRouteImport } from './routes/api.generate-field-card'
-import { Route as ApiSearchRouteImport } from './routes/api.search'
 import { Route as ApiDemonsRouteImport } from './routes/api.demons'
 import { Route as ApiClerkWebhookRouteImport } from './routes/api.clerk-webhook'
 import { Route as ApiAssessmentBoardRouteImport } from './routes/api.assessment-board'
@@ -167,9 +168,19 @@ const CommunitySpiritualMappingRoute =
     path: '/community/spiritual-mapping',
     getParentRoute: () => rootRouteImport,
   } as any)
+const CommunitySearchRoute = CommunitySearchRouteImport.update({
+  id: '/community_/search',
+  path: '/community/search',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const CommunityScriptureRoute = CommunityScriptureRouteImport.update({
   id: '/community_/scripture',
   path: '/community/scripture',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CommunityQrfRoute = CommunityQrfRouteImport.update({
+  id: '/community_/qrf',
+  path: '/community/qrf',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CommunityForumRoute = CommunityForumRouteImport.update({
@@ -196,11 +207,6 @@ const CommunityDreamInterpreterRoute =
 const CommunityAskSolRoute = CommunityAskSolRouteImport.update({
   id: '/community_/ask-sol',
   path: '/community/ask-sol',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const CommunitySearchRoute = CommunitySearchRouteImport.update({
-  id: '/community_/search',
-  path: '/community/search',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiWarroomChatRoute = ApiWarroomChatRouteImport.update({
@@ -243,6 +249,11 @@ const ApiSmAssessmentRoute = ApiSmAssessmentRouteImport.update({
   path: '/api/sm-assessment',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiSearchRoute = ApiSearchRouteImport.update({
+  id: '/api/search',
+  path: '/api/search',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiResourcesDebugRoute = ApiResourcesDebugRouteImport.update({
   id: '/api/resources-debug',
   path: '/api/resources-debug',
@@ -276,11 +287,6 @@ const ApiGenerateSummaryRoute = ApiGenerateSummaryRouteImport.update({
 const ApiGenerateFieldCardRoute = ApiGenerateFieldCardRouteImport.update({
   id: '/api/generate-field-card',
   path: '/api/generate-field-card',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiSearchRoute = ApiSearchRouteImport.update({
-  id: '/api/search',
-  path: '/api/search',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiDemonsRoute = ApiDemonsRouteImport.update({
@@ -346,7 +352,6 @@ export interface FileRoutesByFullPath {
   '/api/assessment-board': typeof ApiAssessmentBoardRoute
   '/api/clerk-webhook': typeof ApiClerkWebhookRoute
   '/api/demons': typeof ApiDemonsRoute
-  '/api/search': typeof ApiSearchRoute
   '/api/generate-field-card': typeof ApiGenerateFieldCardRoute
   '/api/generate-summary': typeof ApiGenerateSummaryRoute
   '/api/get-members': typeof ApiGetMembersRoute
@@ -354,6 +359,7 @@ export interface FileRoutesByFullPath {
   '/api/resource-download': typeof ApiResourceDownloadRoute
   '/api/resources': typeof ApiResourcesRoute
   '/api/resources-debug': typeof ApiResourcesDebugRoute
+  '/api/search': typeof ApiSearchRoute
   '/api/sm-assessment': typeof ApiSmAssessmentRoute
   '/api/sm-regions': typeof ApiSmRegionsRoute
   '/api/sm-submission': typeof ApiSmSubmissionRoute
@@ -367,6 +373,7 @@ export interface FileRoutesByFullPath {
   '/community/field-manual': typeof CommunityFieldManualRoute
   '/community/field-ops': typeof CommunityFieldOpsRoute
   '/community/forum': typeof CommunityForumRoute
+  '/community/qrf': typeof CommunityQrfRoute
   '/community/scripture': typeof CommunityScriptureRoute
   '/community/search': typeof CommunitySearchRoute
   '/community/spiritual-mapping': typeof CommunitySpiritualMappingRoute
@@ -398,7 +405,6 @@ export interface FileRoutesByTo {
   '/api/assessment-board': typeof ApiAssessmentBoardRoute
   '/api/clerk-webhook': typeof ApiClerkWebhookRoute
   '/api/demons': typeof ApiDemonsRoute
-  '/api/search': typeof ApiSearchRoute
   '/api/generate-field-card': typeof ApiGenerateFieldCardRoute
   '/api/generate-summary': typeof ApiGenerateSummaryRoute
   '/api/get-members': typeof ApiGetMembersRoute
@@ -406,6 +412,7 @@ export interface FileRoutesByTo {
   '/api/resource-download': typeof ApiResourceDownloadRoute
   '/api/resources': typeof ApiResourcesRoute
   '/api/resources-debug': typeof ApiResourcesDebugRoute
+  '/api/search': typeof ApiSearchRoute
   '/api/sm-assessment': typeof ApiSmAssessmentRoute
   '/api/sm-regions': typeof ApiSmRegionsRoute
   '/api/sm-submission': typeof ApiSmSubmissionRoute
@@ -419,6 +426,7 @@ export interface FileRoutesByTo {
   '/community/field-manual': typeof CommunityFieldManualRoute
   '/community/field-ops': typeof CommunityFieldOpsRoute
   '/community/forum': typeof CommunityForumRoute
+  '/community/qrf': typeof CommunityQrfRoute
   '/community/scripture': typeof CommunityScriptureRoute
   '/community/search': typeof CommunitySearchRoute
   '/community/spiritual-mapping': typeof CommunitySpiritualMappingRoute
@@ -452,7 +460,6 @@ export interface FileRoutesById {
   '/api/assessment-board': typeof ApiAssessmentBoardRoute
   '/api/clerk-webhook': typeof ApiClerkWebhookRoute
   '/api/demons': typeof ApiDemonsRoute
-  '/api/search': typeof ApiSearchRoute
   '/api/generate-field-card': typeof ApiGenerateFieldCardRoute
   '/api/generate-summary': typeof ApiGenerateSummaryRoute
   '/api/get-members': typeof ApiGetMembersRoute
@@ -460,6 +467,7 @@ export interface FileRoutesById {
   '/api/resource-download': typeof ApiResourceDownloadRoute
   '/api/resources': typeof ApiResourcesRoute
   '/api/resources-debug': typeof ApiResourcesDebugRoute
+  '/api/search': typeof ApiSearchRoute
   '/api/sm-assessment': typeof ApiSmAssessmentRoute
   '/api/sm-regions': typeof ApiSmRegionsRoute
   '/api/sm-submission': typeof ApiSmSubmissionRoute
@@ -473,6 +481,7 @@ export interface FileRoutesById {
   '/community_/field-manual': typeof CommunityFieldManualRoute
   '/community_/field-ops': typeof CommunityFieldOpsRoute
   '/community_/forum': typeof CommunityForumRoute
+  '/community_/qrf': typeof CommunityQrfRoute
   '/community_/scripture': typeof CommunityScriptureRoute
   '/community_/search': typeof CommunitySearchRoute
   '/community_/spiritual-mapping': typeof CommunitySpiritualMappingRoute
@@ -507,7 +516,6 @@ export interface FileRouteTypes {
     | '/api/assessment-board'
     | '/api/clerk-webhook'
     | '/api/demons'
-    | '/api/search'
     | '/api/generate-field-card'
     | '/api/generate-summary'
     | '/api/get-members'
@@ -515,6 +523,7 @@ export interface FileRouteTypes {
     | '/api/resource-download'
     | '/api/resources'
     | '/api/resources-debug'
+    | '/api/search'
     | '/api/sm-assessment'
     | '/api/sm-regions'
     | '/api/sm-submission'
@@ -528,6 +537,7 @@ export interface FileRouteTypes {
     | '/community/field-manual'
     | '/community/field-ops'
     | '/community/forum'
+    | '/community/qrf'
     | '/community/scripture'
     | '/community/search'
     | '/community/spiritual-mapping'
@@ -559,7 +569,6 @@ export interface FileRouteTypes {
     | '/api/assessment-board'
     | '/api/clerk-webhook'
     | '/api/demons'
-    | '/api/search'
     | '/api/generate-field-card'
     | '/api/generate-summary'
     | '/api/get-members'
@@ -567,6 +576,7 @@ export interface FileRouteTypes {
     | '/api/resource-download'
     | '/api/resources'
     | '/api/resources-debug'
+    | '/api/search'
     | '/api/sm-assessment'
     | '/api/sm-regions'
     | '/api/sm-submission'
@@ -580,6 +590,7 @@ export interface FileRouteTypes {
     | '/community/field-manual'
     | '/community/field-ops'
     | '/community/forum'
+    | '/community/qrf'
     | '/community/scripture'
     | '/community/search'
     | '/community/spiritual-mapping'
@@ -612,7 +623,6 @@ export interface FileRouteTypes {
     | '/api/assessment-board'
     | '/api/clerk-webhook'
     | '/api/demons'
-    | '/api/search'
     | '/api/generate-field-card'
     | '/api/generate-summary'
     | '/api/get-members'
@@ -620,6 +630,7 @@ export interface FileRouteTypes {
     | '/api/resource-download'
     | '/api/resources'
     | '/api/resources-debug'
+    | '/api/search'
     | '/api/sm-assessment'
     | '/api/sm-regions'
     | '/api/sm-submission'
@@ -633,6 +644,7 @@ export interface FileRouteTypes {
     | '/community_/field-manual'
     | '/community_/field-ops'
     | '/community_/forum'
+    | '/community_/qrf'
     | '/community_/scripture'
     | '/community_/search'
     | '/community_/spiritual-mapping'
@@ -664,7 +676,6 @@ export interface RootRouteChildren {
   ApiAssessmentBoardRoute: typeof ApiAssessmentBoardRoute
   ApiClerkWebhookRoute: typeof ApiClerkWebhookRoute
   ApiDemonsRoute: typeof ApiDemonsRoute
-  ApiSearchRoute: typeof ApiSearchRoute
   ApiGenerateFieldCardRoute: typeof ApiGenerateFieldCardRoute
   ApiGenerateSummaryRoute: typeof ApiGenerateSummaryRoute
   ApiGetMembersRoute: typeof ApiGetMembersRoute
@@ -672,6 +683,7 @@ export interface RootRouteChildren {
   ApiResourceDownloadRoute: typeof ApiResourceDownloadRoute
   ApiResourcesRoute: typeof ApiResourcesRoute
   ApiResourcesDebugRoute: typeof ApiResourcesDebugRoute
+  ApiSearchRoute: typeof ApiSearchRoute
   ApiSmAssessmentRoute: typeof ApiSmAssessmentRoute
   ApiSmRegionsRoute: typeof ApiSmRegionsRoute
   ApiSmSubmissionRoute: typeof ApiSmSubmissionRoute
@@ -685,6 +697,7 @@ export interface RootRouteChildren {
   CommunityFieldManualRoute: typeof CommunityFieldManualRoute
   CommunityFieldOpsRoute: typeof CommunityFieldOpsRoute
   CommunityForumRoute: typeof CommunityForumRoute
+  CommunityQrfRoute: typeof CommunityQrfRoute
   CommunityScriptureRoute: typeof CommunityScriptureRoute
   CommunitySearchRoute: typeof CommunitySearchRoute
   CommunitySpiritualMappingRoute: typeof CommunitySpiritualMappingRoute
@@ -840,11 +853,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CommunitySpiritualMappingRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/community_/search': {
+      id: '/community_/search'
+      path: '/community/search'
+      fullPath: '/community/search'
+      preLoaderRoute: typeof CommunitySearchRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/community_/scripture': {
       id: '/community_/scripture'
       path: '/community/scripture'
       fullPath: '/community/scripture'
       preLoaderRoute: typeof CommunityScriptureRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/community_/qrf': {
+      id: '/community_/qrf'
+      path: '/community/qrf'
+      fullPath: '/community/qrf'
+      preLoaderRoute: typeof CommunityQrfRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/community_/forum': {
@@ -880,13 +907,6 @@ declare module '@tanstack/react-router' {
       path: '/community/ask-sol'
       fullPath: '/community/ask-sol'
       preLoaderRoute: typeof CommunityAskSolRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/community_/search': {
-      id: '/community_/search'
-      path: '/community/search'
-      fullPath: '/community/search'
-      preLoaderRoute: typeof CommunitySearchRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/warroom-chat': {
@@ -945,6 +965,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiSmAssessmentRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/search': {
+      id: '/api/search'
+      path: '/api/search'
+      fullPath: '/api/search'
+      preLoaderRoute: typeof ApiSearchRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/resources-debug': {
       id: '/api/resources-debug'
       path: '/api/resources-debug'
@@ -999,13 +1026,6 @@ declare module '@tanstack/react-router' {
       path: '/api/demons'
       fullPath: '/api/demons'
       preLoaderRoute: typeof ApiDemonsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/search': {
-      id: '/api/search'
-      path: '/api/search'
-      fullPath: '/api/search'
-      preLoaderRoute: typeof ApiSearchRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/clerk-webhook': {
@@ -1091,7 +1111,6 @@ const rootRouteChildren: RootRouteChildren = {
   ApiAssessmentBoardRoute: ApiAssessmentBoardRoute,
   ApiClerkWebhookRoute: ApiClerkWebhookRoute,
   ApiDemonsRoute: ApiDemonsRoute,
-  ApiSearchRoute: ApiSearchRoute,
   ApiGenerateFieldCardRoute: ApiGenerateFieldCardRoute,
   ApiGenerateSummaryRoute: ApiGenerateSummaryRoute,
   ApiGetMembersRoute: ApiGetMembersRoute,
@@ -1099,6 +1118,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiResourceDownloadRoute: ApiResourceDownloadRoute,
   ApiResourcesRoute: ApiResourcesRoute,
   ApiResourcesDebugRoute: ApiResourcesDebugRoute,
+  ApiSearchRoute: ApiSearchRoute,
   ApiSmAssessmentRoute: ApiSmAssessmentRoute,
   ApiSmRegionsRoute: ApiSmRegionsRoute,
   ApiSmSubmissionRoute: ApiSmSubmissionRoute,
@@ -1112,6 +1132,7 @@ const rootRouteChildren: RootRouteChildren = {
   CommunityFieldManualRoute: CommunityFieldManualRoute,
   CommunityFieldOpsRoute: CommunityFieldOpsRoute,
   CommunityForumRoute: CommunityForumRoute,
+  CommunityQrfRoute: CommunityQrfRoute,
   CommunityScriptureRoute: CommunityScriptureRoute,
   CommunitySearchRoute: CommunitySearchRoute,
   CommunitySpiritualMappingRoute: CommunitySpiritualMappingRoute,
