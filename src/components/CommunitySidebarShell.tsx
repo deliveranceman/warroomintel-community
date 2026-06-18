@@ -37,6 +37,10 @@ export function CommunitySidebarShell({ activeItem, fillViewport, children }: Pr
   })
   const [fringeExpanded, setFringeExpanded]   = useState(false)
   const [trainingExpanded, setTrainingExpanded] = useState(false)
+  const [sidebarSearchVal, setSidebarSearchVal] = useState('')
+  const [mobileSearchOpen, setMobileSearchOpen] = useState(false)
+  const sidebarSearchRef = useRef<HTMLInputElement>(null)
+  const mobileSearchInputRef = useRef<HTMLInputElement>(null)
 
   const tier      = ((user?.publicMetadata?.tier as string) || '').toLowerCase()
   const tierLevel = getTierLevel(tier)
@@ -54,6 +58,30 @@ export function CommunitySidebarShell({ activeItem, fillViewport, children }: Pr
     const active = el.querySelector('[data-active="true"]') as HTMLElement | null
     if (active) active.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
   }, [])
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== '/') return
+      const t = e.target as HTMLElement
+      if (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable) return
+      e.preventDefault()
+      if (window.innerWidth < 768) {
+        setSidebarSearchVal('')
+        setMobileSearchOpen(true)
+      } else {
+        sidebarSearchRef.current?.focus()
+        sidebarSearchRef.current?.select()
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
+
+  function handleSearchNav(val?: string) {
+    const q = (val !== undefined ? val : sidebarSearchVal).trim()
+    if (!q) return
+    window.location.href = `/community/search?q=${encodeURIComponent(q)}`
+  }
 
   const navLink = (label: string, href: string, icon?: React.ReactNode, activeAliases?: string[]) => {
     const active = activeAliases ? isActive(label, ...activeAliases) : isActive(label)
@@ -199,6 +227,23 @@ export function CommunitySidebarShell({ activeItem, fillViewport, children }: Pr
               flexShrink: 0, textTransform: 'uppercase' as const,
             }}
           >Out</button>
+        </div>
+
+        {/* Search bar — desktop sidebar */}
+        <div style={{ padding: '8px 10px', borderBottom: '1px solid var(--border)' }}>
+          <form onSubmit={e => { e.preventDefault(); handleSearchNav() }} style={{ position: 'relative' }}>
+            <Search size={12} strokeWidth={1.6} style={{ position: 'absolute', left: 9, top: '50%', transform: 'translateY(-50%)', color: 'var(--muted)', pointerEvents: 'none' }} />
+            <input
+              ref={sidebarSearchRef}
+              type="text"
+              value={sidebarSearchVal}
+              onChange={e => setSidebarSearchVal(e.target.value)}
+              placeholder="Search… [/]"
+              style={{ width: '100%', boxSizing: 'border-box' as const, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 5, padding: '7px 8px 7px 28px', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.06em', color: 'var(--text)', outline: 'none' }}
+              onFocus={e => { (e.target as HTMLInputElement).style.borderColor = 'var(--gold)' }}
+              onBlur={e => { (e.target as HTMLInputElement).style.borderColor = 'var(--border)' }}
+            />
+          </form>
         </div>
 
         {/* Quick access icon strip */}
@@ -419,7 +464,13 @@ export function CommunitySidebarShell({ activeItem, fillViewport, children }: Pr
         }}>
           <a href="/community" style={{ fontFamily: cinzel, fontSize: 9, color: 'var(--muted)', textDecoration: 'none', letterSpacing: '0.1em' }}>← COMMUNITY</a>
           <span style={{ color: 'var(--muted)', margin: '0 8px', opacity: 0.4 }}>›</span>
-          <span style={{ fontFamily: cinzel, fontSize: 9, color: G, letterSpacing: '0.1em' }}>{activeItem.toUpperCase()}</span>
+          <span style={{ fontFamily: cinzel, fontSize: 9, color: G, letterSpacing: '0.1em', flex: 1 }}>{activeItem.toUpperCase()}</span>
+          <button
+            onClick={() => { setSidebarSearchVal(''); setMobileSearchOpen(true) }}
+            style={{ background: 'none', border: 'none', color: 'var(--muted)', cursor: 'pointer', display: 'flex', alignItems: 'center', padding: 4 }}
+          >
+            <Search size={16} strokeWidth={1.6} />
+          </button>
         </div>
 
         {/* Page content */}
@@ -464,6 +515,37 @@ export function CommunitySidebarShell({ activeItem, fillViewport, children }: Pr
           </a>
         ))}
       </div>
+
+      {/* Mobile search overlay */}
+      {mobileSearchOpen && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'var(--deep)', display: 'flex', flexDirection: 'column' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', borderBottom: '1px solid var(--border)', background: 'var(--surface2)', flexShrink: 0 }}>
+            <button
+              onClick={() => setMobileSearchOpen(false)}
+              style={{ background: 'none', border: 'none', color: 'var(--muted)', cursor: 'pointer', display: 'flex', alignItems: 'center', padding: 4, fontFamily: cinzel, fontSize: 14 }}
+            >
+              ←
+            </button>
+            <form
+              onSubmit={e => { e.preventDefault(); setMobileSearchOpen(false); handleSearchNav() }}
+              style={{ flex: 1, position: 'relative' }}
+            >
+              <Search size={14} strokeWidth={1.6} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--muted)', pointerEvents: 'none' }} />
+              <input
+                ref={mobileSearchInputRef}
+                autoFocus
+                type="text"
+                value={sidebarSearchVal}
+                onChange={e => setSidebarSearchVal(e.target.value)}
+                placeholder="Search the archive…"
+                style={{ width: '100%', boxSizing: 'border-box' as const, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 6, padding: '10px 12px 10px 36px', fontFamily: cinzel, fontSize: 12, letterSpacing: '0.06em', color: 'var(--text)', outline: 'none' }}
+                onFocus={e => { (e.target as HTMLInputElement).style.borderColor = 'var(--gold)' }}
+                onBlur={e => { (e.target as HTMLInputElement).style.borderColor = 'var(--border)' }}
+              />
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Mobile bottom nav — only renders on mobile via CSS */}
       <div className="wri-sub-bottom-nav">

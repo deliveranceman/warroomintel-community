@@ -36,6 +36,7 @@ import { Route as CommunityFieldOpsRouteImport } from './routes/community_.field
 import { Route as CommunityFieldManualRouteImport } from './routes/community_.field-manual'
 import { Route as CommunityDreamInterpreterRouteImport } from './routes/community_.dream-interpreter'
 import { Route as CommunityAskSolRouteImport } from './routes/community_.ask-sol'
+import { Route as CommunitySearchRouteImport } from './routes/community_.search'
 import { Route as ApiWarroomChatRouteImport } from './routes/api.warroom-chat'
 import { Route as ApiUserTierRouteImport } from './routes/api.user-tier'
 import { Route as ApiUpdateProfileRouteImport } from './routes/api.update-profile'
@@ -195,6 +196,11 @@ const CommunityDreamInterpreterRoute =
 const CommunityAskSolRoute = CommunityAskSolRouteImport.update({
   id: '/community_/ask-sol',
   path: '/community/ask-sol',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CommunitySearchRoute = CommunitySearchRouteImport.update({
+  id: '/community_/search',
+  path: '/community/search',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiWarroomChatRoute = ApiWarroomChatRouteImport.update({
@@ -362,6 +368,7 @@ export interface FileRoutesByFullPath {
   '/community/field-ops': typeof CommunityFieldOpsRoute
   '/community/forum': typeof CommunityForumRoute
   '/community/scripture': typeof CommunityScriptureRoute
+  '/community/search': typeof CommunitySearchRoute
   '/community/spiritual-mapping': typeof CommunitySpiritualMappingRoute
   '/products/$productId': typeof ProductsProductIdRoute
   '/admin/': typeof AdminIndexRoute
@@ -413,6 +420,7 @@ export interface FileRoutesByTo {
   '/community/field-ops': typeof CommunityFieldOpsRoute
   '/community/forum': typeof CommunityForumRoute
   '/community/scripture': typeof CommunityScriptureRoute
+  '/community/search': typeof CommunitySearchRoute
   '/community/spiritual-mapping': typeof CommunitySpiritualMappingRoute
   '/products/$productId': typeof ProductsProductIdRoute
   '/admin': typeof AdminIndexRoute
@@ -466,6 +474,7 @@ export interface FileRoutesById {
   '/community_/field-ops': typeof CommunityFieldOpsRoute
   '/community_/forum': typeof CommunityForumRoute
   '/community_/scripture': typeof CommunityScriptureRoute
+  '/community_/search': typeof CommunitySearchRoute
   '/community_/spiritual-mapping': typeof CommunitySpiritualMappingRoute
   '/products/$productId': typeof ProductsProductIdRoute
   '/admin/': typeof AdminIndexRoute
@@ -520,6 +529,7 @@ export interface FileRouteTypes {
     | '/community/field-ops'
     | '/community/forum'
     | '/community/scripture'
+    | '/community/search'
     | '/community/spiritual-mapping'
     | '/products/$productId'
     | '/admin/'
@@ -571,6 +581,7 @@ export interface FileRouteTypes {
     | '/community/field-ops'
     | '/community/forum'
     | '/community/scripture'
+    | '/community/search'
     | '/community/spiritual-mapping'
     | '/products/$productId'
     | '/admin'
@@ -623,6 +634,7 @@ export interface FileRouteTypes {
     | '/community_/field-ops'
     | '/community_/forum'
     | '/community_/scripture'
+    | '/community_/search'
     | '/community_/spiritual-mapping'
     | '/products/$productId'
     | '/admin/'
@@ -674,6 +686,7 @@ export interface RootRouteChildren {
   CommunityFieldOpsRoute: typeof CommunityFieldOpsRoute
   CommunityForumRoute: typeof CommunityForumRoute
   CommunityScriptureRoute: typeof CommunityScriptureRoute
+  CommunitySearchRoute: typeof CommunitySearchRoute
   CommunitySpiritualMappingRoute: typeof CommunitySpiritualMappingRoute
   ProductsProductIdRoute: typeof ProductsProductIdRoute
 }
@@ -867,6 +880,13 @@ declare module '@tanstack/react-router' {
       path: '/community/ask-sol'
       fullPath: '/community/ask-sol'
       preLoaderRoute: typeof CommunityAskSolRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/community_/search': {
+      id: '/community_/search'
+      path: '/community/search'
+      fullPath: '/community/search'
+      preLoaderRoute: typeof CommunitySearchRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/warroom-chat': {
@@ -1093,6 +1113,7 @@ const rootRouteChildren: RootRouteChildren = {
   CommunityFieldOpsRoute: CommunityFieldOpsRoute,
   CommunityForumRoute: CommunityForumRoute,
   CommunityScriptureRoute: CommunityScriptureRoute,
+  CommunitySearchRoute: CommunitySearchRoute,
   CommunitySpiritualMappingRoute: CommunitySpiritualMappingRoute,
   ProductsProductIdRoute: ProductsProductIdRoute,
 }
