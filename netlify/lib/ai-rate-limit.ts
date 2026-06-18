@@ -4,6 +4,7 @@ const { url: supabaseUrl, serviceRoleKey: supabaseServiceKey } = JSON.parse(proc
 
 export type AIFeature =
   | 'ask_dake'
+  | 'ask_sol'
   | 'ai_assistant'
   | 'bible_ask'
   | 'symptom_investigator'

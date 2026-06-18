@@ -14,6 +14,7 @@ const VALID_STATUSES  = new Set(['queued', 'running', 'complete', 'failed'])
 const VALID_JOB_TYPES = new Set([
   'spirit_enrich', 'deliverance_protocol', 'dream_interpretation',
   'research_drop_spirits', 'gateway_investigation', 'content_gen', 'patristic_scan',
+  'ask_sol',
 ])
 
 function stripInputParams(params: unknown): unknown {

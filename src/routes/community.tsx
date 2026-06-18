@@ -8620,6 +8620,7 @@ const SOL_JOB_TYPE_LABELS: Record<string, string> = {
   gateway_investigation: 'Gateway Investigation',
   content_gen:           'Content Generation',
   patristic_scan:        'Source Scan',
+  ask_sol:               'Ask SOL',
 }
 
 function renderSolInputSummary(jobType: string, params: any, txt: string, mut: string): React.ReactNode {
@@ -8654,6 +8655,10 @@ function renderSolInputSummary(jobType: string, params: any, txt: string, mut: s
     }
     case 'content_gen':
       return <>{field('Type', params.contentType || '—')}{params.title ? field('Title', String(params.title)) : null}</>
+    case 'ask_sol': {
+      const q = String(params.query || '')
+      return <>{field('Query', q.length > 200 ? q.slice(0, 200) + '…' : q)}</>
+    }
     default:
       return <pre style={{ fontFamily: crimson, fontSize: 11, color: mut, overflow: 'auto', maxHeight: 120, margin: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>{JSON.stringify(params, null, 2)}</pre>
   }
@@ -8686,6 +8691,16 @@ function renderSolOpenResult(job: any, isDark: boolean, onOpenProtocol: (r: any)
           {typeof job.result_json === 'string' ? job.result_json : (job.result_json?.content || job.result_json?.text || JSON.stringify(job.result_json, null, 2))}
         </div>
       )
+    case 'ask_sol': {
+      const resp = job.result_json?.response
+      if (!resp) return null
+      return (
+        <div style={{ fontFamily: "'Crimson Pro', serif", fontSize: 14, color: isDark ? '#c8b99a' : '#2D2924', lineHeight: 1.7, maxHeight: 200, overflowY: 'auto', background: 'rgba(201,168,76,0.04)', borderRadius: 6, padding: '10px 12px' }}>
+          {String(resp).slice(0, 500)}{String(resp).length > 500 ? '…' : ''}
+          {job.result_json?.escalated && <span style={{ fontFamily: "'Cinzel', serif", fontSize: 8, color: isDark ? '#C9A84C' : '#8B6914', marginLeft: 8, opacity: 0.7 }}>Sonnet</span>}
+        </div>
+      )
+    }
     default:
       return null
   }
@@ -13303,7 +13318,15 @@ function CommunityPage() {
   const [chatMessages, setChatMessages]   = useState<{ role: 'user' | 'assistant'; content: string }[]>([])
   const [chatInput, setChatInput]         = useState('')
   const [chatLoading, setChatLoading]     = useState(false)
-  const chatEndRef = useRef<HTMLDivElement>(null)
+  const [chatStage, setChatStage]         = useState('')
+  const [chatBgBanner, setChatBgBanner]   = useState(false)
+  const chatEndRef    = useRef<HTMLDivElement>(null)
+  const solPollRef    = useRef<ReturnType<typeof setInterval> | null>(null)
+  const solBgTimerRef = useRef<ReturnType<typeof setTimeout>  | null>(null)
+  useEffect(() => () => {
+    if (solPollRef.current)    clearInterval(solPollRef.current)
+    if (solBgTimerRef.current) clearTimeout(solBgTimerRef.current)
+  }, [])
 
   // SOL floating drag
   const [solPos, setSolPos] = useState<{ x: number; y: number }>(() => {
@@ -13421,44 +13444,83 @@ function CommunityPage() {
 
     try {
       const token = await getToken()
-      const solCtrl = new AbortController()
-      const solTimeout = setTimeout(() => solCtrl.abort(), 55000)
-      const res = await fetch('/api/ai-assistant', {
-        method: 'POST',
+      const res = await fetch('/api/ask-sol', {
+        method:  'POST',
         headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-        body: JSON.stringify({ message: msg.trim(), history: chatMessages, feature: 'ask_sol' }),
-        signal: solCtrl.signal,
+        body:    JSON.stringify({ message: msg.trim(), history: chatMessages }),
       })
-      clearTimeout(solTimeout)
-      const ct = res.headers.get('content-type') || ''
-      if (!ct.includes('application/json')) {
-        throw new Error(`Unexpected response type: ${ct}`)
-      }
       const data = await res.json()
+
       if (res.status === 429) {
         setChatMessages(prev => [...prev, { role: 'assistant', content: `**Limit Reached** — ${data.error || 'Daily AI limit reached.'} [Upgrade your membership](/membership) to continue.` }])
         _usageCache = null
-      } else if (!res.ok) {
-        setChatMessages(prev => [...prev, { role: 'assistant', content: `AI error: ${data.error || res.status}. Please try again.` }])
-      } else {
-        const responseText = data.response || 'No response received.'
-        setChatMessages(prev => [...prev, { role: 'assistant', content: responseText }])
-        _usageCache = null
-        if (token) {
-          fetch('/api/ai-history', {
-            method: 'POST',
-            headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-            body: JSON.stringify({ tool: 'ai-assistant', query: msg.trim(), response: responseText }),
-          }).catch(() => {})
-        }
+        setChatLoading(false); setChatStage(''); setTimeout(() => chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 50)
+        return
       }
+      if (!res.ok) {
+        setChatMessages(prev => [...prev, { role: 'assistant', content: `AI error: ${data.error || res.status}. Please try again.` }])
+        setChatLoading(false); setChatStage(''); setTimeout(() => chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 50)
+        return
+      }
+
+      const jobId: string = data.jobId
+      setChatStage('queued')
+
+      // Background banner after 8s — user can navigate away and check My SOL Jobs
+      if (solBgTimerRef.current) clearTimeout(solBgTimerRef.current)
+      solBgTimerRef.current = setTimeout(() => setChatBgBanner(true), 8000)
+
+      if (solPollRef.current) clearInterval(solPollRef.current)
+      solPollRef.current = setInterval(async () => {
+        try {
+          const pollToken = await getToken()
+          const pollRes = await fetch(`/api/job-status?jobId=${jobId}`, { headers: { Authorization: `Bearer ${pollToken}` } })
+          if (!pollRes.ok) return
+          const job = await pollRes.json()
+          setChatStage(job.stage ?? job.status ?? '')
+
+          if (job.status === 'complete') {
+            clearInterval(solPollRef.current!); solPollRef.current = null
+            if (solBgTimerRef.current) { clearTimeout(solBgTimerRef.current); solBgTimerRef.current = null }
+            setChatBgBanner(false)
+            const responseText = job.result_json?.response || 'No response received.'
+            setChatMessages(prev => [...prev, { role: 'assistant', content: responseText }])
+            _usageCache = null
+            if (token) {
+              fetch('/api/ai-history', {
+                method:  'POST',
+                headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+                body:    JSON.stringify({ tool: 'ai-assistant', query: msg.trim(), response: responseText }),
+              }).catch(() => {})
+            }
+            setChatStage(''); setChatLoading(false)
+            setTimeout(() => chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 50)
+          } else if (job.status === 'failed') {
+            clearInterval(solPollRef.current!); solPollRef.current = null
+            if (solBgTimerRef.current) { clearTimeout(solBgTimerRef.current); solBgTimerRef.current = null }
+            setChatBgBanner(false)
+            setChatMessages(prev => [...prev, { role: 'assistant', content: job.error_message || 'SOL could not complete this query. Please try again.' }])
+            setChatStage(''); setChatLoading(false)
+            setTimeout(() => chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 50)
+          }
+        } catch { /* network hiccup — keep polling */ }
+      }, 3000)
+
     } catch (err: any) {
-      const isTimeout = err?.name === 'AbortError'
-      setChatMessages(prev => [...prev, { role: 'assistant', content: isTimeout ? 'SOL is taking longer than usual. Please try again — if it keeps happening, try a shorter question.' : `Unable to connect. ${err?.message || 'Please try again.'}` }])
-    } finally {
-      setChatLoading(false)
+      setChatMessages(prev => [...prev, { role: 'assistant', content: `Unable to connect. ${err?.message || 'Please try again.'}` }])
+      setChatStage(''); setChatLoading(false); setChatBgBanner(false)
+      if (solBgTimerRef.current) { clearTimeout(solBgTimerRef.current); solBgTimerRef.current = null }
       setTimeout(() => chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 50)
     }
+  }
+
+  function chatStageLabel(stage: string): string {
+    if (!stage || stage === 'queued')    return 'Queued…'
+    if (stage === 'preparing')           return 'Preparing…'
+    if (stage === 'searching')           return 'Searching library…'
+    if (stage === 'thinking')            return 'Thinking…'
+    if (stage === 'finalizing')          return 'Finalizing…'
+    return 'Processing…'
   }
 
   function renderMarkdown(text: string): string {
@@ -15088,7 +15150,7 @@ function CommunityPage() {
           <div style={{ padding: '0 14px', height: 48, display: 'flex', alignItems: 'center', gap: 8, borderBottom: '1px solid rgba(201,168,76,0.15)', flexShrink: 0 }}>
             <SolIcon size={20} />
             <span style={{ fontFamily: cinzel, fontSize: 12, color: G, letterSpacing: '0.12em' }}>ASK SOL</span>
-            <AIUsagePill feature="ask_dake" getToken={getToken} />
+            <AIUsagePill feature="ask_sol" getToken={getToken} />
           </div>
           <div style={{ flex: 1, overflowY: 'auto' as const, padding: 12, display: 'flex', flexDirection: 'column' as const, gap: 8 }}>
             {chatMessages.length === 0 && (
@@ -15111,7 +15173,16 @@ function CommunityPage() {
             ))}
             {chatLoading && (
               <div style={{ display: 'flex', justifyContent: 'flex-start' }}>
-                <div style={{ padding: '8px 14px', background: isDark ? '#1a1408' : '#f5f0e8', border: `1px solid ${isDark ? '#2a2010' : '#e0d8c8'}`, borderRadius: '10px 10px 10px 2px', color: '#6b5e45', fontFamily: crimson, fontSize: 13 }}>Analyzing…</div>
+                <div style={{ padding: '8px 14px', background: isDark ? '#1a1408' : '#f5f0e8', border: `1px solid ${isDark ? '#2a2010' : '#e0d8c8'}`, borderRadius: '10px 10px 10px 2px', color: '#6b5e45', fontFamily: crimson, fontSize: 13 }}>
+                  {chatStageLabel(chatStage)}
+                  {chatBgBanner && (
+                    <div style={{ marginTop: 6, fontSize: 11, color: '#6b5e45', fontStyle: 'italic' }}>
+                      Still working — check{' '}
+                      <button onClick={() => { setActiveSection('my-sol-jobs'); setChatOpen(false) }} style={{ background: 'none', border: 'none', color: G, cursor: 'pointer', textDecoration: 'underline', fontFamily: 'inherit', fontSize: 'inherit', padding: 0, letterSpacing: 0 }}>My SOL Jobs</button>
+                      {' '}for the result.
+                    </div>
+                  )}
+                </div>
               </div>
             )}
             <div ref={chatEndRef} />
@@ -15203,7 +15274,7 @@ function CommunityPage() {
         {chatOpen && (
           <div style={{ position: 'fixed', bottom: isMobile ? 66 : 84, right: isMobile ? 0 : 24, left: isMobile ? 0 : undefined, width: isMobile ? '100%' : 340, height: isMobile ? '70vh' : 460, background: isDark ? '#0f0c07' : '#F5F2E8', border: '1px solid #3a3020', borderTop: '2px solid #C9A84C', borderRadius: isMobile ? '12px 12px 0 0' : 8, display: 'flex', flexDirection: 'column' as const, zIndex: 1001, boxShadow: '0 8px 40px rgba(0,0,0,0.7)' }}>
             <div style={{ padding: '0 14px', height: 40, display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid #1e1a0e', flexShrink: 0 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}><SolIcon size={16} /><span style={{ fontFamily: cinzel, fontSize: 10, color: isDark ? G : '#8B6914', letterSpacing: '0.12em' }}>ASK SOL</span><AIUsagePill feature="ask_dake" getToken={getToken} /></div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}><SolIcon size={16} /><span style={{ fontFamily: cinzel, fontSize: 10, color: isDark ? G : '#8B6914', letterSpacing: '0.12em' }}>ASK SOL</span><AIUsagePill feature="ask_sol" getToken={getToken} /></div>
               <button onClick={() => setChatOpen(false)} style={{ background: 'none', border: 'none', color: isDark ? '#6b5e45' : '#574B33', cursor: 'pointer', fontSize: 18, lineHeight: 1, padding: 4 }}>×</button>
             </div>
             <div style={{ flex: 1, overflowY: 'auto' as const, padding: 12, display: 'flex', flexDirection: 'column' as const, gap: 8 }}>
@@ -15216,7 +15287,20 @@ function CommunityPage() {
                   {msg.role === 'assistant' && <button onClick={() => exportToPDF(msg.content)} style={{ marginTop: 4, background: 'none', border: 'none', color: isDark ? '#6b5e45' : '#574B33', fontFamily: cinzel, fontSize: 9, letterSpacing: '0.1em', cursor: 'pointer', padding: '2px 4px' }}>↓ EXPORT</button>}
                 </div>
               ))}
-              {chatLoading && <div style={{ display: 'flex', justifyContent: 'flex-start' }}><div style={{ padding: '8px 14px', background: isDark ? '#1a1408' : '#FFFFFF', border: '1px solid #2a2010', borderRadius: '10px 10px 10px 2px', color: isDark ? '#6b5e45' : '#574B33', fontFamily: crimson, fontSize: 13 }}>Analyzing…</div></div>}
+              {chatLoading && (
+                <div style={{ display: 'flex', justifyContent: 'flex-start' }}>
+                  <div style={{ padding: '8px 14px', background: isDark ? '#1a1408' : '#FFFFFF', border: '1px solid #2a2010', borderRadius: '10px 10px 10px 2px', color: isDark ? '#6b5e45' : '#574B33', fontFamily: crimson, fontSize: 13 }}>
+                    {chatStageLabel(chatStage)}
+                    {chatBgBanner && (
+                      <div style={{ marginTop: 6, fontSize: 11, fontStyle: 'italic' }}>
+                        Still working — check{' '}
+                        <button onClick={() => { setActiveSection('my-sol-jobs') }} style={{ background: 'none', border: 'none', color: isDark ? G : '#8B6914', cursor: 'pointer', textDecoration: 'underline', fontFamily: 'inherit', fontSize: 'inherit', padding: 0 }}>My SOL Jobs</button>
+                        {' '}for the result.
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
               <div ref={chatEndRef} />
             </div>
             <div style={{ padding: 12, borderTop: '1px solid #1e1a0e', flexShrink: 0 }}>
@@ -16461,7 +16545,7 @@ function CommunityPage() {
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <SolIcon size={16} />
               <span style={{ fontFamily: cinzel, fontSize: 10, color: isDark ? G : '#8B6914', letterSpacing: '0.12em' }}>ASK SOL</span>
-              <AIUsagePill feature="ask_dake" getToken={getToken} />
+              <AIUsagePill feature="ask_sol" getToken={getToken} />
             </div>
             <button onClick={() => setChatOpen(false)} style={{ background: 'none', border: 'none', color: isDark ? '#6b5e45' : '#574B33', cursor: 'pointer', fontSize: 18, lineHeight: 1, padding: 4 }}>×</button>
           </div>
@@ -16500,7 +16584,14 @@ function CommunityPage() {
             {chatLoading && (
               <div style={{ display: 'flex', justifyContent: 'flex-start' }}>
                 <div style={{ padding: '8px 14px', background: isDark ? '#1a1408' : '#FFFFFF', border: '1px solid #2a2010', borderRadius: '10px 10px 10px 2px', color: isDark ? '#6b5e45' : '#574B33', fontFamily: crimson, fontSize: 13 }}>
-                  Analyzing…
+                  {chatStageLabel(chatStage)}
+                  {chatBgBanner && (
+                    <div style={{ marginTop: 6, fontSize: 11, fontStyle: 'italic' }}>
+                      Still working — check{' '}
+                      <button onClick={() => setActiveSection('my-sol-jobs')} style={{ background: 'none', border: 'none', color: isDark ? G : '#8B6914', cursor: 'pointer', textDecoration: 'underline', fontFamily: 'inherit', fontSize: 'inherit', padding: 0 }}>My SOL Jobs</button>
+                      {' '}for the result.
+                    </div>
+                  )}
                 </div>
               </div>
             )}
