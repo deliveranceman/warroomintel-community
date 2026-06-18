@@ -51,6 +51,7 @@ import { Route as ApiMnVerifyRouteImport } from './routes/api.mn-verify'
 import { Route as ApiGetMembersRouteImport } from './routes/api.get-members'
 import { Route as ApiGenerateSummaryRouteImport } from './routes/api.generate-summary'
 import { Route as ApiGenerateFieldCardRouteImport } from './routes/api.generate-field-card'
+import { Route as ApiSearchRouteImport } from './routes/api.search'
 import { Route as ApiDemonsRouteImport } from './routes/api.demons'
 import { Route as ApiClerkWebhookRouteImport } from './routes/api.clerk-webhook'
 import { Route as ApiAssessmentBoardRouteImport } from './routes/api.assessment-board'
@@ -271,6 +272,11 @@ const ApiGenerateFieldCardRoute = ApiGenerateFieldCardRouteImport.update({
   path: '/api/generate-field-card',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiSearchRoute = ApiSearchRouteImport.update({
+  id: '/api/search',
+  path: '/api/search',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiDemonsRoute = ApiDemonsRouteImport.update({
   id: '/api/demons',
   path: '/api/demons',
@@ -334,6 +340,7 @@ export interface FileRoutesByFullPath {
   '/api/assessment-board': typeof ApiAssessmentBoardRoute
   '/api/clerk-webhook': typeof ApiClerkWebhookRoute
   '/api/demons': typeof ApiDemonsRoute
+  '/api/search': typeof ApiSearchRoute
   '/api/generate-field-card': typeof ApiGenerateFieldCardRoute
   '/api/generate-summary': typeof ApiGenerateSummaryRoute
   '/api/get-members': typeof ApiGetMembersRoute
@@ -384,6 +391,7 @@ export interface FileRoutesByTo {
   '/api/assessment-board': typeof ApiAssessmentBoardRoute
   '/api/clerk-webhook': typeof ApiClerkWebhookRoute
   '/api/demons': typeof ApiDemonsRoute
+  '/api/search': typeof ApiSearchRoute
   '/api/generate-field-card': typeof ApiGenerateFieldCardRoute
   '/api/generate-summary': typeof ApiGenerateSummaryRoute
   '/api/get-members': typeof ApiGetMembersRoute
@@ -436,6 +444,7 @@ export interface FileRoutesById {
   '/api/assessment-board': typeof ApiAssessmentBoardRoute
   '/api/clerk-webhook': typeof ApiClerkWebhookRoute
   '/api/demons': typeof ApiDemonsRoute
+  '/api/search': typeof ApiSearchRoute
   '/api/generate-field-card': typeof ApiGenerateFieldCardRoute
   '/api/generate-summary': typeof ApiGenerateSummaryRoute
   '/api/get-members': typeof ApiGetMembersRoute
@@ -489,6 +498,7 @@ export interface FileRouteTypes {
     | '/api/assessment-board'
     | '/api/clerk-webhook'
     | '/api/demons'
+    | '/api/search'
     | '/api/generate-field-card'
     | '/api/generate-summary'
     | '/api/get-members'
@@ -539,6 +549,7 @@ export interface FileRouteTypes {
     | '/api/assessment-board'
     | '/api/clerk-webhook'
     | '/api/demons'
+    | '/api/search'
     | '/api/generate-field-card'
     | '/api/generate-summary'
     | '/api/get-members'
@@ -590,6 +601,7 @@ export interface FileRouteTypes {
     | '/api/assessment-board'
     | '/api/clerk-webhook'
     | '/api/demons'
+    | '/api/search'
     | '/api/generate-field-card'
     | '/api/generate-summary'
     | '/api/get-members'
@@ -640,6 +652,7 @@ export interface RootRouteChildren {
   ApiAssessmentBoardRoute: typeof ApiAssessmentBoardRoute
   ApiClerkWebhookRoute: typeof ApiClerkWebhookRoute
   ApiDemonsRoute: typeof ApiDemonsRoute
+  ApiSearchRoute: typeof ApiSearchRoute
   ApiGenerateFieldCardRoute: typeof ApiGenerateFieldCardRoute
   ApiGenerateSummaryRoute: typeof ApiGenerateSummaryRoute
   ApiGetMembersRoute: typeof ApiGetMembersRoute
@@ -968,6 +981,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiDemonsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/search': {
+      id: '/api/search'
+      path: '/api/search'
+      fullPath: '/api/search'
+      preLoaderRoute: typeof ApiSearchRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/clerk-webhook': {
       id: '/api/clerk-webhook'
       path: '/api/clerk-webhook'
@@ -1051,6 +1071,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiAssessmentBoardRoute: ApiAssessmentBoardRoute,
   ApiClerkWebhookRoute: ApiClerkWebhookRoute,
   ApiDemonsRoute: ApiDemonsRoute,
+  ApiSearchRoute: ApiSearchRoute,
   ApiGenerateFieldCardRoute: ApiGenerateFieldCardRoute,
   ApiGenerateSummaryRoute: ApiGenerateSummaryRoute,
   ApiGetMembersRoute: ApiGetMembersRoute,
