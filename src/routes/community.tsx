@@ -4532,6 +4532,11 @@ function DatabaseView({ theme, isMobile, isTablet, userTier, demons: demonsProp 
                       <span style={{ fontSize: 16, lineHeight: 1 }}>🔊</span>
                     </button>
                   )}
+                  <button onClick={() => exportSpiritToPDF(entry)}
+                    aria-label="Export spirit dossier as PDF"
+                    style={{ background: 'rgba(201,168,76,0.08)', border: `1px solid rgba(201,168,76,0.25)`, borderRadius: 8, color: dbIsDark ? G : '#8B6914', cursor: 'pointer', padding: '6px 8px', minWidth: 44, minHeight: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', WebkitTapHighlightColor: 'transparent' }}>
+                    <span style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.06em', lineHeight: 1 }}>↓PDF</span>
+                  </button>
                   {entry.biblicalRank && (
                     <span style={{ fontFamily: cinzel, fontSize: 7, background: 'rgba(201,168,76,0.15)', color: dbIsDark ? G : '#8B6914', border: `1px solid rgba(201,168,76,0.3)`, padding: '3px 8px', borderRadius: 4, letterSpacing: '0.05em', maxWidth: 84, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const, display: 'block' }}>
                       {entry.biblicalRank.length > 16 ? entry.biblicalRank.slice(0, 16) + '…' : entry.biblicalRank}
@@ -4874,7 +4879,9 @@ function DatabaseView({ theme, isMobile, isTablet, userTier, demons: demonsProp 
             <div onClick={e => e.stopPropagation()}
               style={{ background: surf, border: `1px solid ${color}55`, borderLeft: `4px solid ${color}`, borderRadius: 12, width: isMobile ? '95vw' : '100%', maxWidth: isMobile ? '95vw' : isTablet ? '80vw' : 700, margin: isMobile ? '10px' : undefined, maxHeight: isMobile ? '85vh' : '85vh', overflowY: 'auto' as const, padding: 28, paddingBottom: 'max(28px, env(safe-area-inset-bottom, 28px))', position: 'relative', boxSizing: 'border-box' as const }}>
 
-              <div style={{ position: 'absolute', top: 14, right: 14 }}>
+              <div style={{ position: 'absolute', top: 14, right: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <button onClick={() => exportSpiritToPDF(entry)}
+                  style={{ background: 'transparent', border: `1px solid rgba(201,168,76,0.35)`, borderRadius: 6, padding: '5px 10px', color: dbIsDark ? G : '#8B6914', fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: 'pointer' }}>↓ EXPORT PDF</button>
                 <button onClick={closeModal}
                   style={{ background: 'transparent', border: 'none', color: mut, cursor: 'pointer', fontSize: 20, lineHeight: 1 }}>✕</button>
               </div>
@@ -8785,6 +8792,118 @@ function formatDeliveranceProtocolForExport(resultJson: any, spiritName: string,
     if (ac.followUpQuestions?.length) { lines.push('\n**Follow-Up Questions:**'); ac.followUpQuestions.forEach((s: string) => lines.push(`- ${s}`)) }
   }
   return lines.join('\n')
+}
+
+function formatSpiritDossierForExport(spirit: any): string {
+  const lines: string[] = []
+  lines.push(`# ${spirit.name || 'Unknown Spirit'}`)
+  if (spirit.aka) lines.push(`*Also known as: ${spirit.aka}*`)
+  if (spirit.equivalents) lines.push(`*Cross-cultural equivalents: ${spirit.equivalents}*`)
+  if (spirit.phonetic) lines.push(`*Pronunciation: /${spirit.phonetic}/*`)
+  const meta: string[] = []
+  if (spirit.kingdom) meta.push(`Kingdom: ${spirit.kingdom}`)
+  if (spirit.biblicalRank) meta.push(`Rank: ${spirit.biblicalRank}`)
+  if (spirit.typeRank) meta.push(`Type: ${spirit.typeRank}`)
+  if (spirit.isGenerational) meta.push('Generational')
+  if (spirit.isTerritorial) meta.push('Territorial')
+  if (meta.length) lines.push(`\n${meta.join(' · ')}`)
+  lines.push('')
+  const section = (label: string, value: string | string[] | null | undefined) => {
+    if (!value || (Array.isArray(value) && !value.length) || (typeof value === 'string' && !value.trim())) return
+    lines.push(`## ${label}`)
+    if (Array.isArray(value)) { value.forEach(v => { if (v) lines.push(`- ${v}`) }) }
+    else { lines.push(value) }
+    lines.push('')
+  }
+  section('Overview', spirit.description)
+  section('Assignment', spirit.assignment)
+  section('Etymology', spirit.etymologyNotes)
+  section('Cultural Presence', spirit.culturalPresence)
+  section('Manifestations', spirit.manifestation)
+  section('Entry Points & Gateways', spirit.entryPoints)
+  section('Legal Rights', spirit.legalRights)
+  section('Scripture References', spirit.scripture)
+  section('Scripture Context', spirit.scriptureContext)
+  section('Counter-Scriptures', spirit.counterScriptures)
+  section('Prayer Points', spirit.prayerPoints)
+  section('Session Indicators', spirit.sessionIndicators)
+  section('Resistance Signature', spirit.resistanceSignature)
+  section('Transmission Vectors', spirit.transmissionVectors)
+  section('Companion Spirits', spirit.companionSpirits)
+  section('Hierarchical Position', [spirit.hierarchyCategory, spirit.parentStrongman ? `Under: ${spirit.parentStrongman}` : ''].filter(Boolean).join(' · ') || null)
+  section('Deliverance Sequence', spirit.deliveranceSequence)
+  section('Primary Battlefield', spirit.primaryBattlefield)
+  section('Demonic Agreements', spirit.demonicAgreements)
+  section('Institutional Expression', spirit.institutionalExpression)
+  section('Symptoms', spirit.symptoms)
+  section('Aftercare Notes', spirit.aftercareNotes)
+  section('Operational Notes', spirit.operationalNotes)
+  section('WRI Exorcist Notes', spirit.wriNotes)
+  section('Archaeology Notes', spirit.archaeologyNotes)
+  section('Source & Origin', spirit.sourceOrigin)
+  return lines.join('\n')
+}
+
+function exportSpiritToPDF(spirit: any) {
+  const content = formatSpiritDossierForExport(spirit)
+  const date = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
+  const bodyHtml = content
+    .replace(/^### (.+)$/gm, '<h3>$1</h3>')
+    .replace(/^## (.+)$/gm, '<h2>$1</h2>')
+    .replace(/^# (.+)$/gm, '<h1>$1</h1>')
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*(.+?)\*/g, '<em>$1</em>')
+    .replace(/^- (.+)$/gm, '<li>$1</li>')
+    .replace(/(<li>.*<\/li>\n?)+/g, '<ul>$&</ul>')
+    .replace(/\n\n/g, '</p><p>')
+    .replace(/\n/g, '<br/>')
+  const html = `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8"/>
+<title>War Room Intel — ${spirit.name || 'Spirit Dossier'}</title>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Crimson+Text:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet"/>
+<style>
+  body { margin: 0; background: #fff; color: #1a1408; font-family: 'Crimson Text', Georgia, serif; font-size: 15px; line-height: 1.7; }
+  .page { max-width: 720px; margin: 0 auto; padding: 48px 48px 64px; }
+  .header { border-bottom: 2px solid #C9A84C; padding-bottom: 20px; margin-bottom: 32px; display: flex; justify-content: space-between; align-items: flex-end; }
+  .brand { font-family: 'Cinzel', serif; font-size: 22px; font-weight: 700; color: #1a1408; letter-spacing: 0.08em; }
+  .brand span { color: #C9A84C; }
+  .classification { font-family: 'Cinzel', serif; font-size: 9px; letter-spacing: 0.25em; color: #C9A84C; text-transform: uppercase; border: 1px solid #C9A84C; padding: 3px 8px; }
+  .date { font-family: 'Cinzel', serif; font-size: 10px; color: #8a7a60; letter-spacing: 0.1em; margin-top: 6px; }
+  .divider { border: none; border-top: 1px solid #d4b896; margin: 24px 0; }
+  h1 { font-family: 'Cinzel', serif; font-size: 16px; font-weight: 700; color: #1a1408; letter-spacing: 0.08em; margin: 24px 0 12px; }
+  h2 { font-family: 'Cinzel', serif; font-size: 14px; font-weight: 600; color: #3a2a10; letter-spacing: 0.06em; margin: 20px 0 10px; }
+  h3 { font-family: 'Cinzel', serif; font-size: 12px; font-weight: 600; color: #5a4a30; letter-spacing: 0.06em; margin: 16px 0 8px; }
+  p { margin: 0 0 12px; }
+  ul { padding-left: 0; list-style: none; margin: 8px 0 12px; }
+  li::before { content: '⚔ '; color: #C9A84C; }
+  li { margin: 4px 0; padding-left: 16px; text-indent: -16px; }
+  strong { color: #1a1408; font-weight: 600; }
+  em { color: #5a4a30; }
+  .footer { margin-top: 48px; padding-top: 16px; border-top: 1px solid #d4b896; display: flex; justify-content: space-between; font-family: 'Cinzel', serif; font-size: 9px; color: #8a7a60; letter-spacing: 0.1em; }
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="header">
+    <div>
+      <div class="brand">WAR ROOM <span>INTEL</span></div>
+      <div class="date">${date}</div>
+    </div>
+    <div class="classification">SPIRIT DOSSIER</div>
+  </div>
+  <div>${bodyHtml}</div>
+  <div class="footer">
+    <span>War Room Intel · A Ministry of Staffordtown Church · Copperhill, TN</span>
+    <span>warroomintel.com</span>
+  </div>
+</div>
+<script>window.onload = () => window.print()</script>
+</body>
+</html>`
+  const win = window.open('', '_blank')
+  if (win) { win.document.write(html); win.document.close() }
 }
 
 function renderSolInputSummary(jobType: string, params: any, txt: string, mut: string): React.ReactNode {
