@@ -112,6 +112,7 @@ Requirements: 3-5 legal grounds, 2-3 renunciation prayers, 2-3 command prayers, 
 
     await client.from('ai_jobs').update({
       status:        'complete',
+      stage:         'complete',
       progress:      100,
       completed_at:  new Date().toISOString(),
       model_used:    result.model,

@@ -202,6 +202,7 @@ export async function runGatewayInvestigation(client: any, job: any): Promise<vo
 
     await client.from('ai_jobs').update({
       status:        'complete',
+      stage:         'complete',
       progress:      100,
       completed_at:  new Date().toISOString(),
       model_used:    aiResult.model,

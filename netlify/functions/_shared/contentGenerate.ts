@@ -109,6 +109,7 @@ export async function runContentGeneration(client: any, job: any): Promise<void>
 
     await client.from('ai_jobs').update({
       status:        'complete',
+      stage:         'complete',
       progress:      100,
       completed_at:  new Date().toISOString(),
       model_used:    'claude-sonnet-4-5',

@@ -409,6 +409,7 @@ export async function runResearchDropSpirits(client: any, job: any): Promise<voi
 
     await client.from('ai_jobs').update({
       status:        'complete',
+      stage:         'complete',
       progress:      100,
       completed_at:  new Date().toISOString(),
       model_used:    'claude-sonnet-4-5',

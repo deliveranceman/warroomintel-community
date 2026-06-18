@@ -178,6 +178,7 @@ async function runPatristicScan(client: ReturnType<typeof sb>, job: any): Promis
 
     await client.from('ai_jobs').update({
       status:       'complete',
+      stage:        'complete',
       progress:     100,
       completed_at: new Date().toISOString(),
       model_used:   'claude-sonnet-4-5',
@@ -242,6 +243,7 @@ async function runSpiritEnrich(client: ReturnType<typeof sb>, job: any): Promise
 
     await client.from('ai_jobs').update({
       status:        'complete',
+      stage:         'complete',
       progress:      100,
       completed_at:  new Date().toISOString(),
       model_used:    result.model_used,

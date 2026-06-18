@@ -157,6 +157,7 @@ export async function runDreamInterpretation(client: any, job: any): Promise<voi
 
     await client.from('ai_jobs').update({
       status:        'complete',
+      stage:         'complete',
       progress:      100,
       completed_at:  new Date().toISOString(),
       model_used:    aiResult.model,
