@@ -1,6 +1,8 @@
 import { solCall } from './solClient'
 import { fillLayer2Prompt, type Layer2ExtractionInput, type Layer2ExtractionOutput } from './prompts/layer2Extraction'
 
+const MAX_OUTPUT_TOKENS = 8192
+
 export interface ExtractionResult {
   output: Layer2ExtractionOutput
   meta: {
@@ -24,7 +26,7 @@ export async function extractSpiritFromSource(
 
   const result = await solCall({
     tier:      options?.tier ?? 'standard',
-    maxTokens: 8192,
+    maxTokens: MAX_OUTPUT_TOKENS,
     messages:  [{ role: 'user', content: prompt }],
     meta: {
       userId:   options?.meta?.userId   ?? 'system',
@@ -34,6 +36,13 @@ export async function extractSpiritFromSource(
   })
 
   const durationMs = Date.now() - started
+
+  if (result.outputTokens >= MAX_OUTPUT_TOKENS * 0.97) {
+    throw new Error(
+      `Layer 2 extraction: output truncated at ${result.outputTokens}/${MAX_OUTPUT_TOKENS} tokens ` +
+      `(>= 97% threshold). Cannot safely parse. Reduce sourceText size or increase MAX_OUTPUT_TOKENS.`
+    )
+  }
 
   const cleaned = result.text
     .replace(/^```json\s*/i, '')
