@@ -5,6 +5,8 @@ import { solCall } from './_shared/solClient'
 import { LAYER2_FIELD_GENERATION_SYSTEM } from './_shared/prompts/layer2Extraction'
 import { applySpiritRegions } from './_shared/applySpiritRegions'
 import { applySpiritGateways } from './_shared/applySpiritGateways'
+import { applySpiritHierarchy } from './_shared/applySpiritHierarchy'
+import { applySpiritCompanions } from './_shared/applySpiritCompanions'
 
 const { url: supabaseUrl, serviceRoleKey: supabaseServiceKey } = JSON.parse(process.env.SUPABASE || '{}')
 const { token: airtableToken } = JSON.parse(process.env.AIRTABLE || '{}')
@@ -197,6 +199,8 @@ Return only the improved field text. No labels, no preamble, no explanation. If 
     // enrichment_rejected insert stay on Supabase regardless.
     let regionApplyResult: any = null
     let gatewayApplyResult: any = null
+    let hierarchyApplyResult: any = null
+    let companionsApplyResult: any = null
     let bootstrappedSpiritId: string | null = null
     if (USE_SUPABASE_DEMON_WRITES) {
       if (suggestion.action === 'enrich') {
@@ -361,6 +365,32 @@ Return only the improved field text. No labels, no preamble, no explanation. If 
           console.error('[library-enrich-apply] gateway fan-out failed:', gErr.message)
           gatewayApplyResult = { inserted: [], skipped: [], errors: [(gErr as any)?.message ?? String(gErr)] }
         }
+
+        // Hierarchy fan-out (Layer 3 strongman / parent_strongman) — non-blocking
+        try {
+          hierarchyApplyResult = await applySpiritHierarchy(
+            supabase,
+            row.id,
+            suggestion.layer2_raw?.layer3_network,
+            suggestionId,
+          )
+        } catch (hErr: any) {
+          console.error('[library-enrich-apply] hierarchy fan-out failed:', hErr.message)
+          hierarchyApplyResult = { inserted: [], skipped: [], errors: [(hErr as any)?.message ?? String(hErr)] }
+        }
+
+        // Companions fan-out (Layer 3 cluster / companion / related) — non-blocking
+        try {
+          companionsApplyResult = await applySpiritCompanions(
+            supabase,
+            row.id,
+            suggestion.layer2_raw?.layer3_network,
+            suggestionId,
+          )
+        } catch (cErr: any) {
+          console.error('[library-enrich-apply] companions fan-out failed:', cErr.message)
+          companionsApplyResult = { inserted: [], skipped: [], errors: [(cErr as any)?.message ?? String(cErr)] }
+        }
       } else if (suggestion.action === 'add') {
         const { error: createErr } = await createSpirit(supabase, proposedFields, suggestion.spirit_name)
         if (createErr) return new Response(JSON.stringify({ error: `Supabase create failed: ${createErr}` }), { status: 500, headers: CORS })
@@ -433,7 +463,7 @@ Return only the improved field text. No labels, no preamble, no explanation. If 
       .update({ status: 'applied', applied_at: new Date().toISOString() })
       .eq('id', suggestionId)
 
-    return new Response(JSON.stringify({ success: true, action: 'approved', spiritName: suggestion.spirit_name, regionApply: regionApplyResult, gatewayApply: gatewayApplyResult, ...(bootstrappedSpiritId ? { bootstrappedSpiritId } : {}) }), { status: 200, headers: CORS })
+    return new Response(JSON.stringify({ success: true, action: 'approved', spiritName: suggestion.spirit_name, regionApply: regionApplyResult, gatewayApply: gatewayApplyResult, hierarchyApply: hierarchyApplyResult, companionsApply: companionsApplyResult, ...(bootstrappedSpiritId ? { bootstrappedSpiritId } : {}) }), { status: 200, headers: CORS })
   } catch (e: any) {
     console.error('[ENRICH-APPLY] Error:', e.message)
     return new Response(JSON.stringify({ error: e.message }), { status: 500, headers: CORS })
