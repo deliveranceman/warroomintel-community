@@ -12,7 +12,7 @@
 // REQUIRES JUSTIN: Weekly Intel post "Oppression vs. Possession" body is empty — add content in admin.
 //   Stream credentials must be set in Netlify env as STREAM JSON: {"appId":"...","apiKey":"...","apiSecret":"..."}.
 //   Testimony "pending" needs minister approval via admin panel PATCH /api/testimonies.
-import { createFileRoute, useLocation } from '@tanstack/react-router'
+import { createFileRoute, useLocation, useNavigate } from '@tanstack/react-router'
 import { useAuth, useUser } from '@clerk/tanstack-start'
 import { getAccessLevel } from '../lib/access'
 import { callCheckoutApi } from '../lib/upgrade'
@@ -3994,7 +3994,7 @@ function parseSpiritNames(text: string): string[] {
     .filter((p, i, arr) => arr.indexOf(p) === i)
 }
 
-function DatabaseView({ theme, isMobile, isTablet, userTier, demons: demonsProp = [], setActiveSection, setDossierTabBarHidden, filterSheetOpen, setFilterSheetOpen, setFilterCount }: {
+function DatabaseView({ theme, isMobile, isTablet, userTier, demons: demonsProp = [], setActiveSection: _setActiveSection, setDossierTabBarHidden, filterSheetOpen, setFilterSheetOpen, setFilterCount }: {
   theme: string
   isMobile: boolean
   isTablet: boolean
@@ -4106,25 +4106,6 @@ function DatabaseView({ theme, isMobile, isTablet, userTier, demons: demonsProp 
     }
   }, [])
 
-  useEffect(() => {
-    const jump = localStorage.getItem('wri_jump_to_spirit')
-    if (jump && demonsProp.length > 0) {
-      const match = demonsProp.find((d: any) => d.name?.toLowerCase() === jump.toLowerCase())
-      if (match) {
-        setSpiritStack([])
-        setSelectedEntry(match)
-        localStorage.removeItem('wri_jump_to_spirit')
-        const invData = localStorage.getItem('wri_protocol_inv_data')
-        if (invData) {
-          try {
-            setInvFromInvestigator(JSON.parse(invData))
-            setModalTab('protocol')
-          } catch {}
-          localStorage.removeItem('wri_protocol_inv_data')
-        }
-      }
-    }
-  }, [demonsProp])
 
   useEffect(() => {
     setOpenSections(new Set(['overview']))
@@ -4142,11 +4123,6 @@ function DatabaseView({ theme, isMobile, isTablet, userTier, demons: demonsProp 
     setSpiritStack([])
     setSigilLightboxOpen(false)
     setSelectedEntry(null)
-    const returnTo = localStorage.getItem('wri_jump_from')
-    if (returnTo && setActiveSection) {
-      localStorage.removeItem('wri_jump_from')
-      setActiveSection(returnTo)
-    }
   }
 
   function handleDossierScroll() {
@@ -6522,10 +6498,11 @@ const CONFIDENCE_COLORS = {
 }
 
 // ── INVESTIGATOR VIEW ──────────────────────────────────────
-function InvestigatorView({ theme, userTier: _userTier, isMobile, setActiveSection }: {
-  theme: string; userTier: string; isMobile: boolean; setSidebarOpen: (v: boolean) => void; setActiveSection?: (s: string) => void
+function InvestigatorView({ theme, userTier: _userTier, isMobile, setActiveSection, demons = [] }: {
+  theme: string; userTier: string; isMobile: boolean; setSidebarOpen: (v: boolean) => void; setActiveSection?: (s: string) => void; demons?: any[]
 }) {
   const isDark = theme !== 'light'
+  const navigate = useNavigate()
   const { getToken } = useAuth()
   const [invInput, setInvInput]   = useState('')
   const [invLoading, setInvLoading] = useState(false)
@@ -6755,12 +6732,13 @@ function InvestigatorView({ theme, userTier: _userTier, isMobile, setActiveSecti
                 </div>
                 <button onClick={() => {
                   const topSpirit = invResult!.probableSpirits[0]
-                  localStorage.setItem('wri_jump_to_spirit', topSpirit.name)
                   localStorage.setItem('wri_protocol_inv_data', JSON.stringify({
                     symptoms: invInput,
                     probableSpirits: invResult!.probableSpirits,
                   }))
-                  setActiveSection('database')
+                  const slug = demons.find((d: any) => d.name?.toLowerCase() === topSpirit.name.toLowerCase())?.slug
+                  if (slug) navigate({ to: '/community/spirits/$spiritId', params: { spiritId: slug } })
+                  else setActiveSection?.('database')
                 }} style={{ background: G, color: '#0D0B14', fontFamily: cinzel, fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', padding: '10px 28px', borderRadius: 6, border: 'none', cursor: 'pointer' }}>
                   ⚔ LAUNCH PROTOCOL ENGINE →
                 </button>
@@ -7748,8 +7726,9 @@ function bmPos(r: AtlasRegion, f: BMFigure): { px: number; py: number } {
   return { px, py }
 }
 
-function BodyMapView({ isMobile, setSidebarOpen, setActiveSection, getToken, isAdmin }: any) {
+function BodyMapView({ isMobile, setSidebarOpen, setActiveSection, getToken, isAdmin, demons = [] }: any) {
   const GC = '#C9A84C'
+  const navigate = useNavigate()
 
   const [systems,       setSystems]       = useState<AtlasSystem[]>([])
   const [regions,       setRegions]       = useState<AtlasRegion[]>([])
@@ -7982,8 +7961,9 @@ function BodyMapView({ isMobile, setSidebarOpen, setActiveSection, getToken, isA
   }
 
   function jumpToSpirit(name: string) {
-    try { localStorage.setItem('wri_jump_to_spirit', name); localStorage.setItem('wri_jump_from', 'body-map') } catch {}
-    setActiveSection('database')
+    const slug = demons.find((d: any) => d.name?.toLowerCase() === name.toLowerCase())?.slug
+    if (slug) navigate({ to: '/community/spirits/$spiritId', params: { spiritId: slug } })
+    else if (setActiveSection) setActiveSection('database')
     if (isMobile) setSidebarOpen(false)
   }
 
@@ -13851,6 +13831,7 @@ function CommunityPage() {
   const { isLoaded, isSignedIn, signOut, getToken } = useAuth()
   const { user } = useUser()
   const location = useLocation()
+  const navigate = useNavigate()
   const isAdminPage = location.pathname.startsWith('/admin')
 
   const [theme, setTheme] = useState<'dark' | 'light'>(() => {
@@ -15729,7 +15710,7 @@ function CommunityPage() {
       ) : <MembersView members={members} currentUserId={user?.id || ''} currentUserTier={(user?.publicMetadata?.tier as string) || 'Watchman'} currentUserRole={(user?.publicMetadata?.role as string) || 'member'} onViewProfile={setViewingProfile} onStartDM={(memberId, memberName) => { setPendingDMWith(memberId); setPendingDmName(memberName); setActiveSection('dms') }} onRequestSentinel={async (memberId, memberName) => { const t = await getToken(); if (!t) return; await fetch('/api/stream-messages?action=request-sentinel', { method: 'POST', headers: { Authorization: `Bearer ${t}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ recipientId: memberId, recipientName: memberName }) }).catch(() => {}) }} setActiveSection={setActiveSection} isDark={theme !== 'light'} isMobile={isMobile} />)}
       {activeSection === 'database'       && <div style={{ position: 'relative', flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}><DatabaseView theme={theme} isMobile={isMobile} isTablet={isTablet} setSidebarOpen={setSidebarOpen} userTier={tier} demons={demons} setActiveSection={setActiveSection} setDossierTabBarHidden={setDossierTabBarHidden} filterSheetOpen={dbFilterSheetOpen} setFilterSheetOpen={setDbFilterSheetOpen} setFilterCount={setDbFilterCount} /><OnboardingOverlay storageKey="onboard_intel_archive" icon="📚" title="INTEL ARCHIVE" points={['Search 285+ spirits by name, kingdom, or manifestation','Click any spirit to open a full intelligence dossier with 4 tabs','Use AI Enhance to deepen any entry with ministry context','Companion spirits are clickable — explore the full demonic hierarchy']} isDark={isDark} /></div>}
       {activeSection === 'investigate'    && (tierLevel >= 2
-        ? <InvestigatorView theme={theme} userTier={tier} isMobile={isMobile} setSidebarOpen={setSidebarOpen} setActiveSection={setActiveSection} />
+        ? <InvestigatorView theme={theme} userTier={tier} isMobile={isMobile} setSidebarOpen={setSidebarOpen} setActiveSection={setActiveSection} demons={demons} />
         : <div style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', background: isDark ? '#0D0B14' : '#FAF8F5', padding:'40px 20px' }}>
             <UpgradeGate variant="screen" requiredTier="commander" featureName="Symptom Investigator" description="The Symptom Investigator is a SOL-powered operational intelligence tool available to Commander and General members." isDark={isDark} />
           </div>
@@ -15739,7 +15720,7 @@ function CommunityPage() {
       {activeSection === 'assessment'     && <AssessmentUploadView theme={theme} isMobile={isMobile} setSidebarOpen={setSidebarOpen} tier={tier} tierLevel={tierLevel} user={user} getToken={getToken} />}
       {activeSection === 'help'           && <HelpSection />}
       {activeSection === 'fringe-feed'    && <FringeIntelView theme={theme} isMobile={isMobile} setSidebarOpen={setSidebarOpen} userTier={tier} />}
-      {activeSection === 'body-map'       && (tierLevel >= 2 ? <BodyMapBoundary><BodyMapView isMobile={isMobile} setSidebarOpen={setSidebarOpen} setActiveSection={setActiveSection} getToken={getToken} isAdmin={(user?.publicMetadata?.role as string) === 'minister'} /></BodyMapBoundary> : <div style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', background: isDark ? '#0D0B14' : '#FAF8F5', padding:'40px 20px' }}><div style={{ textAlign:'center', maxWidth:480 }}><div style={{ fontSize:40, color:G, marginBottom:20 }}>⚔</div><h2 style={{ fontFamily:cinzel, color:G, fontSize:20, marginBottom:12 }}>COMMANDER TIER REQUIRED</h2><button onClick={() => beginUpgrade('commander')} style={{ display:'inline-block', background:G, color:'#0D0B14', fontFamily:cinzel, fontSize:12, fontWeight:700, letterSpacing:'0.08em', padding:'10px 28px', borderRadius:6, border:'none', cursor:'pointer' }}>Upgrade to Commander</button></div></div>)}
+      {activeSection === 'body-map'       && (tierLevel >= 2 ? <BodyMapBoundary><BodyMapView isMobile={isMobile} setSidebarOpen={setSidebarOpen} setActiveSection={setActiveSection} getToken={getToken} isAdmin={(user?.publicMetadata?.role as string) === 'minister'} demons={demons} /></BodyMapBoundary> : <div style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', background: isDark ? '#0D0B14' : '#FAF8F5', padding:'40px 20px' }}><div style={{ textAlign:'center', maxWidth:480 }}><div style={{ fontSize:40, color:G, marginBottom:20 }}>⚔</div><h2 style={{ fontFamily:cinzel, color:G, fontSize:20, marginBottom:12 }}>COMMANDER TIER REQUIRED</h2><button onClick={() => beginUpgrade('commander')} style={{ display:'inline-block', background:G, color:'#0D0B14', fontFamily:cinzel, fontSize:12, fontWeight:700, letterSpacing:'0.08em', padding:'10px 28px', borderRadius:6, border:'none', cursor:'pointer' }}>Upgrade to Commander</button></div></div>)}
       {activeSection === 'spirit-network' && (tierLevel >= 2
         ? <div style={{ position: 'relative', flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
             <SpiritNetwork demons={demons} isDark={isDark} isMobile={isMobile} userTier={tier} userId={user?.id || ''} onNavigateTo={(section: string) => setActiveSection(section)} getToken={getToken} />
@@ -16304,7 +16285,7 @@ function CommunityPage() {
           </div>
         )}
         {activeSection === 'investigate' && (tierLevel >= 2
-          ? <InvestigatorView theme={theme} userTier={tier} isMobile={isMobile} setSidebarOpen={setSidebarOpen} setActiveSection={setActiveSection} />
+          ? <InvestigatorView theme={theme} userTier={tier} isMobile={isMobile} setSidebarOpen={setSidebarOpen} setActiveSection={setActiveSection} demons={demons} />
           : <div style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', background: isDark ? '#0D0B14' : '#FAF8F5', padding:'40px 20px' }}>
               <UpgradeGate variant="screen" requiredTier="commander" featureName="Symptom Investigator" description="The Symptom Investigator is a SOL-powered operational intelligence tool available to Commander and General members." isDark={isDark} />
             </div>
@@ -16468,7 +16449,7 @@ function CommunityPage() {
         {activeSection === 'fringe-feed' && <FringeIntelView theme={theme} isMobile={isMobile} setSidebarOpen={setSidebarOpen} userTier={tier} />}
         {activeSection === 'body-map' && (
           tierLevel >= 2
-            ? <BodyMapBoundary><BodyMapView isMobile={isMobile} setSidebarOpen={setSidebarOpen} setActiveSection={setActiveSection} getToken={getToken} isAdmin={(user?.publicMetadata?.role as string) === 'minister'} /></BodyMapBoundary>
+            ? <BodyMapBoundary><BodyMapView isMobile={isMobile} setSidebarOpen={setSidebarOpen} setActiveSection={setActiveSection} getToken={getToken} isAdmin={(user?.publicMetadata?.role as string) === 'minister'} demons={demons} /></BodyMapBoundary>
             : <div style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', background: isDark ? '#0D0B14' : '#FAF8F5', padding:'40px 20px' }}>
                 <div style={{ textAlign:'center', maxWidth:480 }}>
                   <div style={{ fontSize:40, color:G, marginBottom:20, fontFamily:cinzel }}>⚔</div>
@@ -17001,9 +16982,9 @@ function CommunityPage() {
                         ) : (
                           [...demons].sort((a: any, b: any) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime()).slice(0, 10).map((d: any) => (
                             <TacticalCard key={d.id || d.name} padding="8px 10px" onClick={() => {
-                              try { localStorage.setItem('wri_jump_to_spirit', d.name); localStorage.setItem('wri_jump_from', 'intel') } catch {}
-                              setActiveSection('database')
                               setActiveRailSection(null)
+                              if (d.slug) navigate({ to: '/community/spirits/$spiritId', params: { spiritId: d.slug } })
+                              else setActiveSection('database')
                             }}>
                               <div style={{ fontFamily: cinzel, fontSize: 11, color: 'var(--t-0)', letterSpacing: '0.04em', marginBottom: 3 }}>{d.name}</div>
                               {d.hierarchyCategory && <div style={{ fontSize: 10, color: 'var(--t-4)', fontFamily: 'var(--font-mono)' }}>{d.hierarchyCategory}</div>}
