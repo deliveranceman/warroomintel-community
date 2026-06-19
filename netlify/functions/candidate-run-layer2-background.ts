@@ -65,7 +65,7 @@ export default async function handler(req: Request) {
     // Fetch candidate (include status for guard check)
     const { data: candidate, error: candErr } = await client
       .from('spirit_candidates')
-      .select('id, name, source_id, source_name, source_type, is_adversarial, ai_notes, function, manifestations, also_known_as, status')
+      .select('id, name, source_id, source_name, source_type, is_adversarial, ai_notes, function, manifestations, also_known_as, status, last_extraction_at')
       .eq('id', candidateId)
       .single()
 
@@ -91,6 +91,39 @@ export default async function handler(req: Request) {
     if (!candidate.source_id) {
       await writeFailure('no_source: Candidate has no source reference')
       return
+    }
+
+    // Idempotency window: if this candidate was extracted very recently
+    // AND existing LES rows for (resource_id, spirit_name) have substantive
+    // layer2_raw, skip this invocation. Prevents accidental dupes from
+    // re-fires or platform-level retries. Justin's design call: 10 minute window.
+    const IDEMPOTENCY_WINDOW_MIN = 10
+
+    if (candidate.last_extraction_at) {
+      const lastMs = new Date(candidate.last_extraction_at).getTime()
+      const ageMin = (Date.now() - lastMs) / 60000
+      if (ageMin < IDEMPOTENCY_WINDOW_MIN) {
+        // Check whether existing LES rows have substantive content
+        const { data: existingLES } = await client
+          .from('library_enrichment_suggestions')
+          .select('id, layer2_raw')
+          .eq('resource_id', candidate.source_id)
+          .ilike('spirit_name', candidate.name)
+          .not('layer2_raw', 'is', null)
+          .limit(1)
+        if (existingLES && existingLES.length > 0) {
+          console.log(
+            `[candidate-run-layer2-background] skipping: candidate ${candidateId} ` +
+            `extracted ${ageMin.toFixed(1)}min ago, existing LES ${existingLES[0].id} ` +
+            `has substantive layer2_raw. Idempotency window: ${IDEMPOTENCY_WINDOW_MIN}min.`
+          )
+          await client.from('spirit_candidates').update({
+            last_extraction_at:    new Date().toISOString(),
+            last_extraction_error: `skipped: idempotency window (${ageMin.toFixed(1)}min ago, existing LES ${existingLES[0].id})`,
+          }).eq('id', candidateId)
+          return
+        }
+      }
     }
 
     // Build enriched query string — semantic weight beyond a bare 2-word name
