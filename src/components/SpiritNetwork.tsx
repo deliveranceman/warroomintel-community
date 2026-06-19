@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect } from 'react'
+import { InvestigationViewBar } from '@/components/InvestigationViewBar'
 
 const cinzel = "'Cinzel', serif"
 const inter  = 'Inter, system-ui, sans-serif'
@@ -1043,6 +1044,7 @@ Be direct and practical. This is for active ministry use.`,
   // ── DESKTOP ─────────────────────────────────────────────────────────────────
   return (
     <div style={{ display: 'flex', flexDirection: 'column' as const, height: '100%', background: DARK, overflow: 'hidden' }}>
+      <InvestigationViewBar />
 
       {/* TOP BAR */}
       <div style={{ height: 56, display: 'flex', alignItems: 'center', gap: 16, padding: '0 20px', borderBottom: `1px solid ${BDR}`, background: DARK, flexShrink: 0, zIndex: 10 }}>

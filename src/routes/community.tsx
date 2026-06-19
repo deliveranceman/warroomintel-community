@@ -19,6 +19,7 @@ import { callCheckoutApi } from '../lib/upgrade'
 import { UpgradeGate } from '@/components/UpgradeGate'
 import React, { useState, useEffect, useRef, useCallback, useContext } from 'react'
 import { SpiritNetwork } from '@/components/SpiritNetwork'
+import { InvestigationViewBar } from '@/components/InvestigationViewBar'
 import { SessionCommandCenter } from '@/components/SessionCommandCenter'
 import { BottomNav, TacticalCard, ClassBadge, HUDChip, MonoTime, ThreatBar, SectionLabel, StatusDot } from '@/components/primitives'
 import { WRITabBar } from '@/components/WRITabBar'
@@ -8237,6 +8238,7 @@ function BodyMapView({ isMobile, setSidebarOpen, setActiveSection, getToken, isA
 
   return (
     <div style={{ height: '100%', overflow: 'hidden', display: 'flex', flexDirection: 'column', background: '#09070F', position: 'relative' }}>
+      <InvestigationViewBar />
       <style>{`@keyframes bmDot{0%,100%{opacity:0.7}50%{opacity:1}}.bm-dot{animation:bmDot 2.2s ease-in-out infinite}`}</style>
 
       {/* Header */}
