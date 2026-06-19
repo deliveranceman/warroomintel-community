@@ -2,6 +2,7 @@ import { createFileRoute } from '@tanstack/react-router'
 import { useAuth, useUser } from '@clerk/tanstack-start'
 import { useState, useEffect } from 'react'
 import { CommunitySidebarShell } from '@/components/CommunitySidebarShell'
+import { getAccessLevel } from '@/lib/access'
 
 const MobileSubpageNav = () => (
   <>
@@ -46,8 +47,6 @@ const MUT     = '#6b5e45'
 const cinzel  = "'Cinzel', serif"
 const mono    = "'JetBrains Mono', monospace"
 const crimson = "'Crimson Pro', serif"
-
-const TIER_LEVELS: Record<string, number> = { watchman: 0, free: 0, soldier: 1, commander: 2, general: 3, minister: 99 }
 
 type View = 'list' | 'detail' | 'new-case' | 'new-session' | 'edit-session'
 
@@ -170,8 +169,7 @@ function FieldOpsPage() {
 
   const tier    = ((user?.publicMetadata?.tier as string) || '').toLowerCase()
   const role    = (user?.publicMetadata?.role as string) || ''
-  const tierLvl = TIER_LEVELS[tier] ?? 0
-  const isCommanderPlus = tierLvl >= 2 || role === 'minister'
+  const isCommanderPlus = getAccessLevel({ tier, role }) >= 2
   const foUserName      = user?.firstName || user?.username || ''
   const foUserTierLabel = tier === 'watchman' || tier === 'free' || !tier ? 'WATCHMAN' : tier.toUpperCase()
 

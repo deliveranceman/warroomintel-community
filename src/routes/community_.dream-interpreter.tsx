@@ -5,6 +5,7 @@ import { ChevronDown, ChevronUp } from 'lucide-react'
 import { CommunitySidebarShell } from '@/components/CommunitySidebarShell'
 import { callCheckoutApi } from '@/lib/upgrade'
 import { useIsDark } from '@/lib/use-is-dark'
+import { getAccessLevel } from '@/lib/access'
 
 export const Route = createFileRoute('/community_/dream-interpreter')({
   ssr: false,
@@ -22,8 +23,6 @@ const MUT    = '#6b5e45'
 const cinzel = "'Cinzel', serif"
 const mono   = "'JetBrains Mono', monospace"
 const crimson = "'Crimson Pro', serif"
-
-const TIER_LEVELS: Record<string, number> = { watchman: 0, free: 0, soldier: 1, commander: 2, general: 3, minister: 99 }
 
 interface DreamReport {
   verdict: 'prophetic' | 'warning' | 'deliverance' | 'trauma' | 'mixed'
@@ -261,8 +260,7 @@ function DreamInterpreterPage() {
 
   const tier     = ((user?.publicMetadata?.tier as string) || '').toLowerCase()
   const role     = (user?.publicMetadata?.role as string) || ''
-  const tierLvl  = TIER_LEVELS[tier] ?? 0
-  const hasAccess = tierLvl >= 1 || role === 'minister'
+  const hasAccess = getAccessLevel({ tier, role }) >= 1
   const dreUserName      = user?.firstName || user?.username || ''
   const dreUserTierLabel = tier === 'watchman' || tier === 'free' || !tier ? 'WATCHMAN' : tier.toUpperCase()
 
