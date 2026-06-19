@@ -6739,7 +6739,7 @@ function InvestigatorView({ theme, userTier: _userTier, isMobile, setActiveSecti
                   const slug = demons.find((d: any) => d.name?.toLowerCase() === topSpirit.name.toLowerCase())?.slug
                   if (slug) navigate({ to: '/community/spirits/$spiritId', params: { spiritId: slug } })
                   else setActiveSection?.('database')
-                }} style={{ background: G, color: '#0D0B14', fontFamily: cinzel, fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', padding: '10px 28px', borderRadius: 6, border: 'none', cursor: 'pointer' }}>
+                }} style={{ background: isDark ? G : '#A57D1F', color: '#0D0B14', fontFamily: cinzel, fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', padding: '10px 28px', borderRadius: 6, border: 'none', cursor: 'pointer' }}>
                   ⚔ LAUNCH PROTOCOL ENGINE →
                 </button>
               </div>
@@ -6895,7 +6895,7 @@ function GatewayInvestigatorView({ theme, userTier: _userTier, isMobile, setSide
 
             {/* Summary */}
             {report.summary && (
-              <div style={{ padding: '16px 20px', marginBottom: 24, background: 'rgba(201,168,76,0.06)', border: '1px solid #3a3020', borderLeft: '3px solid #C9A84C', borderRadius: 6 }}>
+              <div style={{ padding: '16px 20px', marginBottom: 24, background: 'rgba(201,168,76,0.06)', border: `1px solid ${isDark ? '#3a3020' : bdr}`, borderLeft: `3px solid ${isDark ? G : '#8B6914'}`, borderRadius: 6 }}>
                 <div style={{ fontFamily: cinzel, fontSize: 10, color: isDark ? G : '#8B6914', letterSpacing: '0.12em', marginBottom: 8 }}>INTELLIGENCE SUMMARY</div>
                 <div style={{ fontFamily: "'Crimson Pro', serif", fontSize: 16, color: isDark ? '#a89878' : '#4a3a2a', lineHeight: 1.7 }}>
                   {report.summary}
