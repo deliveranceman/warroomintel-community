@@ -31,6 +31,7 @@ import { Route as AdminIndexRouteImport } from './routes/admin.index'
 import { Route as ProductsProductIdRouteImport } from './routes/products/$productId'
 import { Route as CommunitySpiritualMappingRouteImport } from './routes/community_.spiritual-mapping'
 import { Route as CommunitySearchRouteImport } from './routes/community_.search'
+import { Route as CommunityArsenalResourceIdRouteImport } from './routes/community_.arsenal.$resourceId'
 import { Route as CommunitySpiritsSpiriIdRouteImport } from './routes/community_.spirits.$spiritId'
 import { Route as CommunityScriptureRouteImport } from './routes/community_.scripture'
 import { Route as CommunityQrfRouteImport } from './routes/community_.qrf'
@@ -173,6 +174,11 @@ const CommunitySpiritualMappingRoute =
 const CommunitySearchRoute = CommunitySearchRouteImport.update({
   id: '/community_/search',
   path: '/community/search',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CommunityArsenalResourceIdRoute = CommunityArsenalResourceIdRouteImport.update({
+  id: '/community_/arsenal/$resourceId',
+  path: '/community/arsenal/$resourceId',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CommunitySpiritsSpiriIdRoute = CommunitySpiritsSpiriIdRouteImport.update({
@@ -389,6 +395,7 @@ export interface FileRoutesByFullPath {
   '/community/qrf': typeof CommunityQrfRoute
   '/community/scripture': typeof CommunityScriptureRoute
   '/community/search': typeof CommunitySearchRoute
+  '/community/arsenal/$resourceId': typeof CommunityArsenalResourceIdRoute
   '/community/spiritual-mapping': typeof CommunitySpiritualMappingRoute
   '/community/spirits/$spiritId': typeof CommunitySpiritsSpiriIdRoute
   '/products/$productId': typeof ProductsProductIdRoute
@@ -444,6 +451,7 @@ export interface FileRoutesByTo {
   '/community/qrf': typeof CommunityQrfRoute
   '/community/scripture': typeof CommunityScriptureRoute
   '/community/search': typeof CommunitySearchRoute
+  '/community/arsenal/$resourceId': typeof CommunityArsenalResourceIdRoute
   '/community/spiritual-mapping': typeof CommunitySpiritualMappingRoute
   '/community/spirits/$spiritId': typeof CommunitySpiritsSpiriIdRoute
   '/products/$productId': typeof ProductsProductIdRoute
@@ -493,6 +501,7 @@ export interface FileRoutesById {
   '/api/update-profile': typeof ApiUpdateProfileRoute
   '/api/user-tier': typeof ApiUserTierRoute
   '/api/warroom-chat': typeof ApiWarroomChatRoute
+  '/community_/arsenal/$resourceId': typeof CommunityArsenalResourceIdRoute
   '/community_/ask-sol': typeof CommunityAskSolRoute
   '/community_/dream-interpreter': typeof CommunityDreamInterpreterRoute
   '/community_/field-manual': typeof CommunityFieldManualRoute
@@ -559,6 +568,7 @@ export interface FileRouteTypes {
     | '/community/qrf'
     | '/community/scripture'
     | '/community/search'
+    | '/community/arsenal/$resourceId'
     | '/community/spiritual-mapping'
     | '/community/spirits/$spiritId'
     | '/products/$productId'
@@ -614,6 +624,7 @@ export interface FileRouteTypes {
     | '/community/qrf'
     | '/community/scripture'
     | '/community/search'
+    | '/community/arsenal/$resourceId'
     | '/community/spiritual-mapping'
     | '/community/spirits/$spiritId'
     | '/products/$productId'
@@ -666,6 +677,7 @@ export interface FileRouteTypes {
     | '/community_/dream-interpreter'
     | '/community_/field-manual'
     | '/community_/field-ops'
+    | '/community_/arsenal/$resourceId'
     | '/community_/forum'
     | '/community_/qrf'
     | '/community_/scripture'
@@ -725,6 +737,7 @@ export interface RootRouteChildren {
   CommunityQrfRoute: typeof CommunityQrfRoute
   CommunityScriptureRoute: typeof CommunityScriptureRoute
   CommunitySearchRoute: typeof CommunitySearchRoute
+  CommunityArsenalResourceIdRoute: typeof CommunityArsenalResourceIdRoute
   CommunitySpiritualMappingRoute: typeof CommunitySpiritualMappingRoute
   CommunitySpiritsSpiriIdRoute: typeof CommunitySpiritsSpiriIdRoute
   ProductsProductIdRoute: typeof ProductsProductIdRoute
@@ -884,6 +897,13 @@ declare module '@tanstack/react-router' {
       path: '/community/search'
       fullPath: '/community/search'
       preLoaderRoute: typeof CommunitySearchRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/community_/arsenal/$resourceId': {
+      id: '/community_/arsenal/$resourceId'
+      path: '/community/arsenal/$resourceId'
+      fullPath: '/community/arsenal/$resourceId'
+      preLoaderRoute: typeof CommunityArsenalResourceIdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/community_/spirits/$spiritId': {
@@ -1176,6 +1196,7 @@ const rootRouteChildren: RootRouteChildren = {
   CommunityQrfRoute: CommunityQrfRoute,
   CommunityScriptureRoute: CommunityScriptureRoute,
   CommunitySearchRoute: CommunitySearchRoute,
+  CommunityArsenalResourceIdRoute: CommunityArsenalResourceIdRoute,
   CommunitySpiritualMappingRoute: CommunitySpiritualMappingRoute,
   CommunitySpiritsSpiriIdRoute: CommunitySpiritsSpiriIdRoute,
   ProductsProductIdRoute: ProductsProductIdRoute,
