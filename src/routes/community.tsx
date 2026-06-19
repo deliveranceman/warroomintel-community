@@ -1642,6 +1642,12 @@ function DailyDevotionView({ theme, isMobile, userTier, userId: _userId }: any) 
             style={{ background: surf, border: `1px solid ${bdr}`, borderRadius: 6, color: mut, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.1em', cursor: 'pointer', padding: '6px 12px' }}>
             ARCHIVE
           </button>
+          {devotion && (
+            <button onClick={() => exportDailyBriefToPDF(devotion, currentDate)}
+              style={{ background: 'transparent', border: `1px solid ${GD}66`, borderRadius: 6, color: GD, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.1em', cursor: 'pointer', padding: '6px 12px' }}>
+              ↓ EXPORT
+            </button>
+          )}
         </div>
       </div>
 
@@ -8892,6 +8898,94 @@ function exportSpiritToPDF(spirit: any) {
       <div class="date">${date}</div>
     </div>
     <div class="classification">SPIRIT DOSSIER</div>
+  </div>
+  <div>${bodyHtml}</div>
+  <div class="footer">
+    <span>War Room Intel · A Ministry of Staffordtown Church · Copperhill, TN</span>
+    <span>warroomintel.com</span>
+  </div>
+</div>
+<script>window.onload = () => window.print()</script>
+</body>
+</html>`
+  const win = window.open('', '_blank')
+  if (win) { win.document.write(html); win.document.close() }
+}
+
+function formatDailyBriefForExport(devotion: any, dateStr: string): string {
+  const lines: string[] = []
+  const displayDate = (() => {
+    try { return new Date(dateStr + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) } catch { return dateStr }
+  })()
+  lines.push(`# Daily Brief — ${displayDate}`)
+  if (devotion.title) lines.push(`\n**${devotion.title}**`)
+  lines.push('')
+  const section = (label: string, value: string | null | undefined) => {
+    if (!value?.trim()) return
+    lines.push(`## ${label}`)
+    lines.push(value.trim())
+    lines.push('')
+  }
+  if (devotion.scripture) {
+    lines.push('## Scripture')
+    lines.push(`*"${devotion.scripture}"*`)
+    if (devotion.scripture_reference) lines.push(`— ${devotion.scripture_reference}`)
+    lines.push('')
+  }
+  section('Morning Briefing', devotion.devotional_text)
+  section('Morning Prayer', devotion.morning_prayer)
+  section('Evening Prayer', devotion.evening_prayer)
+  return lines.join('\n')
+}
+
+function exportDailyBriefToPDF(devotion: any, dateStr: string) {
+  const content = formatDailyBriefForExport(devotion, dateStr)
+  const date = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
+  const bodyHtml = content
+    .replace(/^### (.+)$/gm, '<h3>$1</h3>')
+    .replace(/^## (.+)$/gm, '<h2>$1</h2>')
+    .replace(/^# (.+)$/gm, '<h1>$1</h1>')
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*(.+?)\*/g, '<em>$1</em>')
+    .replace(/^- (.+)$/gm, '<li>$1</li>')
+    .replace(/(<li>.*<\/li>\n?)+/g, '<ul>$&</ul>')
+    .replace(/\n\n/g, '</p><p>')
+    .replace(/\n/g, '<br/>')
+  const html = `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8"/>
+<title>War Room Intel — Daily Brief</title>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Crimson+Text:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet"/>
+<style>
+  body { margin: 0; background: #fff; color: #1a1408; font-family: 'Crimson Text', Georgia, serif; font-size: 15px; line-height: 1.7; }
+  .page { max-width: 720px; margin: 0 auto; padding: 48px 48px 64px; }
+  .header { border-bottom: 2px solid #C9A84C; padding-bottom: 20px; margin-bottom: 32px; display: flex; justify-content: space-between; align-items: flex-end; }
+  .brand { font-family: 'Cinzel', serif; font-size: 22px; font-weight: 700; color: #1a1408; letter-spacing: 0.08em; }
+  .brand span { color: #C9A84C; }
+  .classification { font-family: 'Cinzel', serif; font-size: 9px; letter-spacing: 0.25em; color: #C9A84C; text-transform: uppercase; border: 1px solid #C9A84C; padding: 3px 8px; }
+  .date { font-family: 'Cinzel', serif; font-size: 10px; color: #8a7a60; letter-spacing: 0.1em; margin-top: 6px; }
+  .divider { border: none; border-top: 1px solid #d4b896; margin: 24px 0; }
+  h1 { font-family: 'Cinzel', serif; font-size: 16px; font-weight: 700; color: #1a1408; letter-spacing: 0.08em; margin: 24px 0 12px; }
+  h2 { font-family: 'Cinzel', serif; font-size: 14px; font-weight: 600; color: #3a2a10; letter-spacing: 0.06em; margin: 20px 0 10px; }
+  h3 { font-family: 'Cinzel', serif; font-size: 12px; font-weight: 600; color: #5a4a30; letter-spacing: 0.06em; margin: 16px 0 8px; }
+  p { margin: 0 0 12px; }
+  ul { padding-left: 0; list-style: none; margin: 8px 0 12px; }
+  li::before { content: '⚔ '; color: #C9A84C; }
+  li { margin: 4px 0; padding-left: 16px; text-indent: -16px; }
+  strong { color: #1a1408; font-weight: 600; }
+  em { color: #5a4a30; }
+  .footer { margin-top: 48px; padding-top: 16px; border-top: 1px solid #d4b896; display: flex; justify-content: space-between; font-family: 'Cinzel', serif; font-size: 9px; color: #8a7a60; letter-spacing: 0.1em; }
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="header">
+    <div>
+      <div class="brand">WAR ROOM <span>INTEL</span></div>
+      <div class="date">${date}</div>
+    </div>
+    <div class="classification">DAILY BRIEF</div>
   </div>
   <div>${bodyHtml}</div>
   <div class="footer">
