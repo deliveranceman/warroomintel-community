@@ -55,7 +55,25 @@ export default async function handler(req: Request) {
       return new Response(JSON.stringify({ error: 'Failed to queue interpretation job' }), { status: 500, headers: HEADERS })
     }
 
-    return new Response(JSON.stringify({ jobId: job.id }), { status: 202, headers: HEADERS })
+    const jobId = job.id as string
+
+    const reqUrl  = new URL(req.url)
+    const baseUrl = `${reqUrl.protocol}//${reqUrl.host}`
+    try {
+      await fetch(`${baseUrl}/api/job-worker-background`, {
+        method:  'POST',
+        headers: {
+          'Content-Type':   'application/json',
+          'x-internal-key': process.env.INTERNAL_API_KEY ?? '',
+        },
+        body:   JSON.stringify({ jobId }),
+        signal: AbortSignal.timeout(5000),
+      })
+    } catch (dispatchErr: any) {
+      console.warn('[dream-interpreter] worker dispatch failed:', dispatchErr.message, 'jobId:', jobId)
+    }
+
+    return new Response(JSON.stringify({ jobId }), { status: 202, headers: HEADERS })
   } catch (e: any) {
     console.error('[dream-interpreter] Error:', e.message)
     return new Response(JSON.stringify({ error: e.message || 'Failed to start interpretation' }), { status: 500, headers: HEADERS })
