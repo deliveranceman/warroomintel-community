@@ -8906,6 +8906,67 @@ function exportSpiritToPDF(spirit: any) {
   if (win) { win.document.write(html); win.document.close() }
 }
 
+function exportSolResponseToPDF(response: string) {
+  const date = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
+  const bodyHtml = response
+    .replace(/^### (.+)$/gm, '<h3>$1</h3>')
+    .replace(/^## (.+)$/gm, '<h2>$1</h2>')
+    .replace(/^# (.+)$/gm, '<h1>$1</h1>')
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*(.+?)\*/g, '<em>$1</em>')
+    .replace(/^- (.+)$/gm, '<li>$1</li>')
+    .replace(/(<li>.*<\/li>\n?)+/g, '<ul>$&</ul>')
+    .replace(/\n\n/g, '</p><p>')
+    .replace(/\n/g, '<br/>')
+  const html = `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8"/>
+<title>War Room Intel — SOL Intelligence Report</title>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Crimson+Text:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet"/>
+<style>
+  body { margin: 0; background: #fff; color: #1a1408; font-family: 'Crimson Text', Georgia, serif; font-size: 15px; line-height: 1.7; }
+  .page { max-width: 720px; margin: 0 auto; padding: 48px 48px 64px; }
+  .header { border-bottom: 2px solid #C9A84C; padding-bottom: 20px; margin-bottom: 32px; display: flex; justify-content: space-between; align-items: flex-end; }
+  .brand { font-family: 'Cinzel', serif; font-size: 22px; font-weight: 700; color: #1a1408; letter-spacing: 0.08em; }
+  .brand span { color: #C9A84C; }
+  .classification { font-family: 'Cinzel', serif; font-size: 9px; letter-spacing: 0.25em; color: #C9A84C; text-transform: uppercase; border: 1px solid #C9A84C; padding: 3px 8px; }
+  .date { font-family: 'Cinzel', serif; font-size: 10px; color: #8a7a60; letter-spacing: 0.1em; margin-top: 6px; }
+  .divider { border: none; border-top: 1px solid #d4b896; margin: 24px 0; }
+  h1 { font-family: 'Cinzel', serif; font-size: 16px; font-weight: 700; color: #1a1408; letter-spacing: 0.08em; margin: 24px 0 12px; }
+  h2 { font-family: 'Cinzel', serif; font-size: 14px; font-weight: 600; color: #3a2a10; letter-spacing: 0.06em; margin: 20px 0 10px; }
+  h3 { font-family: 'Cinzel', serif; font-size: 12px; font-weight: 600; color: #5a4a30; letter-spacing: 0.06em; margin: 16px 0 8px; }
+  p { margin: 0 0 12px; }
+  ul { padding-left: 0; list-style: none; margin: 8px 0 12px; }
+  li::before { content: '⚔ '; color: #C9A84C; }
+  li { margin: 4px 0; padding-left: 16px; text-indent: -16px; }
+  strong { color: #1a1408; font-weight: 600; }
+  em { color: #5a4a30; }
+  .footer { margin-top: 48px; padding-top: 16px; border-top: 1px solid #d4b896; display: flex; justify-content: space-between; font-family: 'Cinzel', serif; font-size: 9px; color: #8a7a60; letter-spacing: 0.1em; }
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="header">
+    <div>
+      <div class="brand">WAR ROOM <span>INTEL</span></div>
+      <div class="date">${date}</div>
+    </div>
+    <div class="classification">SOL INTELLIGENCE</div>
+  </div>
+  <div>${bodyHtml}</div>
+  <div class="footer">
+    <span>War Room Intel · A Ministry of Staffordtown Church · Copperhill, TN</span>
+    <span>warroomintel.com</span>
+  </div>
+</div>
+<script>window.onload = () => window.print()</script>
+</body>
+</html>`
+  const win = window.open('', '_blank')
+  if (win) { win.document.write(html); win.document.close() }
+}
+
 function renderSolInputSummary(jobType: string, params: any, txt: string, mut: string): React.ReactNode {
   if (!params) return null
   const field = (label: string, value: string | undefined) => value ? (
@@ -8999,9 +9060,12 @@ function renderSolOpenResult(job: any, isDark: boolean, onOpenProtocol: (r: any)
       const resp = job.result_json?.response
       if (!resp) return null
       return (
-        <div style={{ fontFamily: "'Crimson Pro', serif", fontSize: 14, color: isDark ? '#c8b99a' : '#2D2924', lineHeight: 1.7, maxHeight: 200, overflowY: 'auto', background: 'rgba(201,168,76,0.04)', borderRadius: 6, padding: '10px 12px' }}>
-          {String(resp).slice(0, 500)}{String(resp).length > 500 ? '…' : ''}
-          {job.result_json?.escalated && <span style={{ fontFamily: "'Cinzel', serif", fontSize: 8, color: isDark ? '#C9A84C' : '#8B6914', marginLeft: 8, opacity: 0.7 }}>Sonnet</span>}
+        <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 8 }}>
+          <div style={{ fontFamily: "'Crimson Pro', serif", fontSize: 14, color: isDark ? '#c8b99a' : '#2D2924', lineHeight: 1.7, maxHeight: 200, overflowY: 'auto', background: 'rgba(201,168,76,0.04)', borderRadius: 6, padding: '10px 12px' }}>
+            {String(resp).slice(0, 500)}{String(resp).length > 500 ? '…' : ''}
+            {job.result_json?.escalated && <span style={{ fontFamily: "'Cinzel', serif", fontSize: 8, color: isDark ? '#C9A84C' : '#8B6914', marginLeft: 8, opacity: 0.7 }}>Sonnet</span>}
+          </div>
+          <button onClick={() => exportSolResponseToPDF(String(resp))} style={btnOutline}>↓ EXPORT PDF</button>
         </div>
       )
     }
