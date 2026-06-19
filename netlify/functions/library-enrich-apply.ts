@@ -7,6 +7,7 @@ import { applySpiritRegions } from './_shared/applySpiritRegions'
 import { applySpiritGateways } from './_shared/applySpiritGateways'
 import { applySpiritHierarchy } from './_shared/applySpiritHierarchy'
 import { applySpiritCompanions } from './_shared/applySpiritCompanions'
+import { applySpiritScriptures } from './_shared/applySpiritScriptures'
 
 const { url: supabaseUrl, serviceRoleKey: supabaseServiceKey } = JSON.parse(process.env.SUPABASE || '{}')
 const { token: airtableToken } = JSON.parse(process.env.AIRTABLE || '{}')
@@ -201,6 +202,7 @@ Return only the improved field text. No labels, no preamble, no explanation. If 
     let gatewayApplyResult: any = null
     let hierarchyApplyResult: any = null
     let companionsApplyResult: any = null
+    let scripturesApplyResult: any = null
     let bootstrappedSpiritId: string | null = null
     if (USE_SUPABASE_DEMON_WRITES) {
       if (suggestion.action === 'enrich') {
@@ -391,6 +393,19 @@ Return only the improved field text. No labels, no preamble, no explanation. If 
           console.error('[library-enrich-apply] companions fan-out failed:', cErr.message)
           companionsApplyResult = { inserted: [], skipped: [], errors: [(cErr as any)?.message ?? String(cErr)] }
         }
+
+        // Scriptures fan-out (Layer 6 refs arrays) — non-blocking
+        try {
+          scripturesApplyResult = await applySpiritScriptures(
+            supabase,
+            row.id,
+            suggestion.layer2_raw?.layer6_scripture,
+            suggestionId,
+          )
+        } catch (sErr: any) {
+          console.error('[library-enrich-apply] scriptures fan-out failed:', sErr.message)
+          scripturesApplyResult = { inserted: [], skipped: [], errors: [(sErr as any)?.message ?? String(sErr)] }
+        }
       } else if (suggestion.action === 'add') {
         const { error: createErr } = await createSpirit(supabase, proposedFields, suggestion.spirit_name)
         if (createErr) return new Response(JSON.stringify({ error: `Supabase create failed: ${createErr}` }), { status: 500, headers: CORS })
@@ -463,7 +478,7 @@ Return only the improved field text. No labels, no preamble, no explanation. If 
       .update({ status: 'applied', applied_at: new Date().toISOString() })
       .eq('id', suggestionId)
 
-    return new Response(JSON.stringify({ success: true, action: 'approved', spiritName: suggestion.spirit_name, regionApply: regionApplyResult, gatewayApply: gatewayApplyResult, hierarchyApply: hierarchyApplyResult, companionsApply: companionsApplyResult, ...(bootstrappedSpiritId ? { bootstrappedSpiritId } : {}) }), { status: 200, headers: CORS })
+    return new Response(JSON.stringify({ success: true, action: 'approved', spiritName: suggestion.spirit_name, regionApply: regionApplyResult, gatewayApply: gatewayApplyResult, hierarchyApply: hierarchyApplyResult, companionsApply: companionsApplyResult, scripturesApply: scripturesApplyResult, ...(bootstrappedSpiritId ? { bootstrappedSpiritId } : {}) }), { status: 200, headers: CORS })
   } catch (e: any) {
     console.error('[ENRICH-APPLY] Error:', e.message)
     return new Response(JSON.stringify({ error: e.message }), { status: 500, headers: CORS })
