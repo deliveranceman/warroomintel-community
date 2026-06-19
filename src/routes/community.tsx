@@ -2160,13 +2160,13 @@ function OpsDashboardView({ theme, isMobile, userId: _userId, getToken, setActiv
 
   function ArsenalCard({ r }: { r: any }) {
     const inner = (
-      <div style={{ width: 150, flexShrink: 0, background: inset, border: `1px solid ${bdr}`, borderRadius: 8, padding: 12, display: 'flex', flexDirection: 'column' as const, gap: 6, opacity: r.locked ? 0.55 : 1, height: '100%', boxSizing: 'border-box' as const }}>
+      <div style={{ width: 220, flexShrink: 0, background: inset, border: `1px solid ${bdr}`, borderRadius: 8, padding: 12, display: 'flex', flexDirection: 'column' as const, gap: 6, opacity: r.locked ? 0.55 : 1, boxSizing: 'border-box' as const, whiteSpace: 'normal' as const }}>
         <div style={{ fontFamily: cinzel, fontSize: 8, color: mut, letterSpacing: '0.1em', textTransform: 'uppercase' as const }}>{(r.file_type || r.category || 'RESOURCE')}{r.locked ? ' · 🔒' : ''}</div>
-        <div style={{ fontFamily: crimson, fontSize: 13, color: txt, lineHeight: 1.3, display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical' as any, overflow: 'hidden' }}>{r.title}</div>
+        <div style={{ fontFamily: crimson, fontSize: 13, color: txt, lineHeight: 1.3, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' as any, overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.title}</div>
       </div>
     )
     if (r.locked || !r.file_url) return inner
-    return <a href={r.file_url} target="_blank" rel="noreferrer" style={{ textDecoration: 'none' }}>{inner}</a>
+    return <a href={r.file_url} target="_blank" rel="noreferrer" style={{ textDecoration: 'none', display: 'block', flexShrink: 0, width: 220 }}>{inner}</a>
   }
 
   const brief         = data?.todaysBrief
@@ -2253,7 +2253,7 @@ function OpsDashboardView({ theme, isMobile, userId: _userId, getToken, setActiv
           <div style={cardStyle}>
             <SectionHead icon="🗄" title="NEW IN ARSENAL" section="arsenal" />
             {arsenalRecent.length === 0 ? empty('Nothing new yet') : (
-              <div style={{ display: 'flex', gap: 10, overflowX: 'auto' as const, paddingBottom: 4 }}>
+              <div style={{ display: 'flex', overflowX: 'auto' as const, gap: 12, whiteSpace: 'nowrap' as const, flexWrap: 'nowrap' as const, scrollbarWidth: 'none' as const, paddingBottom: 4 }}>
                 {arsenalRecent.map((r: any) => <ArsenalCard key={r.id} r={r} />)}
               </div>
             )}
@@ -2261,7 +2261,7 @@ function OpsDashboardView({ theme, isMobile, userId: _userId, getToken, setActiv
           <div style={cardStyle}>
             <SectionHead icon="🎯" title="FOR YOUR WATCH" section="arsenal" />
             {forYourWatch.length === 0 ? empty('Nothing here yet') : (
-              <div style={{ display: 'flex', gap: 10, overflowX: 'auto' as const, paddingBottom: 4 }}>
+              <div style={{ display: 'flex', overflowX: 'auto' as const, gap: 12, whiteSpace: 'nowrap' as const, flexWrap: 'nowrap' as const, scrollbarWidth: 'none' as const, paddingBottom: 4 }}>
                 {forYourWatch.map((r: any) => <ArsenalCard key={r.id} r={r} />)}
               </div>
             )}
