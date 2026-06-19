@@ -158,6 +158,20 @@ export default async function handler(req: Request) {
     return new Response(JSON.stringify({ error: `Webhook Error: ${err.message}` }), { status: 400, headers })
   }
 
+  // Idempotency guard: INSERT ON CONFLICT DO NOTHING — skip duplicate Stripe retries
+  const supabase = getSupabase()
+  const { data: eventRows } = await supabase
+    .from('stripe_events')
+    .upsert(
+      { id: event.id, type: event.type, payload: event.data },
+      { onConflict: 'id', ignoreDuplicates: true }
+    )
+    .select('id')
+
+  if (!eventRows || eventRows.length === 0) {
+    return new Response(JSON.stringify({ received: true }), { status: 200, headers })
+  }
+
   console.log('Stripe webhook event:', event.type)
 
   try {
@@ -201,7 +215,6 @@ export default async function handler(req: Request) {
         }
 
         if (resolvedUserId && resolution.foundingPlan === 'founding_general') {
-          const supabase = getSupabase()
           await supabase.from('founding_generals').upsert(
             { clerk_user_id: resolvedUserId, stripe_session_id: session.id },
             { onConflict: 'clerk_user_id' }
@@ -278,8 +291,12 @@ export default async function handler(req: Request) {
       default:
         console.log(`Unhandled event type: ${event.type}`)
     }
+
+    await supabase.from('stripe_events').update({ processed_at: new Date().toISOString() }).eq('id', event.id)
+
   } catch (err: any) {
     console.error('Webhook handler error:', err.message)
+    try { await supabase.from('stripe_events').update({ processing_error: err.message }).eq('id', event.id) } catch {}
     return new Response(JSON.stringify({ error: err.message }), { status: 500, headers })
   }
 
