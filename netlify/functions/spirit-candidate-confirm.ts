@@ -1,6 +1,11 @@
 import { createClient } from '@supabase/supabase-js'
 import { requireAdmin2, CORS } from './_shared/access'
 import { createSpirit, generateSlug, findSpiritSlugByName, toColumns, insertFieldSnapshots } from './_shared/spiritWrite'
+import { applySpiritRegions    } from './_shared/applySpiritRegions'
+import { applySpiritGateways   } from './_shared/applySpiritGateways'
+import { applySpiritScriptures } from './_shared/applySpiritScriptures'
+import { applySpiritHierarchy  } from './_shared/applySpiritHierarchy'
+import { applySpiritCompanions } from './_shared/applySpiritCompanions'
 
 const { url: sbUrl, serviceRoleKey: sbKey } = JSON.parse(process.env.SUPABASE || '{}')
 const { token: airtableToken }              = JSON.parse(process.env.AIRTABLE || '{}')
@@ -114,7 +119,65 @@ export default async function handler(req: Request) {
       reviewed_by:        userId,
     }).eq('id', candidateId)
 
-    return new Response(JSON.stringify({ success: true, airtableId: record.slug, slug: record.slug }), { status: 200, headers: CORS })
+    // ---- Unified approval: auto-fan-out paired LES ----
+    // Fixes the silent-failure pattern where candidate-confirm creates the
+    // spirits row but never triggers Layer 2 fan-outs from the paired LES.
+    // Additive — if the fan-out fails, the candidate-confirm still succeeds.
+    let pairedFanOutResult: any = null
+
+    try {
+      const { data: pairedLES } = await client
+        .from('library_enrichment_suggestions')
+        .select('id, layer2_raw, status')
+        .eq('resource_id', candidate.source_id)
+        .ilike('spirit_name', candidate.name)
+        .eq('status', 'pending')
+        .not('layer2_raw', 'is', null)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+
+      if (pairedLES && pairedLES.layer2_raw) {
+        console.log(
+          `[spirit-candidate-confirm] paired LES ${pairedLES.id} found, ` +
+          `firing fan-out helpers for unified approval`
+        )
+
+        const spiritId = record.id as string
+        const lr = pairedLES.layer2_raw
+
+        // Mirror library-enrich-apply.ts orchestration. Each in own try/catch
+        // so partial failure is visible per-helper.
+        const regionsResult    = await applySpiritRegions   (client, spiritId, lr?.layer5_body_regions, pairedLES.id).catch((e: any) => ({ inserted: [], skipped: [], errors: [String(e?.message ?? e)] }))
+        const gatewaysResult   = await applySpiritGateways  (client, spiritId, lr?.layer1_gateways,     pairedLES.id).catch((e: any) => ({ inserted: [], skipped: [], errors: [String(e?.message ?? e)] }))
+        const scripturesResult = await applySpiritScriptures(client, spiritId, lr?.layer6_scripture,    pairedLES.id).catch((e: any) => ({ inserted: [], skipped: [], errors: [String(e?.message ?? e)] }))
+        const hierarchyResult  = await applySpiritHierarchy (client, spiritId, lr?.layer3_network,      pairedLES.id).catch((e: any) => ({ inserted: [], skipped: [], errors: [String(e?.message ?? e)] }))
+        const companionsResult = await applySpiritCompanions(client, spiritId, lr?.layer3_network,      pairedLES.id).catch((e: any) => ({ inserted: [], skipped: [], errors: [String(e?.message ?? e)] }))
+
+        // Mark LES applied
+        await client.from('library_enrichment_suggestions').update({
+          status:     'applied',
+          applied_at: new Date().toISOString(),
+        }).eq('id', pairedLES.id)
+
+        pairedFanOutResult = {
+          les_id:     pairedLES.id,
+          regions:    regionsResult,
+          gateways:   gatewaysResult,
+          scriptures: scripturesResult,
+          hierarchy:  hierarchyResult,
+          companions: companionsResult,
+        }
+      }
+    } catch (fanOutErr: any) {
+      console.error(
+        '[spirit-candidate-confirm] paired LES fan-out failed (non-fatal):',
+        fanOutErr?.message ?? fanOutErr
+      )
+      pairedFanOutResult = { error: fanOutErr?.message ?? String(fanOutErr) }
+    }
+
+    return new Response(JSON.stringify({ success: true, airtableId: record.slug, slug: record.slug, pairedFanOut: pairedFanOutResult }), { status: 200, headers: CORS })
   }
 
   // Push to Airtable
