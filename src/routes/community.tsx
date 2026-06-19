@@ -5779,6 +5779,7 @@ function ArsenalView({ theme, userTier, isMobile, filterSheetOpen, setFilterShee
   const { getToken } = useAuth()
   const { user } = useUser()
   const { beginUpgrade } = useContext(UpgradeFlowCtx)
+  const navigate = useNavigate()
   const isDark = theme !== 'light'
   const bg      = isDark ? '#0D0B14' : '#EDEBE2'
   const border  = isDark ? 'rgba(201,168,76,0.15)' : 'rgba(139,105,20,0.25)'
@@ -6007,6 +6008,7 @@ function ArsenalView({ theme, userTier, isMobile, filterSheetOpen, setFilterShee
         <div
           style={{ background: 'rgba(255,255,255,0.02)', border: `1px solid rgba(201,168,76,0.1)`, borderLeft: `3px solid ${tc}`, borderRadius: 8, padding: '12px 14px', cursor: 'pointer', WebkitTapHighlightColor: 'transparent', boxSizing: 'border-box' as const }}
           onClick={() => {
+            if (resource.slug) { navigate({ to: '/community_/arsenal/$resourceId', params: { resourceId: resource.slug } }); return }
             if (hasAccess && resource.file_url) window.open(resource.file_url, '_blank', 'noopener,noreferrer')
             else if (!hasAccess) beginUpgrade(resource.tier)
           }}
@@ -6036,6 +6038,7 @@ function ArsenalView({ theme, userTier, isMobile, filterSheetOpen, setFilterShee
       <div
         style={{ background: 'rgba(255,255,255,0.02)', border: `1px solid ${isSelected ? 'rgba(201,168,76,0.5)' : 'rgba(201,168,76,0.1)'}`, borderLeft: `3px solid ${tc}`, borderRadius: 8, padding: showDescription ? '12px 14px' : '10px 14px', cursor: 'pointer', transition: 'background 0.15s' }}
         onClick={() => {
+          if (resource.slug) { navigate({ to: '/community_/arsenal/$resourceId', params: { resourceId: resource.slug } }); return }
           if (!hasAccess) { beginUpgrade(resource.tier); return }
           if (resource.file_url) { window.open(resource.file_url, '_blank', 'noopener,noreferrer'); return }
           setExpandedId(isExp ? null : resource.id)
