@@ -142,8 +142,11 @@ export default async function handler(req: Request) {
   const sig = req.headers.get('stripe-signature')
   const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET
 
-  if (!sig || !webhookSecret) {
-    return new Response(JSON.stringify({ error: 'Missing signature or secret' }), { status: 400, headers })
+  if (!webhookSecret) {
+    return new Response(JSON.stringify({ error: 'Server misconfigured: missing webhook secret' }), { status: 500, headers })
+  }
+  if (!sig) {
+    return new Response(JSON.stringify({ error: 'Missing stripe-signature header' }), { status: 400, headers })
   }
 
   let event: Stripe.Event
