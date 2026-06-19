@@ -54,7 +54,7 @@ export default async function handler(req: Request) {
   // NULL fallback was removed — it was the root cause of library data bleeding into Arsenal
   let query = supabase
     .from('resources')
-    .select('id, title, description, tier, category, topic, tags, file_path, file_type, file_size, source_type, created_at')
+    .select('id, slug, title, description, tier, category, topic, tags, file_path, file_type, file_size, source_type, created_at')
     .eq('source_type', 'arsenal')
     .not('tier', 'is', null)
 
@@ -108,6 +108,7 @@ export default async function handler(req: Request) {
     const lockedPreview = (raw.split('\n')[0] || raw).slice(0, 120).trimEnd()
     return {
       id:           r.id         as string,
+      slug:         (r.slug      as string) || '',
       title:        (r.title     as string) || '',
       tier:         (r.tier      as string) || 'free',
       category:     (r.category  as string) || '',
