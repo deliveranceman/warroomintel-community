@@ -2,16 +2,13 @@ import { createClient } from '@supabase/supabase-js'
 import { requireAdmin2, CORS } from './_shared/access'
 import { extractSpiritFromSource } from './_shared/extractSpiritFromSource'
 import { layer2ToProposedFields } from './_shared/layer2ToProposedFields'
+import { SOURCE_TYPE_MAP } from './_shared/sourceTypeMap'
 
 const { url: sbUrl, serviceRoleKey: sbKey } = JSON.parse(process.env.SUPABASE || '{}')
 function sb() { return createClient(sbUrl, sbKey) }
 
 const COMPLETENESS_CONF: Record<string, number> = {
   minimal: 25, partial: 50, substantial: 75, comprehensive: 95,
-}
-const SOURCE_TYPE_MAP: Record<string, 'academic' | 'occult' | 'ministry' | 'historical' | 'canonical'> = {
-  academic: 'academic', occult: 'occult', ministry: 'ministry',
-  historical: 'historical', canonical: 'canonical',
 }
 
 export default async function handler(req: Request) {
