@@ -33,7 +33,13 @@ Return JSON in this exact shape:
     ]
   }
 
-Each section's content should be substantive — 3-8 paragraphs of focused ministry-research material per the instruction. Use markdown within content (## subheaders, bullets, bold for emphasis, scripture references inline).
+CONTENT LENGTH (CRITICAL — failure to comply causes truncation):
+- Each section's content: 150-400 words MAXIMUM. Be focused and direct, not exhaustive.
+- Total document across all sections combined: must fit in 4000 tokens of OUTPUT. This includes all section content plus JSON overhead.
+- If a section's instruction would naturally require more than 400 words, prioritize the most operationally useful content (specific prayers, scripture references, identifiable manifestations) over background exposition.
+- It is far better to deliver concise complete output than verbose truncated output. A truncated response fails to parse and produces no usable document.
+
+Use markdown within content (## subheaders, bullets, bold for emphasis, scripture references inline). Keep each section to 1-3 focused paragraphs.
 
 Member mode: respond to subject + specialInstructions + per-section instructions with the appropriate filled sections.
 Admin mode: same shape, but use spiritData as additional context for whichever sections are spirit-specific.
@@ -148,13 +154,14 @@ ${specialInstructions ? `\nSpecial Instructions: ${specialInstructions}` : ''}${
 Input sections — fill each with content:
 ${sectionInputJson}
 
-Your output must be JSON with exactly ${sections.length} section(s) in the same order, with id and label preserved byte-for-byte from above. Each section needs substantive content (3-8 paragraphs).`
+Your output must be JSON with exactly ${sections.length} section(s) in the same order, with id and label preserved byte-for-byte from above. Each section: 1-3 focused paragraphs, 150-400 words maximum.`
 
+    const MAX_TOKENS = 8000
     const result = await solCall({
       tier:      'standard',
       system:    systemWithContext,
       messages:  [{ role: 'user', content: userPrompt }],
-      maxTokens: 6000,
+      maxTokens: MAX_TOKENS,
       timeoutMs: 180_000,
       meta,
     })
@@ -165,6 +172,17 @@ Your output must be JSON with exactly ${sections.length} section(s) in the same 
       tokens_used:   result.inputTokens + result.outputTokens,
       cost_estimate: result.costUsd,
     }).eq('id', jobId)
+
+    // ── Truncation guard — must run before any JSON extraction attempt ─────────
+    const TRUNCATION_THRESHOLD = MAX_TOKENS * 0.97  // 7760
+    if (result.outputTokens >= TRUNCATION_THRESHOLD) {
+      throw new Error(
+        `Output truncated at ${result.outputTokens} tokens (cap: ${MAX_TOKENS}). ` +
+        `Sonnet response was cut off and JSON cannot be parsed. ` +
+        `Try a simpler template or fewer sections. Raw output started: ` +
+        `"${result.text.slice(0, 200)}..."`
+      )
+    }
 
     // ── Stage: finalizing ─────────────────────────────────────────────────────
     await client.from('ai_jobs').update({ stage: 'finalizing', progress: 90 }).eq('id', jobId)
