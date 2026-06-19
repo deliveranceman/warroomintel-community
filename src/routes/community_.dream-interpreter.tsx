@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from 'react'
 import { ChevronDown, ChevronUp } from 'lucide-react'
 import { CommunitySidebarShell } from '@/components/CommunitySidebarShell'
 import { callCheckoutApi } from '@/lib/upgrade'
+import { useIsDark } from '@/lib/use-is-dark'
 
 export const Route = createFileRoute('/community_/dream-interpreter')({
   ssr: false,
@@ -36,6 +37,15 @@ const VERDICT_META: Record<string, { color: string; bg: string; label: string }>
   deliverance: { color: '#e07070', bg: 'rgba(224,112,112,0.08)', label: 'DELIVERANCE NEEDED' },
   trauma:      { color: '#a09080', bg: 'rgba(160,144,128,0.08)', label: 'SOULICAL / TRAUMA' },
   mixed:       { color: G,         bg: 'rgba(201,168,76,0.08)',  label: 'MIXED ANALYSIS' },
+}
+
+// Light-mode equivalents — darker values for WCAG AA compliance on parchment backgrounds
+const VERDICT_META_LIGHT: Record<string, { color: string; bg: string; label: string }> = {
+  prophetic:   { color: '#2A6A96', bg: 'rgba(42,106,150,0.08)',   label: 'PROPHETIC' },
+  warning:     { color: '#8B6914', bg: 'rgba(139,105,20,0.08)',   label: 'WARNING' },
+  deliverance: { color: '#B03030', bg: 'rgba(176,48,48,0.08)',    label: 'DELIVERANCE NEEDED' },
+  trauma:      { color: '#574B33', bg: 'rgba(87,75,51,0.08)',     label: 'SOULICAL / TRAUMA' },
+  mixed:       { color: '#8B6914', bg: 'rgba(139,105,20,0.08)',   label: 'MIXED ANALYSIS' },
 }
 
 // Sections where items should render with prayer-directive styling
@@ -128,7 +138,7 @@ function exportToPrint(dreamText: string, report: DreamReport, v: { label: strin
 }
 
 // Renders a single section item with section-aware typography
-function SectionItem({ item, sectionKey }: { item: string; sectionKey: string }) {
+function SectionItem({ item, sectionKey, gold }: { item: string; sectionKey: string; gold: string }) {
   const isPrayer  = PRAYER_SECTIONS.includes(sectionKey)
   const isSymbol  = SYMBOL_SECTIONS.includes(sectionKey)
 
@@ -143,7 +153,7 @@ function SectionItem({ item, sectionKey }: { item: string; sectionKey: string })
     return (
       <li style={{ listStyle: 'none', marginBottom: 14, paddingBottom: 14, borderBottom: '1px solid rgba(201,168,76,0.08)' }}>
         <div style={{
-          borderLeft: `3px solid ${G}`,
+          borderLeft: `3px solid ${gold}`,
           paddingLeft: 16,
           fontFamily: 'Georgia, serif',
           fontSize: 17,
@@ -165,7 +175,7 @@ function SectionItem({ item, sectionKey }: { item: string; sectionKey: string })
 
     return (
       <li style={{ listStyle: 'none', marginBottom: 16, paddingBottom: 16, borderBottom: '1px solid rgba(201,168,76,0.08)' }}>
-        <span style={{ fontFamily: mono, fontSize: 12, color: G, fontWeight: 600, display: 'block', marginBottom: 4 }}>
+        <span style={{ fontFamily: mono, fontSize: 12, color: gold, fontWeight: 600, display: 'block', marginBottom: 4 }}>
           {symbolName}
         </span>
         {scriptureSplit ? (
@@ -192,7 +202,7 @@ function SectionItem({ item, sectionKey }: { item: string; sectionKey: string })
     return (
       <li style={{ listStyle: 'none', marginBottom: 14, paddingBottom: 14, borderBottom: '1px solid rgba(201,168,76,0.08)' }}>
         <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
-          <div style={{ width: 6, height: 6, background: G, flexShrink: 0, marginTop: 7 }} />
+          <div style={{ width: 6, height: 6, background: gold, flexShrink: 0, marginTop: 7 }} />
           <div>
             {beforeRef && (
               <span style={{ color: 'var(--t-1)', fontSize: 15, lineHeight: 1.65, display: 'block' }}>
@@ -211,7 +221,7 @@ function SectionItem({ item, sectionKey }: { item: string; sectionKey: string })
   return (
     <li style={{ listStyle: 'none', marginBottom: 10, paddingBottom: 10, borderBottom: '1px solid rgba(201,168,76,0.08)' }}>
       <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
-        <div style={{ width: 6, height: 6, background: G, flexShrink: 0, marginTop: 7 }} />
+        <div style={{ width: 6, height: 6, background: gold, flexShrink: 0, marginTop: 7 }} />
         <span style={{ color: 'var(--t-1)', fontSize: 15, lineHeight: 1.65 }}>{item}</span>
       </div>
     </li>
@@ -235,6 +245,19 @@ function DreamInterpreterPage() {
   const [openSections, setOpenSections] = useState<Record<number, boolean>>({})
 
   useEffect(() => () => { if (pollRef.current) clearInterval(pollRef.current) }, [])
+
+  // Theme — must be called before any conditional return
+  const isDark = useIsDark()
+
+  const bg    = isDark ? BG    : '#FAF8F5'
+  const surf  = isDark ? SURF  : '#FFFFFF'
+  const surf2 = isDark ? SURF2 : '#F0EBE0'
+  const bdr   = isDark ? BDR   : '#D8D1BE'
+  const txt   = isDark ? TXT   : '#1F1B12'
+  const dim   = isDark ? DIM   : '#574B33'
+  const mut   = isDark ? MUT   : '#8B7355'
+  const gold  = isDark ? G     : '#8B6914'
+  const VERDICT = isDark ? VERDICT_META : VERDICT_META_LIGHT
 
   const tier     = ((user?.publicMetadata?.tier as string) || '').toLowerCase()
   const role     = (user?.publicMetadata?.role as string) || ''
@@ -307,58 +330,58 @@ function DreamInterpreterPage() {
   }
 
   const inp: React.CSSProperties = {
-    width: '100%', boxSizing: 'border-box' as const, background: SURF2,
-    border: `1px solid ${BDR}`, borderRadius: 4, padding: '10px 12px',
-    color: TXT, fontFamily: crimson, fontSize: 15, outline: 'none', lineHeight: 1.5,
+    width: '100%', boxSizing: 'border-box' as const, background: surf2,
+    border: `1px solid ${bdr}`, borderRadius: 4, padding: '10px 12px',
+    color: txt, fontFamily: crimson, fontSize: 15, outline: 'none', lineHeight: 1.5,
   }
 
   const labelSt: React.CSSProperties = {
-    display: 'block', fontFamily: mono, fontSize: 10, color: MUT,
+    display: 'block', fontFamily: mono, fontSize: 10, color: mut,
     letterSpacing: '0.14em', textTransform: 'uppercase' as const, marginBottom: 6,
   }
 
   if (!isLoaded) return (
-    <div style={{ minHeight: '100vh', background: BG, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <div style={{ fontFamily: cinzel, color: MUT, fontSize: 11, letterSpacing: '0.18em' }}>LOADING…</div>
+    <div style={{ minHeight: '100vh', background: bg, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div style={{ fontFamily: cinzel, color: mut, fontSize: 11, letterSpacing: '0.18em' }}>LOADING…</div>
     </div>
   )
 
   if (!hasAccess) return (
-    <div style={{ minHeight: '100vh', background: BG, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 24px' }}>
+    <div style={{ minHeight: '100vh', background: bg, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 24px' }}>
       <div style={{ maxWidth: 480, textAlign: 'center' as const }}>
-        <div style={{ fontFamily: cinzel, fontSize: 11, color: MUT, letterSpacing: '0.18em', marginBottom: 16 }}>RESTRICTED ACCESS</div>
-        <h1 style={{ fontFamily: cinzel, fontSize: 24, color: G, fontWeight: 700, margin: '0 0 12px' }}>Dream Interpreter</h1>
-        <p style={{ fontFamily: crimson, fontSize: 16, color: DIM, lineHeight: 1.6, margin: '0 0 24px' }}>
+        <div style={{ fontFamily: cinzel, fontSize: 11, color: mut, letterSpacing: '0.18em', marginBottom: 16 }}>RESTRICTED ACCESS</div>
+        <h1 style={{ fontFamily: cinzel, fontSize: 24, color: gold, fontWeight: 700, margin: '0 0 12px' }}>Dream Interpreter</h1>
+        <p style={{ fontFamily: crimson, fontSize: 16, color: dim, lineHeight: 1.6, margin: '0 0 24px' }}>
           Prophetic and spiritual dream analysis is available to Soldier tier and above.
         </p>
         <button onClick={() => { callCheckoutApi('soldier', getToken) }} style={{ display: 'inline-block', background: G, color: '#1a1305', padding: '9px 20px', fontFamily: cinzel, fontSize: 12, fontWeight: 700, letterSpacing: '0.1em', border: 'none', cursor: 'pointer', borderRadius: 2, marginRight: 12 }}>
           UPGRADE MEMBERSHIP
         </button>
-        <a href="/community" style={{ display: 'inline-block', background: 'transparent', border: `1px solid ${BDR}`, color: DIM, padding: '8px 18px', fontFamily: cinzel, fontSize: 11, letterSpacing: '0.08em', textDecoration: 'none', borderRadius: 2 }}>
+        <a href="/community" style={{ display: 'inline-block', background: 'transparent', border: `1px solid ${bdr}`, color: dim, padding: '8px 18px', fontFamily: cinzel, fontSize: 11, letterSpacing: '0.08em', textDecoration: 'none', borderRadius: 2 }}>
           ← Return to Community
         </a>
       </div>
     </div>
   )
 
-  const v = report ? (VERDICT_META[report.verdict] ?? VERDICT_META.mixed) : null
+  const v = report ? (VERDICT[report.verdict] ?? VERDICT.mixed) : null
 
   return (
     <CommunitySidebarShell activeItem="Dream Interpreter" userName={dreUserName} userTierLabel={dreUserTierLabel}>
-    <div style={{ color: TXT }}>
+    <div style={{ color: txt }}>
       <div style={{ maxWidth: 820, margin: '0 auto', padding: '40px 24px 100px' }}>
         {/* page title */}
         <div style={{ marginBottom: 32 }}>
-          <div style={{ fontFamily: mono, fontSize: 11, color: MUT, letterSpacing: '0.18em', marginBottom: 8 }}>INTELLIGENCE TOOL</div>
-          <h1 style={{ fontFamily: cinzel, fontSize: 28, color: G, fontWeight: 700, margin: '0 0 8px' }}>Dream Interpreter</h1>
-          <p style={{ fontFamily: crimson, fontSize: 16, color: DIM, lineHeight: 1.6, margin: 0 }}>
+          <div style={{ fontFamily: mono, fontSize: 11, color: mut, letterSpacing: '0.18em', marginBottom: 8 }}>INTELLIGENCE TOOL</div>
+          <h1 style={{ fontFamily: cinzel, fontSize: 28, color: gold, fontWeight: 700, margin: '0 0 8px' }}>Dream Interpreter</h1>
+          <p style={{ fontFamily: crimson, fontSize: 16, color: dim, lineHeight: 1.6, margin: 0 }}>
             Prophetic and spiritual dream analysis — symbols, warfare indicators, and prayer response.
           </p>
         </div>
 
         {/* input form */}
         {!report && (
-          <div style={{ background: SURF, border: `1px solid ${BDR}`, borderRadius: 4, padding: 24, marginBottom: 24 }}>
+          <div style={{ background: surf, border: `1px solid ${bdr}`, borderRadius: 4, padding: 24, marginBottom: 24, boxShadow: isDark ? 'none' : '0 2px 12px rgba(45,41,36,0.06)' }}>
             <div style={{ marginBottom: 20 }}>
               <label style={labelSt}>Dream Description *</label>
               <textarea
@@ -408,21 +431,21 @@ function DreamInterpreterPage() {
           <div>
             <button
               onClick={() => { if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null } setReport(null); setDream(''); setContext(''); setSubmittedDream(''); setOpenSections({}); setProgress(0); setStage('') }}
-              style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontFamily: mono, fontSize: 10, color: MUT, letterSpacing: '0.1em', marginBottom: 20, padding: 0 }}
+              style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontFamily: mono, fontSize: 10, color: mut, letterSpacing: '0.1em', marginBottom: 20, padding: 0 }}
             >
               ← NEW INTERPRETATION
             </button>
 
             {/* dream description */}
-            <div style={{ background: SURF, border: `1px solid ${BDR}`, borderLeft: `3px solid rgba(201,168,76,0.4)`, borderRadius: 4, padding: 20, marginBottom: 12 }}>
-              <div style={{ fontFamily: mono, fontSize: 10, color: MUT, letterSpacing: '0.15em', marginBottom: 10 }}>DREAM DESCRIPTION</div>
+            <div style={{ background: surf, border: `1px solid ${bdr}`, borderLeft: `3px solid rgba(201,168,76,0.4)`, borderRadius: 4, padding: 20, marginBottom: 12, boxShadow: isDark ? 'none' : '0 1px 4px rgba(45,41,36,0.05)' }}>
+              <div style={{ fontFamily: mono, fontSize: 10, color: mut, letterSpacing: '0.15em', marginBottom: 10 }}>DREAM DESCRIPTION</div>
               <p style={{ fontFamily: 'Georgia, serif', fontSize: 16, color: 'var(--t-0)', lineHeight: 1.7, margin: 0, whiteSpace: 'pre-wrap' as const }}>
                 {submittedDream}
               </p>
             </div>
 
             {/* verdict + summary — NOT collapsible */}
-            <div style={{ background: SURF, border: `1px solid ${BDR}`, borderRadius: 4, padding: 24, marginBottom: 12 }}>
+            <div style={{ background: surf, border: `1px solid ${bdr}`, borderRadius: 4, padding: 24, marginBottom: 12, boxShadow: isDark ? 'none' : '0 2px 12px rgba(45,41,36,0.06)' }}>
               {/* source classification badge */}
               <div style={{ marginBottom: 16 }}>
                 <span style={{
@@ -440,7 +463,7 @@ function DreamInterpreterPage() {
                   {v.label}
                 </span>
               </div>
-              <div style={{ fontFamily: mono, fontSize: 9, color: MUT, letterSpacing: '0.18em', marginBottom: 10 }}>SUMMARY</div>
+              <div style={{ fontFamily: mono, fontSize: 9, color: mut, letterSpacing: '0.18em', marginBottom: 10 }}>SUMMARY</div>
               <p style={{ fontFamily: 'Georgia, serif', fontSize: 16, color: 'var(--t-0)', lineHeight: 1.7, margin: 0 }}>{report.summary}</p>
             </div>
 
@@ -449,7 +472,7 @@ function DreamInterpreterPage() {
               const open = isSectionOpen(si)
               const sectionKey = sec.title.toLowerCase()
               return (
-                <div key={si} style={{ background: SURF, border: `1px solid ${BDR}`, borderRadius: 4, padding: 20, marginBottom: 10 }}>
+                <div key={si} style={{ background: surf, border: `1px solid ${bdr}`, borderRadius: 4, padding: 20, marginBottom: 10, boxShadow: isDark ? 'none' : '0 1px 4px rgba(45,41,36,0.04)' }}>
                   {/* clickable header row */}
                   <div
                     role="button"
@@ -468,7 +491,7 @@ function DreamInterpreterPage() {
                     <span style={{
                       fontFamily: mono,
                       fontSize: 11,
-                      color: G,
+                      color: gold,
                       letterSpacing: 1.6,
                       fontWeight: 700,
                       textTransform: 'uppercase' as const,
@@ -476,8 +499,8 @@ function DreamInterpreterPage() {
                       {sec.title.toUpperCase()}
                     </span>
                     {open
-                      ? <ChevronUp size={16} color={G} />
-                      : <ChevronDown size={16} color={G} />
+                      ? <ChevronUp size={16} color={gold} />
+                      : <ChevronDown size={16} color={gold} />
                     }
                   </div>
 
@@ -485,7 +508,7 @@ function DreamInterpreterPage() {
                   {open && (
                     <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
                       {sec.items.map((item, ii) => (
-                        <SectionItem key={ii} item={item} sectionKey={sectionKey} />
+                        <SectionItem key={ii} item={item} sectionKey={sectionKey} gold={gold} />
                       ))}
                     </ul>
                   )}
@@ -503,7 +526,7 @@ function DreamInterpreterPage() {
                 borderRadius: 2, cursor: 'pointer',
                 fontFamily: cinzel, fontSize: 12, fontWeight: 600,
                 letterSpacing: '0.08em', textTransform: 'uppercase' as const,
-                color: G,
+                color: gold,
               }}
             >
               Export Report (Print / PDF)
@@ -511,7 +534,7 @@ function DreamInterpreterPage() {
 
             <button
               onClick={() => { if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null } setReport(null); setSubmittedDream(''); setOpenSections({}); setProgress(0); setStage('') }}
-              style={{ marginTop: 10, background: 'transparent', border: `1px solid ${BDR}`, borderRadius: 2, padding: '8px 18px', fontFamily: cinzel, fontSize: 11, color: DIM, letterSpacing: '0.1em', cursor: 'pointer', width: '100%' }}
+              style={{ marginTop: 10, background: 'transparent', border: `1px solid ${bdr}`, borderRadius: 2, padding: '8px 18px', fontFamily: cinzel, fontSize: 11, color: dim, letterSpacing: '0.1em', cursor: 'pointer', width: '100%' }}
             >
               Interpret Another Dream
             </button>
@@ -521,23 +544,23 @@ function DreamInterpreterPage() {
 
       {/* Mobile bottom nav */}
       <style>{`@media(max-width:640px){.wri-subnav{display:flex!important}}`}</style>
-      <nav className="wri-subnav" style={{ display:'none', position:'fixed', bottom:0, left:0, right:0, height:'calc(var(--bottom-nav-h) + env(safe-area-inset-bottom, 0px))', background:'#0d0b14', borderTop:'1px solid rgba(201,168,76,0.25)', zIndex:200, alignItems:'center', justifyContent:'space-around', paddingLeft:'4px', paddingRight:'4px', paddingBottom:'env(safe-area-inset-bottom, 0px)' }}>
-        <a href="/community" style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:3, color:'rgba(201,168,76,0.55)', textDecoration:'none', fontSize:9, fontFamily:'var(--font-label)', letterSpacing:'0.06em', minWidth:56, padding:'8px 0' }}>
+      <nav className="wri-subnav" style={{ display:'none', position:'fixed', bottom:0, left:0, right:0, height:'calc(var(--bottom-nav-h) + env(safe-area-inset-bottom, 0px))', background: bg, borderTop:'1px solid rgba(201,168,76,0.25)', zIndex:200, alignItems:'center', justifyContent:'space-around', paddingLeft:'4px', paddingRight:'4px', paddingBottom:'env(safe-area-inset-bottom, 0px)' }}>
+        <a href="/community" style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:3, color: mut, textDecoration:'none', fontSize:9, fontFamily:'var(--font-label)', letterSpacing:'0.06em', minWidth:56, padding:'8px 0' }}>
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
           HOME
         </a>
-        <a href="/community#database" style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:3, color:'rgba(201,168,76,0.55)', textDecoration:'none', fontSize:9, fontFamily:'var(--font-label)', letterSpacing:'0.06em', minWidth:56, padding:'8px 0' }}>
+        <a href="/community#database" style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:3, color: mut, textDecoration:'none', fontSize:9, fontFamily:'var(--font-label)', letterSpacing:'0.06em', minWidth:56, padding:'8px 0' }}>
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
           INTEL
         </a>
         <div style={{ width:44, height:44, borderRadius:'50%', background:'#C9A84C', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
           <a href="/community" style={{ color:'#0d0b14', fontSize:18, lineHeight:1, textDecoration:'none', fontFamily:"'Cinzel',serif" }}>⚔</a>
         </div>
-        <a href="/community#forum" style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:3, color:'rgba(201,168,76,0.55)', textDecoration:'none', fontSize:9, fontFamily:'var(--font-label)', letterSpacing:'0.06em', minWidth:56, padding:'8px 0' }}>
+        <a href="/community#forum" style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:3, color: mut, textDecoration:'none', fontSize:9, fontFamily:'var(--font-label)', letterSpacing:'0.06em', minWidth:56, padding:'8px 0' }}>
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><circle cx="12" cy="12" r="10"/><line x1="22" y1="12" x2="2" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
           OPS
         </a>
-        <a href="/community" style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:3, color:'rgba(201,168,76,0.55)', textDecoration:'none', fontSize:9, fontFamily:'var(--font-label)', letterSpacing:'0.06em', minWidth:56, padding:'8px 0' }}>
+        <a href="/community" style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:3, color: mut, textDecoration:'none', fontSize:9, fontFamily:'var(--font-label)', letterSpacing:'0.06em', minWidth:56, padding:'8px 0' }}>
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
           AI
         </a>
