@@ -1453,6 +1453,17 @@ function stripMdPreview(raw: string, maxChars = 120): string {
   return result.length > maxChars ? result.slice(0, maxChars).trimEnd() + '…' : result
 }
 
+// Maps raw ai_search_history.tool slugs to user-facing labels. The SOL analyst
+// has shipped under several internal slugs ('ai-assistant', 'ask-sol', 'ask-dake');
+// all surface as "SOL" to users. Other tools title-case their slug. Display only —
+// never write these back to the DB.
+function displayToolLabel(tool: string): string {
+  const t = (tool || '').toLowerCase().trim()
+  if (t === 'ai-assistant' || t === 'ask-sol' || t === 'ask-dake' || t === 'sol') return 'SOL'
+  if (!t) return ''
+  return t.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
+}
+
 // ── DAILY DEVOTION VIEW ────────────────────────────────────
 function DailyDevotionView({ theme, isMobile, userTier, userId: _userId }: any) {
   const isDark = theme !== 'light'
@@ -2176,14 +2187,14 @@ function OpsDashboardView({ theme, isMobile, userId: _userId, getToken, setActiv
               }
             </Widget>
 
-            {/* Recent AI Searches */}
+            {/* Recent SOL Searches */}
             <Widget title="RECENT SOL SEARCHES" icon="🔍" section="my-intel">
               {intel.length === 0
                 ? <div style={{ fontFamily: crimson, fontSize: 13, color: mut, fontStyle: 'italic' }}>No searches yet</div>
                 : intel.map(i => (
                   <div key={i.id} style={{ borderBottom: `1px solid ${bdr}`, paddingBottom: 8, marginBottom: 8 }}>
                     <div style={{ fontFamily: crimson, fontSize: 12, color: txt, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{i.query}</div>
-                    <div style={{ fontFamily: cinzel, fontSize: 9, color: mut, letterSpacing: '0.06em' }}>{i.tool}</div>
+                    <div style={{ fontFamily: cinzel, fontSize: 9, color: mut, letterSpacing: '0.06em' }}>{displayToolLabel(i.tool)}</div>
                   </div>
                 ))
               }
