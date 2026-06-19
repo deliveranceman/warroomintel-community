@@ -394,7 +394,7 @@ function ScripturePage() {
             variant="screen"
             requiredTier="soldier"
             featureName="Scripture"
-            description="The Dake Annotated Reference Bible is available to Soldier tier and above. Upgrade to unlock the full annotated Bible with AI theological analysis."
+            description="SOL's Spiritual Warfare & Reference Bible is available to Soldier tier and above. Upgrade to unlock the full annotated Bible with AI theological analysis."
             isDark
           />
         </div>

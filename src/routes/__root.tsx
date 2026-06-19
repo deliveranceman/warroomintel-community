@@ -85,7 +85,7 @@ const defaultResults: CommandResult[] = [
   { id: 'nav-forum',    group: 'Community',  label: 'The Board',         sublabel: 'Community discussion',         onSelect: () => { window.location.href = '/community/forum' } },
   { id: 'nav-manual',   group: 'Knowledge',  label: 'Field Manual',      sublabel: 'Training and doctrine',        onSelect: () => { window.location.href = '/community/field-manual' } },
   { id: 'nav-mapping',  group: 'Knowledge',  label: 'Spiritual Mapping', sublabel: 'Copper Basin principality map',onSelect: () => { window.location.href = '/community/spiritual-mapping' } },
-  { id: 'nav-scripture', group: 'Knowledge', label: 'Scripture', sublabel: 'Dake annotated Bible + AI theologian', onSelect: () => { window.location.href = '/community/scripture' } },
+  { id: 'nav-scripture', group: 'Knowledge', label: 'Scripture', sublabel: "SOL's Spiritual Warfare & Reference Bible + AI", onSelect: () => { window.location.href = '/community/scripture' } },
   { id: 'nav-field-ops', group: 'Field Ops',  label: 'Case Files',        sublabel: 'Private minister case files',  onSelect: () => { window.location.href = '/community/field-ops' } },
   { id: 'nav-dreams',   group: 'Intelligence', label: 'Dream Interpreter', sublabel: 'Prophetic and spiritual dream analysis', onSelect: () => { window.location.href = '/community/dream-interpreter' } },
   { id: 'nav-admin',    group: 'Admin',      label: 'Admin Panel',       sublabel: 'Management tools',             onSelect: () => { window.location.href = '/admin' } },

@@ -92,7 +92,7 @@ const TICKER_ITEMS = [
   'Intel Archive · 800+ Documented Spirits',
   'Assessment Tool · 9-Step Intake · Personal Response',
   'Protocol Library · Freemasonry · Soul Ties · Occult Doorways',
-  'Dake Bible · 20,399 Annotation Notes',
+  "SOL's Spiritual Warfare & Reference Bible · 20,399 Annotation Notes",
   'Live Ministry Calls · Soldier · Commander · General',
   'Community · Warriors in the Fight',
   'New Entries Added Weekly',

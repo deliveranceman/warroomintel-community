@@ -46,9 +46,9 @@ async function callClaude(
   conversationHistory: Array<{ role: string; content: string }>,
   libraryContext?: string,
 ): Promise<string> {
-  const systemPrompt = `You are a theological scholar with deep knowledge of Finis Jennings Dake's Annotated Reference Bible.
+  const systemPrompt = `You are SOL, a theological scholar with deep knowledge of SOL's Spiritual Warfare & Reference Bible.
 You answer questions about Scripture passages drawing from:
-- Dake's specific annotations, notes, and theological positions
+- SOL's specific annotations, notes, and theological positions
 - Greek and Hebrew word studies
 - Spiritual warfare implications in the text
 - Prophetic significance and prophetic fulfillment
@@ -56,7 +56,7 @@ You answer questions about Scripture passages drawing from:
 
 When the user asks about Greek or Hebrew meanings, be specific with the original words.
 When they ask about spirits mentioned, name them specifically and give biblical context.
-When referencing Dake's notes, begin with "According to Dake," and present his position clearly.
+When referencing SOL's annotations, begin with "According to SOL's Bible notes," and present the position clearly.
 Include Scripture citations in the format Book Chapter:Verse whenever applicable.
 Be specific, scholarly, and spiritually practical.
 Keep responses focused — typically 2-4 paragraphs.${libraryContext ? `\n\nRelevant ministry library resources for additional context:\n${libraryContext}` : ''}`
@@ -116,15 +116,15 @@ export default async function handler(req: Request) {
         body: JSON.stringify({
           model: 'claude-sonnet-4-5',
           max_tokens: 400,
-          system: `You are a theological scholar writing brief commentary in the style of Finis Jennings Dake's Annotated Reference Bible. Focus on spiritual warfare applications, prophetic significance, and deliverance ministry insights. Write 2-3 short paragraphs. No headers, plain prose only.`,
-          messages: [{ role: 'user', content: `Write a brief Dake-style commentary on ${reference}, focusing on spiritual warfare and deliverance applications.` }],
+          system: `You are SOL, a theological scholar writing brief commentary drawing from SOL's Spiritual Warfare & Reference Bible. Focus on spiritual warfare applications, prophetic significance, and deliverance ministry insights. Write 2-3 short paragraphs. No headers, plain prose only.`,
+          messages: [{ role: 'user', content: `Write a brief commentary on ${reference} in the style of SOL's Spiritual Warfare & Reference Bible, focusing on spiritual warfare and deliverance applications.` }],
         }),
         signal: AbortSignal.timeout(20000),
       })
       if (!aiRes.ok) throw new Error(`Claude error ${aiRes.status}`)
       const data = await aiRes.json()
       const commentary = cleanAIOutput((data.content?.[0]?.text || '').trim())
-      return new Response(JSON.stringify({ commentary, source: 'SOL · Dake Style' }), { headers: HEADERS })
+      return new Response(JSON.stringify({ commentary, source: 'SOL · Warfare Study' }), { headers: HEADERS })
     } catch (e: any) {
       console.error('[bible-ask] commentary error:', e.message)
       return new Response(JSON.stringify({ error: e.message || 'Commentary failed' }), { status: 500, headers: HEADERS })

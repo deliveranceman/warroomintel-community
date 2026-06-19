@@ -82,7 +82,7 @@ Sections:
 - Today's Briefing — devotional teaching on a ministry topic
 - Spirit of the Day — intel on a specific demonic spirit
 - Daily Missions — 3 kingdom assignments for today
-- SOL Commentary — Dake's Bible notes on the day's scripture
+- SOL Commentary — SOL's Spiritual Warfare & Reference Bible notes on the day's scripture
 - Evening Prayer — for closing out your day
 
 The brief changes based on time of day:
@@ -132,7 +132,7 @@ How to access:
 - Tap the SOL icon (flame) anywhere on the platform
 - Or go to Messages → SOL Intelligence tab
 
-SOL is trained on Dake's Bible, deliverance ministry literature, and WRI's demon database.`,
+SOL is trained on SOL's Spiritual Warfare & Reference Bible, deliverance ministry literature, and WRI's demon database.`,
   },
   {
     id: 'feat-dms',

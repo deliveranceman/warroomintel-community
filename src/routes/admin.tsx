@@ -1667,7 +1667,7 @@ function bmDeriveRegion(name: string): string {
 }
 
 const BM_SOURCES = [
-  '', 'Dake Annotated Bible', 'Win Worley',
+  '', "SOL's Spiritual Warfare & Reference Bible", 'Win Worley',
   'Frank Hammond - Pigs in the Parlor', 'Derek Prince', 'Rebecca Brown',
   'John Eckhardt', 'Clinical Session Observation', 'Justin Payne - Pastoral Notes',
   'Scripture Reference', 'Custom...',
