@@ -10,15 +10,13 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
 })
 
 // Charter/founding plans are a BILLING fact, not an access tier.
-// tier must always be a canonical ladder value (soldier/commander/general/…).
-// founding + founding_plan carry the billing metadata separately.
+// tier must always be a canonical ladder value (soldier/commander/general/...).
+// founding + charter_price_id carry the billing metadata separately.
 interface PriceResolution {
   tier: string
   founding: boolean
   foundingPlan?: string
 }
-
-const FOUNDING_GENERAL_PRICE_ID = process.env.STRIPE_FOUNDING_GENERAL_PRICE_ID
 
 function buildPriceResolution(): Record<string, PriceResolution> {
   const m: Record<string, PriceResolution> = {
@@ -27,9 +25,12 @@ function buildPriceResolution(): Record<string, PriceResolution> {
     'price_1TXifX5V5uqVT9SogXMp79zb': { tier: 'general',   founding: false },
     'price_1Tb1mO5V5uqVT9So3ZRRltDC': { tier: 'soldier',   founding: true, foundingPlan: 'charter_soldier' },
     'price_1Tb1ms5V5uqVT9Sodiu1xbrR': { tier: 'commander', founding: true, foundingPlan: 'charter_commander' },
+    'price_1TcxLk5V5uqVT9So4MgL5kjd': { tier: 'general',   founding: true, foundingPlan: 'founding_general' },
   }
-  if (FOUNDING_GENERAL_PRICE_ID) {
-    m[FOUNDING_GENERAL_PRICE_ID] = { tier: 'general', founding: true, foundingPlan: 'founding_general' }
+  // Env override allows a second founding-general price (e.g. Stripe test mode)
+  const envPrice = process.env.STRIPE_FOUNDING_GENERAL_PRICE_ID
+  if (envPrice && !m[envPrice]) {
+    m[envPrice] = { tier: 'general', founding: true, foundingPlan: 'founding_general' }
   }
   return m
 }
@@ -38,6 +39,12 @@ const PRICE_RESOLUTION = buildPriceResolution()
 
 function getSupabase() {
   return createClient(supabaseUrl!, supabaseServiceKey!)
+}
+
+// Convert a Unix timestamp (number) or ISO string to a Postgres-compatible ISO string.
+function toIso(ts: number | string | null | undefined): string {
+  if (!ts) return new Date().toISOString()
+  return typeof ts === 'number' ? new Date(ts * 1000).toISOString() : ts
 }
 
 const STREAM_TIER_CHANNELS: Record<string, string[]> = {
@@ -87,7 +94,7 @@ function getFoundingExtra(resolution: PriceResolution): FoundingExtra | null {
 }
 
 // Read-merge-write: spreads existing public_metadata so no keys are clobbered.
-// founding flag is sticky — once true it is never cleared by any subsequent event.
+// founding flag is sticky -- once true it is never cleared by any subsequent event.
 async function setClerkTierById(userId: string, tier: string, foundingExtra?: FoundingExtra | null) {
   const userRes = await fetch(`https://api.clerk.com/v1/users/${userId}`, {
     headers: { Authorization: `Bearer ${process.env.CLERK_SECRET_KEY}` },
@@ -135,6 +142,19 @@ async function setClerkTier(email: string, tier: string, foundingExtra?: Foundin
   return setClerkTierById(users[0].id, tier, foundingExtra)
 }
 
+// Lookup a member by their Stripe customer ID -- primary join key for subscription/invoice events.
+async function lookupMemberByCustomerId(
+  supabase: ReturnType<typeof getSupabase>,
+  customerId: string
+): Promise<{ clerk_id: string; founding: boolean } | null> {
+  const { data } = await supabase
+    .from('members')
+    .select('clerk_id, founding')
+    .eq('stripe_customer_id', customerId)
+    .single()
+  return data || null
+}
+
 export default async function handler(req: Request) {
   if (req.method === 'OPTIONS') return new Response('ok', { headers })
   if (req.method !== 'POST') return new Response('Method not allowed', { status: 405 })
@@ -158,7 +178,7 @@ export default async function handler(req: Request) {
     return new Response(JSON.stringify({ error: `Webhook Error: ${err.message}` }), { status: 400, headers })
   }
 
-  // Idempotency guard: INSERT ON CONFLICT DO NOTHING — skip duplicate Stripe retries
+  // Idempotency guard: INSERT ON CONFLICT DO NOTHING -- skip duplicate Stripe retries
   const supabase = getSupabase()
   const { data: eventRows } = await supabase
     .from('stripe_events')
@@ -181,11 +201,21 @@ export default async function handler(req: Request) {
         const session = event.data.object as Stripe.Checkout.Session
         const clerkUserId = session.client_reference_id
         const email = session.customer_details?.email || session.customer_email
+        const stripeCustomerId = session.customer as string | null
+        const stripeSubId = session.subscription as string | null
 
-        let resolvedPriceId = session.line_items?.data?.[0]?.price?.id
-        if (!resolvedPriceId && session.subscription) {
-          const sub = await stripe.subscriptions.retrieve(session.subscription as string)
+        // Always retrieve subscription -- need price_id, period_end, status
+        let resolvedPriceId: string | undefined
+        let periodEnd: string | undefined
+        let subStatus = 'active'
+        let cancelAtPeriodEnd = false
+
+        if (stripeSubId) {
+          const sub = await stripe.subscriptions.retrieve(stripeSubId)
           resolvedPriceId = sub.items.data[0]?.price?.id
+          periodEnd = toIso((sub as any).current_period_end)
+          subStatus = sub.status
+          cancelAtPeriodEnd = (sub as any).cancel_at_period_end ?? false
         }
 
         const resolution = resolvedPriceId ? PRICE_RESOLUTION[resolvedPriceId] : null
@@ -204,14 +234,31 @@ export default async function handler(req: Request) {
           await setClerkTierById(clerkUserId, resolution.tier, foundingExtra)
           await addToStreamChannels(clerkUserId, resolution.tier)
           resolvedUserId = clerkUserId
-          console.log(`✅ Upgraded ${clerkUserId} to ${resolution.tier}${foundingExtra ? ` (${resolution.foundingPlan})` : ''}`)
+          console.log(`[stripe-webhook] Upgraded ${clerkUserId} to ${resolution.tier}${foundingExtra ? ` (${resolution.foundingPlan})` : ''}`)
         } else if (email) {
           resolvedUserId = await setClerkTier(email, resolution.tier, foundingExtra)
           if (resolvedUserId) await addToStreamChannels(resolvedUserId, resolution.tier)
-          console.log(`✅ Upgraded ${email} to ${resolution.tier}${foundingExtra ? ` (${resolution.foundingPlan})` : ''} (email fallback)`)
+          console.log(`[stripe-webhook] Upgraded ${email} to ${resolution.tier} (email fallback)`)
         } else {
-          console.error('No user identifier in checkout session')
+          console.error('[stripe-webhook] No user identifier in checkout session')
           break
+        }
+
+        // Write billing columns to members table
+        if (resolvedUserId) {
+          const memberUpdate: Record<string, any> = {
+            tier: resolution.tier,
+            subscription_status: subStatus,
+            cancel_at_period_end: cancelAtPeriodEnd,
+          }
+          if (stripeCustomerId) memberUpdate.stripe_customer_id = stripeCustomerId
+          if (stripeSubId)      memberUpdate.stripe_subscription_id = stripeSubId
+          if (periodEnd)        memberUpdate.current_period_end = periodEnd
+          if (resolution.founding) {
+            memberUpdate.founding = true
+            memberUpdate.charter_price_id = resolvedPriceId
+          }
+          await supabase.from('members').update(memberUpdate).eq('clerk_id', resolvedUserId)
         }
 
         if (resolvedUserId && resolution.foundingPlan === 'founding_general') {
@@ -224,13 +271,13 @@ export default async function handler(req: Request) {
         if (email) {
           sendEmail({
             to: email,
-            subject: `⚔ WRI ${tierName} Access Activated`,
+            subject: `WRI ${tierName} Access Activated`,
             html: wriEmailTemplate({
               title: `${tierName} Access Activated`,
               body: `
                 <p>Warrior,</p>
                 <p>Your <strong style="color:#C9A84C;">${tierName}</strong> membership is now active.</p>
-                <p>You now have access to everything your tier unlocks — head to the platform to explore your expanded capabilities.</p>
+                <p>You now have access to everything your tier unlocks -- head to the platform to explore your expanded capabilities.</p>
                 <p style="font-size:12px;color:#9a8c74;">If you have any questions about your membership, reply to this email.</p>
               `,
               ctaText: 'Access Your War Room',
@@ -241,61 +288,178 @@ export default async function handler(req: Request) {
         break
       }
 
+      case 'customer.subscription.created': {
+        const sub = event.data.object as Stripe.Subscription
+        const priceId = sub.items.data[0]?.price?.id
+        const resolution = priceId ? PRICE_RESOLUTION[priceId] : null
+        if (!resolution) break
+
+        const customerId = sub.customer as string
+        const member = await lookupMemberByCustomerId(supabase, customerId)
+        // Fallback: subscription metadata may carry clerk_id if set at checkout creation
+        const clerkId = member?.clerk_id || (sub.metadata?.clerk_id as string | undefined) || null
+        if (!clerkId) { console.log('[stripe-webhook] subscription.created: no clerk_id for', customerId); break }
+
+        const memberUpdate: Record<string, any> = {
+          stripe_customer_id: customerId,
+          stripe_subscription_id: sub.id,
+          tier: resolution.tier,
+          subscription_status: sub.status,
+          current_period_end: toIso((sub as any).current_period_end),
+          cancel_at_period_end: (sub as any).cancel_at_period_end ?? false,
+        }
+        if (resolution.founding) {
+          memberUpdate.founding = true
+          memberUpdate.charter_price_id = priceId
+        }
+        await supabase.from('members').update(memberUpdate).eq('clerk_id', clerkId)
+        await setClerkTierById(clerkId, resolution.tier, getFoundingExtra(resolution))
+        console.log(`[stripe-webhook] subscription.created: ${clerkId} -> ${resolution.tier}`)
+        break
+      }
+
       case 'customer.subscription.updated': {
         const sub = event.data.object as Stripe.Subscription
         const priceId = sub.items.data[0]?.price?.id
         const resolution = priceId ? PRICE_RESOLUTION[priceId] : null
         if (!resolution) break
-        const customer = await stripe.customers.retrieve(sub.customer as string)
-        const email = (customer as Stripe.Customer).email
-        if (!email) break
-        const userId = await setClerkTier(email, resolution.tier, getFoundingExtra(resolution))
-        if (userId) await addToStreamChannels(userId, resolution.tier)
-        console.log(`✅ Subscription updated ${email} → ${resolution.tier}`)
+
+        const customerId = sub.customer as string
+        const member = await lookupMemberByCustomerId(supabase, customerId)
+        if (!member) {
+          // Race: checkout.session.completed hasn't set stripe_customer_id yet -- fall back to email
+          const customer = await stripe.customers.retrieve(customerId)
+          const email = (customer as Stripe.Customer).email
+          if (!email) break
+          const userId = await setClerkTier(email, resolution.tier, getFoundingExtra(resolution))
+          if (userId) await addToStreamChannels(userId, resolution.tier)
+          console.log(`[stripe-webhook] subscription.updated (email fallback) ${email} -> ${resolution.tier}`)
+          break
+        }
+
+        const memberUpdate: Record<string, any> = {
+          tier: resolution.tier,
+          subscription_status: sub.status,
+          current_period_end: toIso((sub as any).current_period_end),
+          cancel_at_period_end: (sub as any).cancel_at_period_end ?? false,
+        }
+        if (resolution.founding && !member.founding) {
+          memberUpdate.founding = true
+          memberUpdate.charter_price_id = priceId
+        }
+        await supabase.from('members').update(memberUpdate).eq('clerk_id', member.clerk_id)
+        await setClerkTierById(member.clerk_id, resolution.tier, getFoundingExtra(resolution))
+        await addToStreamChannels(member.clerk_id, resolution.tier)
+        console.log(`[stripe-webhook] subscription.updated ${member.clerk_id} -> ${resolution.tier}`)
+        break
+      }
+
+      // founding flag is preserved by the read-merge-write in setClerkTierById
+      case 'customer.subscription.deleted': {
+        const sub = event.data.object as Stripe.Subscription
+        const customerId = sub.customer as string
+        const member = await lookupMemberByCustomerId(supabase, customerId)
+        if (!member) {
+          const customer = await stripe.customers.retrieve(customerId)
+          const email = (customer as Stripe.Customer).email
+          if (!email) break
+          await setClerkTier(email, 'free', null)
+          console.log(`[stripe-webhook] subscription.deleted (email fallback) ${email} -> free`)
+          break
+        }
+        await supabase.from('members').update({
+          tier: 'free',
+          subscription_status: 'canceled',
+          stripe_subscription_id: null,
+          cancel_at_period_end: false,
+        }).eq('clerk_id', member.clerk_id)
+        await setClerkTierById(member.clerk_id, 'free', null)
+        console.log(`[stripe-webhook] subscription.deleted ${member.clerk_id} -> free`)
         break
       }
 
       case 'invoice.payment_succeeded': {
         const invoice = event.data.object as Stripe.Invoice
-        const email = invoice.customer_email
-        if (!email) break
-        const sub = await stripe.subscriptions.retrieve((invoice as any).subscription as string)
-        const priceId = sub.items.data[0]?.price?.id
-        const resolution = priceId ? PRICE_RESOLUTION[priceId] : null
-        if (!resolution) break
-        const userId = await setClerkTier(email, resolution.tier, getFoundingExtra(resolution))
-        if (userId) await addToStreamChannels(userId, resolution.tier)
-        console.log(`✅ Renewed ${email} at ${resolution.tier}`)
-        break
-      }
+        const customerId = (invoice as any).customer as string | null
+        const stripeSubId = (invoice as any).subscription as string | null
 
-      // Downgrade to free — founding flag is preserved by the read-merge-write in setClerkTierById
-      case 'customer.subscription.deleted': {
-        const sub = event.data.object as Stripe.Subscription
-        const customer = await stripe.customers.retrieve(sub.customer as string)
-        const email = (customer as Stripe.Customer).email
-        if (!email) break
-        await setClerkTier(email, 'free', null)
-        console.log(`⬇ Downgraded ${email} to free (subscription cancelled)`)
+        if (!customerId) break
+
+        const member = await lookupMemberByCustomerId(supabase, customerId)
+        if (!member) {
+          // Fallback: refresh Clerk tier by email when stripe_customer_id not yet stored
+          const email = invoice.customer_email
+          if (email && stripeSubId) {
+            const sub = await stripe.subscriptions.retrieve(stripeSubId)
+            const priceId = sub.items.data[0]?.price?.id
+            const resolution = priceId ? PRICE_RESOLUTION[priceId] : null
+            if (resolution) {
+              const userId = await setClerkTier(email, resolution.tier, getFoundingExtra(resolution))
+              if (userId) await addToStreamChannels(userId, resolution.tier)
+            }
+          }
+          break
+        }
+
+        // Write billing_history -- ON CONFLICT (stripe_invoice_id) DO NOTHING via ignoreDuplicates
+        const invoiceId = invoice.id
+        const lines = (invoice as any).lines?.data as any[] | undefined
+        const lineDesc = lines?.[0]?.description as string | null ?? null
+        const linePeriodEnd = lines?.[0]?.period?.end as number | undefined
+
+        if (invoiceId && invoice.amount_paid > 0) {
+          await supabase.from('billing_history').upsert({
+            clerk_id: member.clerk_id,
+            stripe_invoice_id: invoiceId,
+            amount_cents: invoice.amount_paid,
+            currency: invoice.currency,
+            status: 'paid',
+            description: lineDesc,
+            paid_at: new Date().toISOString(),
+            hosted_invoice_url: invoice.hosted_invoice_url || null,
+          }, { onConflict: 'stripe_invoice_id', ignoreDuplicates: true })
+        }
+
+        // Refresh period_end + status on renewal
+        const memberUpdate: Record<string, any> = { subscription_status: 'active' }
+        if (linePeriodEnd) memberUpdate.current_period_end = toIso(linePeriodEnd)
+        await supabase.from('members').update(memberUpdate).eq('clerk_id', member.clerk_id)
+
+        // Sync Clerk tier (renewal keeps same tier, re-confirms access)
+        if (stripeSubId) {
+          const sub = await stripe.subscriptions.retrieve(stripeSubId)
+          const priceId = sub.items.data[0]?.price?.id
+          const resolution = priceId ? PRICE_RESOLUTION[priceId] : null
+          if (resolution) {
+            await setClerkTierById(member.clerk_id, resolution.tier, getFoundingExtra(resolution))
+            await addToStreamChannels(member.clerk_id, resolution.tier)
+          }
+        }
+        console.log(`[stripe-webhook] invoice.payment_succeeded for ${member.clerk_id}`)
         break
       }
 
       case 'invoice.payment_failed': {
         const invoice = event.data.object as Stripe.Invoice
-        console.log(`⚠ Payment failed for ${invoice.customer_email}`)
-        // Stripe will retry — don't downgrade yet
-        // After 3 failures Stripe fires customer.subscription.deleted
+        const customerId = (invoice as any).customer as string | null
+        if (customerId) {
+          const member = await lookupMemberByCustomerId(supabase, customerId)
+          if (member) {
+            await supabase.from('members').update({ subscription_status: 'past_due' }).eq('clerk_id', member.clerk_id)
+          }
+        }
+        console.log(`[stripe-webhook] invoice.payment_failed for ${invoice.customer_email || customerId}`)
         break
       }
 
       default:
-        console.log(`Unhandled event type: ${event.type}`)
+        console.log(`[stripe-webhook] Unhandled event type: ${event.type}`)
     }
 
     await supabase.from('stripe_events').update({ processed_at: new Date().toISOString() }).eq('id', event.id)
 
   } catch (err: any) {
-    console.error('Webhook handler error:', err.message)
+    console.error('[stripe-webhook] Handler error:', err.message)
     try { await supabase.from('stripe_events').update({ processing_error: err.message }).eq('id', event.id) } catch {}
     return new Response(JSON.stringify({ error: err.message }), { status: 500, headers })
   }
