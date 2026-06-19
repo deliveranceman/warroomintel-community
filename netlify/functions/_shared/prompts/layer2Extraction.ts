@@ -23,6 +23,10 @@ interface FieldExtraction<T = string> {
   confidence: 1 | 2 | 3 | 4 | 5
 }
 
+interface ScriptureFieldExtraction extends FieldExtraction<string> {
+  refs: string[]
+}
+
 export interface Layer2ExtractionOutput {
   spirit_identity: {
     name: string
@@ -66,10 +70,10 @@ export interface Layer2ExtractionOutput {
     confidence: 1 | 2 | 3 | 4 | 5
   }>
   layer6_scripture: {
-    scripture: FieldExtraction | null
-    scripture_context: FieldExtraction | null
-    counter_scriptures: FieldExtraction | null
-    biblical_umbrella: FieldExtraction | null
+    scripture:          ScriptureFieldExtraction | null
+    scripture_context:  ScriptureFieldExtraction | null
+    counter_scriptures: ScriptureFieldExtraction | null
+    biblical_umbrella:  ScriptureFieldExtraction | null
   }
   layer7_counter_strategies: {
     deliverance_sequence: FieldExtraction | null
@@ -239,6 +243,18 @@ stomach, womb, lower-back, knees, feet.
 - \`biblical_umbrella\`: biblical category the source places it under
   (idolatry, witchcraft, false prophecy, etc.)
 
+**Each layer 6 sub-field must include a \`refs\` array of explicit verse
+citations alongside the existing \`value\`, \`excerpt\`, and \`confidence\`
+fields.**
+
+If the source contains explicit Book Chapter:Verse references (e.g.
+\`Mark 5:9\`, \`Ephesians 6:12\`, \`Deuteronomy 28:15-68\`), list them
+verbatim as strings in the refs array. If the source only references
+scripture thematically (e.g. "the Old Testament account of...") without
+citing chapter and verse, leave refs as an empty array \`[]\`. Never
+fabricate citations. Verse-range citations (e.g. \`Deuteronomy 28:15-68\`)
+stay as single strings; do not expand into individual verses.
+
 ### Layer 7 — COUNTER-STRATEGIES (tactical / deliverance intelligence)
 
 - \`deliverance_sequence\`: the order of operations the source recommends
@@ -295,10 +311,10 @@ Return ONLY valid JSON. No prose before or after. Schema:
     { "region": "string", "symptom": "string", "excerpt": "string", "confidence": 1-5 }
   ],
   "layer6_scripture": {
-    "scripture": { ... } | null,
-    "scripture_context": { ... } | null,
-    "counter_scriptures": { ... } | null,
-    "biblical_umbrella": { ... } | null
+    "scripture":          { "value": "string", "excerpt": "source quote", "confidence": 1-5, "refs": ["Book Chapter:Verse", ...] } | null,
+    "scripture_context":  { "value": "string", "excerpt": "source quote", "confidence": 1-5, "refs": ["Book Chapter:Verse", ...] } | null,
+    "counter_scriptures": { "value": "string", "excerpt": "source quote", "confidence": 1-5, "refs": ["Book Chapter:Verse", ...] } | null,
+    "biblical_umbrella":  { "value": "string", "excerpt": "source quote", "confidence": 1-5, "refs": ["Book Chapter:Verse", ...] } | null
   },
   "layer7_counter_strategies": {
     "deliverance_sequence": { ... } | null,
