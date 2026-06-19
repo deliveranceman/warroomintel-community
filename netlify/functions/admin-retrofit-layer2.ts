@@ -117,8 +117,9 @@ export default async function handler(req: Request) {
     )
   }
 
-  const { data: rpcMatches, error: rpcErr } = await client.rpc('match_library_chunks', {
+  const { data: rpcData, error: rpcErr } = await client.rpc('match_library_chunks_in_book', {
     query_embedding: queryEmbedding,
+    book_id_filter:  les.resource_id,
     match_threshold: 0.45,
     match_count:     50,
   })
@@ -129,23 +130,7 @@ export default async function handler(req: Request) {
     )
   }
 
-  // Post-filter to the LES's linked resource, preserving RPC similarity ranking
-  const matchedIds = (rpcMatches || []).map((m: any) => m.id)
-  let chunks: Array<{ chunk_text: string; book_title: string }> = []
-  if (matchedIds.length > 0) {
-    const { data: bookFiltered } = await client
-      .from('library_chunks')
-      .select('id, chunk_text, book_title')
-      .in('id', matchedIds)
-      .eq('book_id', les.resource_id)
-
-    const orderById = new Map<string, number>()
-    ;(rpcMatches || []).forEach((m: any, idx: number) => orderById.set(m.id, idx))
-    chunks = (bookFiltered || [])
-      .sort((a: any, b: any) => (orderById.get(a.id) ?? 999) - (orderById.get(b.id) ?? 999))
-      .slice(0, 5)
-      .map((c: any) => ({ chunk_text: c.chunk_text, book_title: c.book_title }))
-  }
+  const chunks = ((rpcData || []) as Array<{ chunk_text: string; book_title: string }>).slice(0, 5)
 
   if (chunks.length === 0) {
     return new Response(
