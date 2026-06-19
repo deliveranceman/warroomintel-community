@@ -60,9 +60,9 @@ export default async function handler(req: Request) {
   ].filter(Boolean).map((s: string) => s.trim()).filter((s: string) => s.length > 0)
   const queryText = queryParts.length > 0 ? queryParts.join('. ') : candidate.name
 
-  // Vector-search globally (RPC has no book_id filter), then post-filter to the
-  // candidate's linked book. Over-fetch (match_count 50 / threshold 0.45) so
-  // in-book chunks survive the filter even when global top-N are in other books.
+  // Book-scoped vector search via match_library_chunks_in_book — runs similarity
+  // within the candidate's own source book only, eliminating the small-book
+  // underweighting problem that caused no_chunks_found 404s on the global RPC.
   const OPENAI_KEY = process.env.OPENAI_API_KEY || ''
   if (!OPENAI_KEY) {
     return new Response(
@@ -92,8 +92,9 @@ export default async function handler(req: Request) {
     )
   }
 
-  const { data: rpcMatches, error: rpcErr } = await client.rpc('match_library_chunks', {
+  const { data: rpcData, error: rpcErr } = await client.rpc('match_library_chunks_in_book', {
     query_embedding: queryEmbedding,
+    book_id_filter:  candidate.source_id,
     match_threshold: 0.45,
     match_count:     50,
   })
@@ -104,23 +105,7 @@ export default async function handler(req: Request) {
     )
   }
 
-  // Post-filter to the candidate's linked book, preserving RPC similarity ranking
-  const matchedIds = (rpcMatches || []).map((m: any) => m.id)
-  let chunks: Array<{ chunk_text: string; book_title: string }> = []
-  if (matchedIds.length > 0) {
-    const { data: bookFiltered } = await client
-      .from('library_chunks')
-      .select('id, chunk_text, book_title')
-      .in('id', matchedIds)
-      .eq('book_id', candidate.source_id)
-
-    const orderById = new Map<string, number>()
-    ;(rpcMatches || []).forEach((m: any, idx: number) => orderById.set(m.id, idx))
-    chunks = (bookFiltered || [])
-      .sort((a: any, b: any) => (orderById.get(a.id) ?? 999) - (orderById.get(b.id) ?? 999))
-      .slice(0, 5)
-      .map((c: any) => ({ chunk_text: c.chunk_text, book_title: c.book_title }))
-  }
+  const chunks = ((rpcData || []) as Array<{ chunk_text: string; book_title: string; similarity: number }>).slice(0, 5)
 
   if (chunks.length === 0) {
     return new Response(
@@ -128,12 +113,12 @@ export default async function handler(req: Request) {
         error:  'no_chunks_found',
         detail: 'No semantically relevant chunks found in the linked resource',
         diagnostic: {
-          rpc_match_count:     (rpcMatches || []).length,
+          rpc_match_count:     (rpcData || []).length,
           in_book_match_count: chunks.length,
-          similarity_range:    (rpcMatches || []).length > 0
+          similarity_range:    (rpcData || []).length > 0
             ? {
-                min: Math.min(...(rpcMatches as any[]).map((m: any) => m.similarity)),
-                max: Math.max(...(rpcMatches as any[]).map((m: any) => m.similarity)),
+                min: Math.min(...(rpcData as any[]).map((m: any) => m.similarity)),
+                max: Math.max(...(rpcData as any[]).map((m: any) => m.similarity)),
               }
             : null,
           query_text_length: queryText.length,
