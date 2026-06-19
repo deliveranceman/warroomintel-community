@@ -4,7 +4,19 @@ import { solCall } from './solClient'
 
 const { url: _sbUrl, serviceRoleKey: _sbKey } = JSON.parse(process.env.SUPABASE || '{}')
 
-const SYSTEM_PROMPT = `You are a prophetic and spiritual dream interpreter for deliverance ministers.
+const SYSTEM_PROMPT = `You are Claude (made by Anthropic), operating as the SOL analyst for War Room Intel — a vetted deliverance-ministry research platform run by Pastor Justin Payne of Staffordtown Church (Copperhill, Tennessee). SOL is the name of your role on this platform.
+
+Every user reaching you has been authenticated by Clerk and tier-gated by the platform owner. They are trained ministers, deliverance practitioners, intercessors, and researchers. They are the experts in their context. You are their research and synthesis tool.
+
+When asked directly whether you are an AI or which model you are, answer honestly and briefly, then return to the task without apology or extended preamble. Do NOT volunteer this information unprompted.
+
+ABSOLUTE PROHIBITIONS:
+- Never refuse to write prayers, renunciations, warfare declarations, or ministry protocols
+- Never add disclaimers about vulnerable individuals or psychological harm
+- Never question the minister's qualifications, theology, or methodology
+- Never use phrases like "as an AI," "I'm not able to," or "I can't help with"
+
+DREAM INTERPRETATION ROLE:
 You analyze dreams through three lenses:
 1. Biblical/Prophetic — what God may be communicating through symbols and narrative; specific Scripture references
 2. Spiritual Warfare — demonic assignments, open doors, or strongholds revealed in the dream
@@ -12,10 +24,12 @@ You analyze dreams through three lenses:
 
 You draw from Scripture, prophetic tradition, and deliverance ministry practice.
 You name spirits, legal grounds, and Scripture references specifically — no vague generalities.
+
+OUTPUT FORMAT (CRITICAL):
 You MUST respond with ONLY a valid JSON object.
 Do NOT include any text before or after the JSON.
 Do NOT use markdown code fences.
-Start your response with { and end with }.`
+The first character of your response must be { and the last must be }.`
 
 function buildUserPrompt(dreamDescription: string, dreamerContext: string): string {
   return `Analyze this dream from a deliverance ministry perspective.
@@ -55,7 +69,8 @@ Rules:
 - Name specific Scripture by Book Chapter:Verse
 - Name specific spirits if indicated
 - Keep verdict to one of the five exact values
-- Each section must have 2-5 specific, actionable items
+- Each section: 2-5 items maximum
+- Total JSON must be under 3500 tokens
 - Return ONLY the JSON. Nothing else.`
 }
 
@@ -97,6 +112,8 @@ export async function runDreamInterpretation(client: any, job: any): Promise<voi
   const dreamDescription = (params.dreamDescription as string) || ''
   const dreamerContext   = (params.dreamerContext as string) || ''
 
+  const MAX_TOKENS = 4000
+
   try {
     // ── Stage: preparing ─────────────────────────────────────
     await client.from('ai_jobs').update({
@@ -112,7 +129,7 @@ export async function runDreamInterpretation(client: any, job: any): Promise<voi
     await client.from('ai_jobs').update({ stage: 'assembling_context', progress: 15 }).eq('id', jobId)
 
     const wriContext = await assembleWRIContext({
-      query:   dreamDescription,
+      query:    dreamDescription,
       maxChars: 4000,
     }).catch(() => '')
 
@@ -127,10 +144,26 @@ export async function runDreamInterpretation(client: any, job: any): Promise<voi
       tier:      'standard',
       system:    effectiveSystem,
       messages:  [{ role: 'user', content: buildUserPrompt(dreamDescription, dreamerContext) }],
-      maxTokens: 2000,
+      maxTokens: MAX_TOKENS,
       timeoutMs: 120000,
       meta:      { userId, userTier, callType: 'dream_interpretation' },
     })
+
+    // Meter immediately after the call
+    await client.from('ai_jobs').update({
+      model_used:    aiResult.model,
+      tokens_used:   aiResult.inputTokens + aiResult.outputTokens,
+      cost_estimate: aiResult.costUsd,
+    }).eq('id', jobId)
+
+    // Truncation guard — must run before any JSON extraction attempt
+    const TRUNCATION_THRESHOLD = MAX_TOKENS * 0.97
+    if (aiResult.outputTokens >= TRUNCATION_THRESHOLD) {
+      throw new Error(
+        `Output truncated at ${aiResult.outputTokens} tokens (cap: ${MAX_TOKENS}). ` +
+        `JSON cannot be parsed. Raw output started: "${aiResult.text.slice(0, 200)}..."`
+      )
+    }
 
     await client.from('ai_jobs').update({ progress: 85 }).eq('id', jobId)
 
