@@ -5,12 +5,17 @@
 //
 // spirit_hierarchy schema (MCP-verified):
 //   id, child_spirit_id, parent_spirit_id (nullable FK),
-//   parent_name_raw (nullable text), relation (enum), created_at
+//   parent_name_raw (nullable text), relation (enum),
+//   source_suggestion_id (nullable FK → library_enrichment_suggestions), created_at
 // Enum spirit_hierarchy_relation: 'parent_strongman' | 'strongman' | 'umbrella'
 // UNIQUE (child_spirit_id, parent_name_raw, relation)
 //
 // parent_name_raw is ALWAYS written (never null) so the UNIQUE constraint
 // deduplicates correctly (PostgreSQL NULLs are not equal in UNIQUE indexes).
+//
+// source_suggestion_id is written so the display layer and SOL synthesis can
+// JOIN through to library_enrichment_suggestions.is_adversarial — adversarial-
+// source rows carry equal data weight but render with "Intelligence Only" framing.
 
 import { resolveSpiritByName } from './resolveSpiritByName'
 
@@ -24,8 +29,8 @@ const HIERARCHY_FIELDS: Array<{ key: 'strongman' | 'parent_strongman'; relation:
 export async function applySpiritHierarchy(
   client:        any,    // service-role Supabase client (caller provides)
   spiritId:      string, // becomes child_spirit_id
-  network:       any,    // layer2_raw.layer3_network — may be null/undefined
-  _suggestionId: string, // accepted for stable signature; not yet wired to a column
+  network:      any,    // layer2_raw.layer3_network — may be null/undefined
+  suggestionId: string, // FK to library_enrichment_suggestions (enables is_adversarial JOIN)
 ): Promise<{
   inserted: Array<{ parent_name_raw: string; parent_spirit_id: string | null; relation: HierarchyRelation }>
   skipped:  Array<{ parent_name_raw: string; reason: string }>
@@ -57,10 +62,11 @@ export async function applySpiritHierarchy(
     const { error: insertErr } = await client
       .from('spirit_hierarchy')
       .insert({
-        child_spirit_id:  spiritId,
-        parent_spirit_id: parentSpiritId,
-        parent_name_raw:  rawValue,
+        child_spirit_id:      spiritId,
+        parent_spirit_id:     parentSpiritId,
+        parent_name_raw:      rawValue,
         relation,
+        source_suggestion_id: suggestionId,
       })
 
     if (insertErr) {

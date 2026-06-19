@@ -5,9 +5,14 @@
 //
 // spirit_companions schema (MCP-verified):
 //   id, spirit_id, companion_spirit_id (nullable FK),
-//   companion_name_raw NOT NULL, kind (enum), created_at
+//   companion_name_raw NOT NULL, kind (enum),
+//   source_suggestion_id (nullable FK → library_enrichment_suggestions), created_at
 // Enum spirit_companion_kind: 'companion' | 'related' | 'cluster'
 // UNIQUE (spirit_id, companion_name_raw, kind)
+//
+// source_suggestion_id is written so the display layer and SOL synthesis can
+// JOIN through to library_enrichment_suggestions.is_adversarial — adversarial-
+// source rows carry equal data weight but render with "Intelligence Only" framing.
 
 import { resolveSpiritByName } from './resolveSpiritByName'
 
@@ -22,8 +27,8 @@ const COMPANION_FIELDS: Array<{ key: 'cluster_spirits' | 'companion_spirits' | '
 export async function applySpiritCompanions(
   client:        any,    // service-role Supabase client (caller provides)
   spiritId:      string, // spirit_id in spirit_companions
-  network:       any,    // layer2_raw.layer3_network — may be null/undefined
-  _suggestionId: string, // accepted for stable signature; not yet wired to a column
+  network:      any,    // layer2_raw.layer3_network — may be null/undefined
+  suggestionId: string, // FK to library_enrichment_suggestions (enables is_adversarial JOIN)
 ): Promise<{
   inserted: Array<{ companion_name_raw: string; companion_spirit_id: string | null; kind: CompanionKind }>
   skipped:  Array<{ companion_name_raw: string; reason: string }>
@@ -58,10 +63,11 @@ export async function applySpiritCompanions(
       const { error: insertErr } = await client
         .from('spirit_companions')
         .insert({
-          spirit_id:           spiritId,
-          companion_spirit_id: companionSpiritId,
-          companion_name_raw:  segment,
+          spirit_id:            spiritId,
+          companion_spirit_id:  companionSpiritId,
+          companion_name_raw:   segment,
           kind,
+          source_suggestion_id: suggestionId,
         })
 
       if (insertErr) {
