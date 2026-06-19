@@ -14,6 +14,10 @@
 // value is semicolon-delimited (e.g. "Lodge membership; ancestral ties; ...")
 //
 // Called from library-enrich-apply.ts on LES approve (action === 'enrich').
+//
+// source_suggestion_id is written so the display layer and SOL synthesis can
+// JOIN through to library_enrichment_suggestions.is_adversarial — adversarial-
+// source rows carry equal data weight but render with "Intelligence Only" framing.
 
 const SUB_FIELDS = [
   'entry_points',
@@ -45,7 +49,7 @@ export async function applySpiritGateways(
   client:        any,    // service-role Supabase client (caller provides)
   spiritId:      string, // canonical spirit UUID (must exist in spirits table)
   gateways:      any,    // layer2_raw.layer1_gateways — may be null/undefined
-  _suggestionId: string, // les.id — accepted for stable signature; not yet wired to a column
+  suggestionId: string, // FK to library_enrichment_suggestions (enables is_adversarial JOIN)
 ): Promise<{
   inserted: Array<{ gateway: string; gateway_key: string; sub_field: string }>
   skipped:  Array<{ gateway: string; reason: string }>
@@ -78,10 +82,11 @@ export async function applySpiritGateways(
       const { data: inserted, error: insertErr } = await client
         .from('spirit_gateways')
         .insert({
-          spirit_id:   spiritId,
+          spirit_id:            spiritId,
           gateway,
-          gateway_key: gatewayKey,
+          gateway_key:          gatewayKey,
           notes,
+          source_suggestion_id: suggestionId,
         })
         .select('id')
         .single()
