@@ -5,6 +5,7 @@ import { X } from 'lucide-react'
 import { CommunitySidebarShell } from '@/components/CommunitySidebarShell'
 import { SolIcon } from '@/components/SolIcon'
 import { UpgradeGate } from '@/components/UpgradeGate'
+import { getAccessLevel } from '@/lib/access'
 
 const MobileSubpageNav = () => (
   <>
@@ -51,7 +52,6 @@ const mono    = "'JetBrains Mono', monospace"
 const crimson = "'Crimson Pro', serif"
 const georgia = "Georgia, serif"
 
-const TIER_LEVELS: Record<string, number> = { watchman: 0, free: 0, soldier: 1, commander: 2, general: 3, minister: 99 }
 
 const BIBLE_BOOKS = [
   'Genesis', 'Exodus', 'Leviticus', 'Numbers', 'Deuteronomy',
@@ -234,8 +234,7 @@ function ScripturePage() {
   const [useLibrary,  setUseLibrary]   = useState(true)
 
   const tier      = ((user?.publicMetadata?.tier as string) || 'watchman').toLowerCase()
-  const tierLevel = TIER_LEVELS[tier] ?? 0
-  const hasAccess = tierLevel >= 1
+  const hasAccess = getAccessLevel({ tier, role: (user?.publicMetadata?.role as string | null) }) >= 1
 
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth < 768)
