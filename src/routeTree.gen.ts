@@ -51,6 +51,7 @@ import { Route as ApiSearchRouteImport } from './routes/api.search'
 import { Route as ApiResourcesDebugRouteImport } from './routes/api.resources-debug'
 import { Route as ApiResourcesRouteImport } from './routes/api.resources'
 import { Route as ApiResourceDownloadRouteImport } from './routes/api.resource-download'
+import { Route as ApiResourceRouteImport } from './routes/api.resource'
 import { Route as ApiMnVerifyRouteImport } from './routes/api.mn-verify'
 import { Route as ApiGetMembersRouteImport } from './routes/api.get-members'
 import { Route as ApiGenerateSummaryRouteImport } from './routes/api.generate-summary'
@@ -270,6 +271,11 @@ const ApiResourcesRoute = ApiResourcesRouteImport.update({
   path: '/api/resources',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiResourceRoute = ApiResourceRouteImport.update({
+  id: '/api/resource',
+  path: '/api/resource',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiResourceDownloadRoute = ApiResourceDownloadRouteImport.update({
   id: '/api/resource-download',
   path: '/api/resource-download',
@@ -362,6 +368,7 @@ export interface FileRoutesByFullPath {
   '/api/generate-summary': typeof ApiGenerateSummaryRoute
   '/api/get-members': typeof ApiGetMembersRoute
   '/api/mn-verify': typeof ApiMnVerifyRoute
+  '/api/resource': typeof ApiResourceRoute
   '/api/resource-download': typeof ApiResourceDownloadRoute
   '/api/resources': typeof ApiResourcesRoute
   '/api/resources-debug': typeof ApiResourcesDebugRoute
@@ -416,6 +423,7 @@ export interface FileRoutesByTo {
   '/api/generate-summary': typeof ApiGenerateSummaryRoute
   '/api/get-members': typeof ApiGetMembersRoute
   '/api/mn-verify': typeof ApiMnVerifyRoute
+  '/api/resource': typeof ApiResourceRoute
   '/api/resource-download': typeof ApiResourceDownloadRoute
   '/api/resources': typeof ApiResourcesRoute
   '/api/resources-debug': typeof ApiResourcesDebugRoute
@@ -472,6 +480,7 @@ export interface FileRoutesById {
   '/api/generate-summary': typeof ApiGenerateSummaryRoute
   '/api/get-members': typeof ApiGetMembersRoute
   '/api/mn-verify': typeof ApiMnVerifyRoute
+  '/api/resource': typeof ApiResourceRoute
   '/api/resource-download': typeof ApiResourceDownloadRoute
   '/api/resources': typeof ApiResourcesRoute
   '/api/resources-debug': typeof ApiResourcesDebugRoute
@@ -529,6 +538,7 @@ export interface FileRouteTypes {
     | '/api/generate-summary'
     | '/api/get-members'
     | '/api/mn-verify'
+    | '/api/resource'
     | '/api/resource-download'
     | '/api/resources'
     | '/api/resources-debug'
@@ -583,6 +593,7 @@ export interface FileRouteTypes {
     | '/api/generate-summary'
     | '/api/get-members'
     | '/api/mn-verify'
+    | '/api/resource'
     | '/api/resource-download'
     | '/api/resources'
     | '/api/resources-debug'
@@ -638,6 +649,7 @@ export interface FileRouteTypes {
     | '/api/generate-summary'
     | '/api/get-members'
     | '/api/mn-verify'
+    | '/api/resource'
     | '/api/resource-download'
     | '/api/resources'
     | '/api/resources-debug'
@@ -692,6 +704,7 @@ export interface RootRouteChildren {
   ApiGenerateSummaryRoute: typeof ApiGenerateSummaryRoute
   ApiGetMembersRoute: typeof ApiGetMembersRoute
   ApiMnVerifyRoute: typeof ApiMnVerifyRoute
+  ApiResourceRoute: typeof ApiResourceRoute
   ApiResourceDownloadRoute: typeof ApiResourceDownloadRoute
   ApiResourcesRoute: typeof ApiResourcesRoute
   ApiResourcesDebugRoute: typeof ApiResourcesDebugRoute
@@ -1006,6 +1019,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiResourcesRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/resource': {
+      id: '/api/resource'
+      path: '/api/resource'
+      fullPath: '/api/resource'
+      preLoaderRoute: typeof ApiResourceRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/resource-download': {
       id: '/api/resource-download'
       path: '/api/resource-download'
@@ -1135,6 +1155,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiGenerateSummaryRoute: ApiGenerateSummaryRoute,
   ApiGetMembersRoute: ApiGetMembersRoute,
   ApiMnVerifyRoute: ApiMnVerifyRoute,
+  ApiResourceRoute: ApiResourceRoute,
   ApiResourceDownloadRoute: ApiResourceDownloadRoute,
   ApiResourcesRoute: ApiResourcesRoute,
   ApiResourcesDebugRoute: ApiResourcesDebugRoute,

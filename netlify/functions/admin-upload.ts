@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import { requireAdmin2 } from './_shared/access'
+import { slugifyTitle } from './_shared/slugify'
 
 const { url: supabaseUrl, serviceRoleKey: supabaseServiceKey, bucket: supabaseBucket } = JSON.parse(process.env.SUPABASE || '{}')
 
@@ -177,6 +178,22 @@ Respond with valid JSON only.`
     return new Response(JSON.stringify({ error: `Storage upload failed: ${uploadErr.message}` }), { status: 500 })
   }
 
+  // Collision-safe slug from title
+  const baseSlug = slugifyTitle(title)
+  let slug = baseSlug
+  if (baseSlug) {
+    const { data: collisions } = await supabase
+      .from('resources')
+      .select('slug')
+      .like('slug', `${baseSlug}%`)
+    const existing = new Set((collisions || []).map((r: any) => r.slug as string))
+    if (existing.has(baseSlug)) {
+      let n = 2
+      while (existing.has(`${baseSlug}-${n}`)) n++
+      slug = `${baseSlug}-${n}`
+    }
+  }
+
   // Insert metadata row
   const { data: row, error: insertErr } = await supabase
     .from('resources')
@@ -193,6 +210,7 @@ Respond with valid JSON only.`
       file_path:    filePath,
       file_type:    file.type,
       file_size:    file.size,
+      slug:         slug || null,
       // ⚠️ ARSENAL marker — arsenal-resources.ts filters on source_type to separate Arsenal from Ministry Library
       source_type: 'arsenal',
     })
