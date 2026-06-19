@@ -37,7 +37,6 @@ export function CommunitySidebarShell({ activeItem, fillViewport, children }: Pr
   })
   const [sidebarSearchVal, setSidebarSearchVal] = useState('')
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false)
-  const [drawerOpen, setDrawerOpen] = useState(false)
   const sidebarSearchRef = useRef<HTMLInputElement>(null)
   const mobileSearchInputRef = useRef<HTMLInputElement>(null)
 
@@ -185,7 +184,7 @@ export function CommunitySidebarShell({ activeItem, fillViewport, children }: Pr
     }}>
       <style>{`
         @media (max-width: 767px) {
-          ${drawerOpen ? '.wri-shell-sidebar { z-index: 200 !important; }' : '.wri-shell-sidebar  { display: none !important; }'}
+          .wri-shell-sidebar  { display: none !important; }
           .wri-shell-rail     { display: none !important; }
           .wri-shell-main     { margin-left: 0 !important; margin-right: 0 !important; overflow-x: hidden !important; max-width: 100% !important; padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px)) !important; }
           .wri-shell-mobile-bc { display: flex !important; }
@@ -194,10 +193,6 @@ export function CommunitySidebarShell({ activeItem, fillViewport, children }: Pr
         .wri-sub-bottom-nav { display: none; }
         @media (max-width: 767px) { .wri-sub-bottom-nav { display: block; } }
       `}</style>
-
-      {drawerOpen && (
-        <div onClick={() => setDrawerOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 199, background: 'rgba(0,0,0,0.55)' }} />
-      )}
 
       {/* ── LEFT SIDEBAR ── */}
       <div className="wri-shell-sidebar" style={{
@@ -441,9 +436,9 @@ export function CommunitySidebarShell({ activeItem, fillViewport, children }: Pr
         display: 'flex', flexDirection: 'column',
         ...(fillViewport ? { overflow: 'hidden' } : {}),
       }}>
-        {/* Mobile top bar — wordmark + hamburger, shown at ≤767px */}
+        {/* Mobile top bar — wordmark, shown at ≤767px */}
         <div className="wri-shell-mobile-top" style={{
-          display: 'none', alignItems: 'center', justifyContent: 'space-between',
+          display: 'none', alignItems: 'center',
           padding: '10px 16px',
           borderBottom: '1px solid var(--border)',
           background: 'var(--surface2)', flexShrink: 0,
@@ -451,11 +446,6 @@ export function CommunitySidebarShell({ activeItem, fillViewport, children }: Pr
           <a href="/community" style={{ fontFamily: cinzel, fontSize: 13, color: 'var(--text)', letterSpacing: '0.12em', fontWeight: 700, textDecoration: 'none' }}>
             WAR ROOM <span style={{ color: G }}>INTEL</span>
           </a>
-          <button
-            onClick={() => setDrawerOpen(o => !o)}
-            style={{ background: 'none', border: '1px solid var(--border)', borderRadius: 6, color: 'var(--muted)', cursor: 'pointer', padding: '4px 9px', fontFamily: cinzel, fontSize: 16, lineHeight: 1 }}
-            aria-label="Toggle navigation"
-          >☰</button>
         </div>
 
         {/* Mobile breadcrumb — shown at ≤767px */}
