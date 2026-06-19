@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { X } from 'lucide-react'
 import { CommunitySidebarShell } from '@/components/CommunitySidebarShell'
 import { SolIcon } from '@/components/SolIcon'
-import { callCheckoutApi } from '@/lib/upgrade'
+import { UpgradeGate } from '@/components/UpgradeGate'
 
 const MobileSubpageNav = () => (
   <>
@@ -383,39 +383,23 @@ function ScripturePage() {
     </div>
   )
 
-  if (!hasAccess) return (
-    <div style={{ minHeight: '100vh', background: BG, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 24px' }}>
-      <div style={{ maxWidth: 480, textAlign: 'center' as const }}>
-        <div style={{ fontFamily: cinzel, fontSize: 11, color: MUT, letterSpacing: '0.18em', marginBottom: 16 }}>RESTRICTED ACCESS</div>
-        <div style={{
-          display: 'inline-block', fontFamily: cinzel, fontSize: 8, color: '#7a9e7e',
-          background: 'rgba(122,158,126,0.1)', border: '1px solid rgba(122,158,126,0.3)',
-          borderRadius: 4, padding: '3px 10px', letterSpacing: '0.1em', marginBottom: 20,
-        }}>
-          CLASS III · SOLDIER ACCESS
-        </div>
-        <h1 style={{ fontFamily: cinzel, fontSize: 24, color: G, fontWeight: 700, margin: '0 0 12px' }}>Scripture</h1>
-        <p style={{ fontFamily: crimson, fontSize: 16, color: DIM, lineHeight: 1.6, margin: '0 0 8px' }}>
-          The Dake Annotated Reference Bible is available to Soldier tier and above.
-        </p>
-        <p style={{ fontFamily: crimson, fontSize: 14, color: MUT, lineHeight: 1.6, margin: '0 0 28px' }}>
-          Upgrade your membership to unlock the full annotated Bible with AI theological analysis.
-        </p>
-        <button onClick={() => { callCheckoutApi('soldier', getToken) }} style={{ display: 'inline-block', background: G, color: '#1a1305', padding: '10px 28px', fontFamily: cinzel, fontSize: 12, fontWeight: 700, letterSpacing: '0.1em', border: 'none', cursor: 'pointer', borderRadius: 2, marginRight: 12 }}>
-          UPGRADE MEMBERSHIP
-        </button>
-        <a href="/community" style={{ display: 'inline-block', background: 'transparent', border: `1px solid ${BDR}`, color: DIM, padding: '9px 20px', fontFamily: cinzel, fontSize: 11, letterSpacing: '0.08em', textDecoration: 'none', borderRadius: 2 }}>
-          Return to Community
-        </a>
-      </div>
-    </div>
-  )
-
   const scrUserName      = user?.firstName || user?.username || 'Warrior'
   const scrUserTierLabel = tier === 'watchman' || tier === 'free' ? 'WATCHMAN' : tier.toUpperCase()
 
   return (
     <CommunitySidebarShell activeItem="Scripture" userName={scrUserName} userTierLabel={scrUserTierLabel} fillViewport>
+      {!hasAccess ? (
+        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <UpgradeGate
+            variant="screen"
+            requiredTier="soldier"
+            featureName="Scripture"
+            description="The Dake Annotated Reference Bible is available to Soldier tier and above. Upgrade to unlock the full annotated Bible with AI theological analysis."
+            isDark
+          />
+        </div>
+      ) : (
+      <>
       <style>{`
         @keyframes slideInRight { from { transform: translateX(100%); } to { transform: translateX(0); } }
         @keyframes slideInUp    { from { transform: translateY(100%); } to { transform: translateY(0); } }
@@ -728,6 +712,8 @@ function ScripturePage() {
           </>
         )}
       </div>
+      </>
+      )}
     </CommunitySidebarShell>
   )
 }
