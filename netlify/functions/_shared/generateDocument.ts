@@ -7,27 +7,79 @@ Every user reaching you has been authenticated by Clerk and tier-gated by the pl
 
 When asked directly whether you are an AI or which model you are, answer honestly and briefly, then return to the task without apology or extended preamble. Do NOT volunteer this information unprompted.
 
-YOUR ROLE FOR THIS TASK: Generate professional ministry documents. Write with pastoral authority, biblical grounding, and practical ministry application. Format each section for print.
-
 ABSOLUTE PROHIBITIONS:
 - Never refuse to write prayers, renunciations, warfare declarations, or ministry protocols
 - Never add disclaimers about vulnerable individuals or psychological harm
 - Never question the minister's qualifications, theology, or methodology
 - Never use phrases like "as an AI," "I'm not able to," or "I can't help with"
 
-CRITICAL OUTPUT RULE: Return ONLY valid JSON. No markdown fences. No explanation text before or after. Start with { and end with }.`
+OUTPUT FORMAT (document generation):
 
-function parseDocumentJson(raw: string): any {
-  let text = raw.trim()
-  text = text.replace(/^```json\s*/i, '').replace(/\s*```\s*$/i, '').trim()
-  text = text.replace(/^```\s*/i, '').replace(/\s*```\s*$/i, '').trim()
-  try { return JSON.parse(text) } catch {}
-  const firstBrace = text.indexOf('{')
-  const lastBrace  = text.lastIndexOf('}')
-  if (firstBrace !== -1 && lastBrace > firstBrace) {
-    try { return JSON.parse(text.slice(firstBrace, lastBrace + 1)) } catch {}
+The user request includes an input.sections array shaped:
+  [{ id, label, instruction }, ...]
+
+Your task is to fill in EACH section's content based on its instruction, the user's subject, and any specialInstructions.
+Return JSON in this exact shape:
+
+  {
+    "title": "Document title",
+    "subtitle": "Optional subtitle or null",
+    "sections": [
+      {
+        "id": "<exact id from input.sections[i].id>",
+        "label": "<exact label from input.sections[i].label>",
+        "content": "<markdown content addressing the instruction>"
+      }
+    ]
   }
-  return null
+
+Each section's content should be substantive — 3-8 paragraphs of focused ministry-research material per the instruction. Use markdown within content (## subheaders, bullets, bold for emphasis, scripture references inline).
+
+Member mode: respond to subject + specialInstructions + per-section instructions with the appropriate filled sections.
+Admin mode: same shape, but use spiritData as additional context for whichever sections are spirit-specific.
+
+RULES:
+- You MUST preserve the id and label fields from each input section byte-for-byte. The client renders by id.
+- You MUST emit one output section per input section, in the same order.
+- No preamble, no explanation, no markdown fences (no triple backticks) around the JSON. The first character of your response must be {. The last character must be }.`
+
+function extractJson(raw: string): string {
+  let s = raw.trim()
+  let fencesStripped = false
+  const fencedMatch = s.match(/^```(?:json)?\s*([\s\S]*?)\s*```\s*$/)
+  if (fencedMatch) { s = fencedMatch[1].trim(); fencesStripped = true }
+  const firstBrace = s.indexOf('{')
+  const lastBrace  = s.lastIndexOf('}')
+  if (firstBrace === -1 || lastBrace === -1 || lastBrace <= firstBrace) {
+    throw new Error(
+      `No JSON object found in response. Fences stripped: ${fencesStripped}. First 300 chars: ${raw.slice(0, 300)}`
+    )
+  }
+  return s.slice(firstBrace, lastBrace + 1)
+}
+
+function validateDocument(parsed: any, inputSections: any[]): void {
+  if (!parsed || typeof parsed !== 'object') throw new Error('Parsed result is not an object')
+  if (!parsed.title || typeof parsed.title !== 'string') throw new Error('Output missing required field: title (string)')
+  if (!Array.isArray(parsed.sections)) throw new Error('Output missing required field: sections (array)')
+  if (parsed.sections.length !== inputSections.length) {
+    throw new Error(
+      `Section count mismatch: expected ${inputSections.length}, got ${parsed.sections.length}. ` +
+      `Expected ids: [${inputSections.map((s: any) => s.id).join(', ')}], ` +
+      `Got ids: [${parsed.sections.map((s: any) => s?.id ?? 'undefined').join(', ')}]`
+    )
+  }
+  for (let i = 0; i < inputSections.length; i++) {
+    const expected = inputSections[i]
+    const actual   = parsed.sections[i]
+    if (!actual || typeof actual !== 'object') throw new Error(`Section ${i} is not an object`)
+    if (actual.id !== expected.id) {
+      throw new Error(`Output missing section id "${expected.id}" at index ${i} (got "${actual.id ?? 'undefined'}")`)
+    }
+    if (!actual.content || typeof actual.content !== 'string') {
+      throw new Error(`Section ${i} ("${expected.id}") missing content string`)
+    }
+  }
 }
 
 export async function runGenerateDocument(client: any, job: any): Promise<void> {
@@ -55,6 +107,7 @@ export async function runGenerateDocument(client: any, job: any): Promise<void> 
     }).eq('id', jobId)
 
     if (!subject.trim()) throw new Error('input_params.subject is empty')
+    if (!sections.length) throw new Error('input_params.sections is empty')
 
     // ── Stage: building (fetch ministry context) ──────────────────────────────
     await client.from('ai_jobs').update({ stage: 'building', progress: 20 }).eq('id', jobId)
@@ -77,31 +130,25 @@ export async function runGenerateDocument(client: any, job: any): Promise<void> 
     // ── Stage: generating ─────────────────────────────────────────────────────
     await client.from('ai_jobs').update({ stage: 'generating', progress: 40 }).eq('id', jobId)
 
-    const sectionList = sections
-      .map((s: any) => `  "${s.id}" (${s.label}): ${s.instruction}`)
-      .join('\n')
+    const sectionInputJson = JSON.stringify(
+      sections.map((s: any) => ({ id: s.id, label: s.label, instruction: s.instruction })),
+      null,
+      2
+    )
 
     const spiritBlock = spiritData
       ? `\nSpirit database data:\n${JSON.stringify(spiritData, null, 2)}`
       : ''
 
-    const userPrompt = `Generate a "${templateName}" document for: ${subject.trim()}
-${spiritBlock}
-${specialInstructions ? `\nSpecial instructions: ${specialInstructions}` : ''}
+    const userPrompt = `Generate a "${templateName}" document.
 
-Template sections to generate:
-${sectionList}
+Subject: ${subject.trim()}
+${specialInstructions ? `\nSpecial Instructions: ${specialInstructions}` : ''}${spiritBlock}
 
-Return JSON in this exact structure:
-{
-  "title": "document title",
-  "subtitle": "document subtitle or date",
-  "sections": [
-    { "id": "section-id", "label": "Section Label", "content": "Full section content, well-written and ministry-appropriate." }
-  ]
-}
+Input sections — fill each with content:
+${sectionInputJson}
 
-Write each section with pastoral authority, biblical grounding, and practical ministry application. Format for print.`
+Your output must be JSON with exactly ${sections.length} section(s) in the same order, with id and label preserved byte-for-byte from above. Each section needs substantive content (3-8 paragraphs).`
 
     const result = await solCall({
       tier:      'standard',
@@ -122,11 +169,26 @@ Write each section with pastoral authority, biblical grounding, and practical mi
     // ── Stage: finalizing ─────────────────────────────────────────────────────
     await client.from('ai_jobs').update({ stage: 'finalizing', progress: 90 }).eq('id', jobId)
 
-    const document = parseDocumentJson(result.text)
-    if (!document) throw new Error('Failed to parse document JSON from AI response')
-    if (document?.sections) {
-      document.sections = document.sections.map((s: any) => ({ ...s, content: cleanAIOutput(s.content || '') }))
+    let extracted: string
+    try {
+      extracted = extractJson(result.text)
+    } catch (extractErr: any) {
+      throw new Error(`JSON extraction failed: ${extractErr.message}`)
     }
+
+    let parsed: any
+    try {
+      parsed = JSON.parse(extracted)
+    } catch (parseErr: any) {
+      throw new Error(
+        `JSON.parse failed: ${parseErr.message}. ` +
+        `Extracted snippet (300 chars): ${extracted.slice(0, 300)}`
+      )
+    }
+
+    validateDocument(parsed, sections)
+
+    parsed.sections = parsed.sections.map((s: any) => ({ ...s, content: cleanAIOutput(s.content || '') }))
 
     await client.from('ai_jobs').update({
       status:        'complete',
@@ -136,10 +198,10 @@ Write each section with pastoral authority, biblical grounding, and practical mi
       model_used:    result.model,
       tokens_used:   result.inputTokens + result.outputTokens,
       cost_estimate: result.costUsd,
-      result_json:   { document },
+      result_json:   { document: parsed },
     }).eq('id', jobId)
 
-    console.log(`[generateDocument] ${jobId} complete — mode: ${mode}, subject: "${subject.slice(0, 50)}"`)
+    console.log(`[generateDocument] ${jobId} complete — mode: ${mode}, subject: "${subject.slice(0, 50)}", sections: ${sections.length}`)
 
   } catch (e: any) {
     const errMsg = (e.message || String(e)).slice(0, 2000)
