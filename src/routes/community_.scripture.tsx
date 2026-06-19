@@ -10,7 +10,7 @@ import { getAccessLevel } from '@/lib/access'
 const MobileSubpageNav = () => (
   <>
     <style>{`@media(max-width:640px){.wri-subnav{display:flex!important}}`}</style>
-    <nav className="wri-subnav" style={{ display:'none', position:'fixed', bottom:0, left:0, right:0, height:'calc(var(--bottom-nav-h) + env(safe-area-inset-bottom, 0px))', background:'#0d0b14', borderTop:'1px solid rgba(201,168,76,0.25)', zIndex:200, alignItems:'center', justifyContent:'space-around', paddingLeft:'4px', paddingRight:'4px', paddingBottom:'env(safe-area-inset-bottom, 0px)' }}>
+    <nav className="wri-subnav" style={{ display:'none', position:'fixed', bottom:0, left:0, right:0, height:'calc(var(--bottom-nav-h) + env(safe-area-inset-bottom, 0px))', background:'var(--deep)', borderTop:'1px solid var(--border)', zIndex:200, alignItems:'center', justifyContent:'space-around', paddingLeft:'4px', paddingRight:'4px', paddingBottom:'env(safe-area-inset-bottom, 0px)' }}>
       <a href="/community" style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:3, color:'rgba(201,168,76,0.55)', textDecoration:'none', fontSize:9, fontFamily:'var(--font-label)', letterSpacing:'0.06em', minWidth:56, padding:'8px 0' }}>
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
         HOME
@@ -19,7 +19,7 @@ const MobileSubpageNav = () => (
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
         INTEL
       </a>
-      <div style={{ width:44, height:44, borderRadius:'50%', background:'#C9A84C', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+      <div style={{ width:44, height:44, borderRadius:'50%', background:'var(--gold)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
         <a href="/community" style={{ color:'#0d0b14', fontSize:18, lineHeight:1, textDecoration:'none', fontFamily:"'Cinzel',serif" }}>⚔</a>
       </div>
       <a href="/community#forum" style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:3, color:'rgba(201,168,76,0.55)', textDecoration:'none', fontSize:9, fontFamily:'var(--font-label)', letterSpacing:'0.06em', minWidth:56, padding:'8px 0' }}>
@@ -39,14 +39,14 @@ export const Route = createFileRoute('/community_/scripture')({
   component: () => <><ScripturePage /><MobileSubpageNav /></>,
 })
 
-const G       = '#C9A84C'
-const BG      = '#0D0B14'
-const SURF    = '#12101e'
-const SURF2   = '#1a1726'
-const BDR     = 'rgba(201,168,76,0.22)'
-const TXT     = '#e8dcc8'
-const DIM     = '#a09080'
-const MUT     = '#6b5e45'
+const G       = 'var(--gold)'
+const BG      = 'var(--deep)'
+const SURF    = 'var(--surface)'
+const SURF2   = 'var(--surface2)'
+const BDR     = 'var(--border)'
+const TXT     = 'var(--t-0)'
+const DIM     = 'var(--t-3)'
+const MUT     = 'var(--t-4)'
 const cinzel  = "'Cinzel', serif"
 const mono    = "'JetBrains Mono', monospace"
 const crimson = "'Crimson Pro', serif"
@@ -152,7 +152,7 @@ function AiPanelContent({
           </div>
         )}
         {aiError && (
-          <div style={{ fontFamily: mono, fontSize: 10, color: '#e07070', padding: '8px 12px', background: 'rgba(224,112,112,0.08)', borderRadius: 4, marginTop: 8 }}>
+          <div style={{ fontFamily: mono, fontSize: 10, color: 'var(--crit)', padding: '8px 12px', background: 'var(--crit-bg)', borderRadius: 4, marginTop: 8 }}>
             {aiError}
           </div>
         )}
@@ -192,7 +192,7 @@ function AiPanelContent({
           disabled={!question.trim() || loadingAI}
           style={{
             width: '100%',
-            background: !question.trim() || loadingAI ? 'rgba(201,168,76,0.25)' : G,
+            background: !question.trim() || loadingAI ? 'var(--gold-dim)' : G,
             color: '#1a1305', border: 'none', borderRadius: 4,
             fontFamily: cinzel, fontSize: 11, fontWeight: 700, letterSpacing: '0.1em',
             padding: '10px 0', cursor: !question.trim() || loadingAI ? 'not-allowed' : 'pointer',
@@ -417,7 +417,7 @@ function ScripturePage() {
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12, flexWrap: 'wrap' as const }}>
               <span style={{ fontFamily: cinzel, fontSize: 20, color: G, fontWeight: 700, letterSpacing: '0.06em' }}>SCRIPTURE</span>
               <span style={{ fontFamily: mono, fontSize: 10, color: MUT }}>KJV Text</span>
-              <div style={{ marginLeft: 'auto', fontFamily: cinzel, fontSize: 8, color: '#7a9e7e', background: 'rgba(122,158,126,0.1)', border: '1px solid rgba(122,158,126,0.3)', borderRadius: 4, padding: '3px 10px', letterSpacing: '0.1em', whiteSpace: 'nowrap' as const }}>CLASS III · SOLDIER ACCESS</div>
+              <div style={{ marginLeft: 'auto', fontFamily: cinzel, fontSize: 8, color: 'var(--ok)', background: 'var(--ok-bg)', border: '1px solid rgba(122,158,126,0.3)', borderRadius: 4, padding: '3px 10px', letterSpacing: '0.1em', whiteSpace: 'nowrap' as const }}>CLASS III · SOLDIER ACCESS</div>
             </div>
 
             {/* Navigation bar */}
@@ -476,7 +476,7 @@ function ScripturePage() {
                 onClick={handleLoad}
                 disabled={loadingVerses}
                 style={{
-                  background: loadingVerses ? 'rgba(201,168,76,0.25)' : G,
+                  background: loadingVerses ? 'var(--gold-dim)' : G,
                   color: '#1a1305', border: 'none', borderRadius: 4,
                   fontFamily: cinzel, fontSize: 10, fontWeight: 700, letterSpacing: '0.1em',
                   padding: '8px 18px', cursor: loadingVerses ? 'default' : 'pointer', flexShrink: 0,
@@ -495,7 +495,7 @@ function ScripturePage() {
               </div>
             )}
             {versesError && (
-              <div style={{ fontFamily: crimson, fontSize: 15, color: '#e07070', padding: '20px 0' }}>{versesError}</div>
+              <div style={{ fontFamily: crimson, fontSize: 15, color: 'var(--crit)', padding: '20px 0' }}>{versesError}</div>
             )}
 
             {!loadingVerses && verses.length > 0 && (
