@@ -257,3 +257,6 @@
 
 [functions."job-worker-background"]
   # Netlify background function — no timeout key (background ignores it)
+
+[functions."dashboard-load"]
+  timeout = 15

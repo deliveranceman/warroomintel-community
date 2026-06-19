@@ -2095,154 +2095,263 @@ function DailyDevotionView({ theme, isMobile, userTier, userId: _userId }: any) 
 // ── OPS DASHBOARD VIEW ─────────────────────────────────────
 function OpsDashboardView({ theme, isMobile, userId: _userId, getToken, setActiveSection }: any) {
   const isDark = theme !== 'light'
-  const bg   = isDark ? '#0D0B14' : '#FAF8F5'
-  const surf = isDark ? 'rgba(201,168,76,0.04)' : '#FFFFFF'
-  const bdr  = isDark ? 'rgba(201,168,76,0.15)' : 'rgba(139,105,20,0.25)'
-  const txt  = isDark ? '#f0e8d8' : '#2D2924'
-  const mut  = isDark ? '#9a8c74' : '#5C5248'
-  const GD   = isDark ? '#C9A84C' : '#8B6914'
+  const bg     = isDark ? '#0D0B14' : '#FAF8F5'
+  const card   = isDark ? '#13111e' : '#FFFFFF'
+  const inset  = isDark ? 'rgba(201,168,76,0.04)' : '#FBF9F4'
+  const bdr    = isDark ? 'rgba(201,168,76,0.15)' : '#D8D1BE'
+  const txt    = isDark ? '#f0e8d8' : '#1F1B12'
+  const mut    = isDark ? '#9a8c74' : '#574B33'
+  const GD     = isDark ? '#C9A84C' : '#8B6914'
+  const GDS    = isDark ? '#C9A84C' : '#604408'
+  const shadow = isDark ? 'none' : '0 1px 2px rgba(60,45,15,.05), 0 4px 14px rgba(60,45,15,.04)'
 
-  const [cases, setCases]     = useState<any[]>([])
-  const [events, setEvents]   = useState<any[]>([])
-  const [intel, setIntel]     = useState<any[]>([])
-  const [prayers, setPrayers] = useState<any[]>([])
-  const [brief, setBrief]     = useState<any>(null)
-  const [loaded, setLoaded]   = useState(false)
+  const [data, setData]                   = useState<any>(null)
+  const [loaded, setLoaded]               = useState(false)
+  const [checkinMood, setCheckinMood]     = useState<string | null>(null)
+  const [checkinSaving, setCheckinSaving] = useState(false)
 
   useEffect(() => {
     async function loadAll() {
       try {
         const token = await getToken()
-        const h = { Authorization: `Bearer ${token}` }
-        const [casesRes, eventsRes, intelRes, prayerRes, briefRes] = await Promise.allSettled([
-          fetch('/api/field-ops?resource=cases', { headers: h }),
-          fetch('/api/events?upcoming=3', { headers: h }),
-          fetch('/api/ai-history?limit=3', { headers: h }),
-          fetch('/api/prayer-wall?limit=4', { headers: h }),
-          fetch(`/api/daily-devotion?date=${new Date().toISOString().slice(0, 10)}`, { headers: h }),
-        ])
-        if (casesRes.status === 'fulfilled' && casesRes.value.ok) { const d = await casesRes.value.json(); setCases((d.cases || []).slice(0, 3)) }
-        if (eventsRes.status === 'fulfilled' && eventsRes.value.ok) { const d = await eventsRes.value.json(); setEvents((d.events || []).slice(0, 2)) }
-        if (intelRes.status === 'fulfilled' && intelRes.value.ok) { const d = await intelRes.value.json(); setIntel((d.history || []).slice(0, 3)) }
-        if (prayerRes.status === 'fulfilled' && prayerRes.value.ok) { const d = await prayerRes.value.json(); setPrayers((d.prayers || d.items || []).slice(0, 2)) }
-        if (briefRes.status === 'fulfilled' && briefRes.value.ok) { const d = await briefRes.value.json(); setBrief(d.devotion) }
+        const res = await fetch('/api/dashboard-load', { headers: { Authorization: `Bearer ${token}` } })
+        if (res.ok) setData(await res.json())
       } catch {}
       setLoaded(true)
     }
     loadAll()
   }, [])
 
-  function Widget({ title, icon, children, onViewAll: _onViewAll, section }: { title: string; icon: string; children: React.ReactNode; onViewAll?: string; section?: string }) {
+  async function submitCheckin(mood: string) {
+    if (checkinSaving || checkinMood) return
+    setCheckinSaving(true)
+    try {
+      const token = await getToken()
+      await fetch('/api/watchman-checkin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ mood }),
+      })
+      setCheckinMood(mood)
+    } catch {}
+    setCheckinSaving(false)
+  }
+
+  // activeCases/recentSearches are null from the aggregator for sub-Commander tiers.
+  const isCommander = data?.recentSearches != null
+  const goCaseFiles = () => { window.location.href = '/community/field-ops' }
+
+  const cardStyle = { background: card, border: `1px solid ${bdr}`, borderRadius: 12, padding: isMobile ? '16px' : '18px 20px', boxShadow: shadow } as const
+  const rowStyle  = { borderBottom: `1px solid ${bdr}`, paddingBottom: 8, marginBottom: 8 } as const
+  const clamp2    = { display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' as any, overflow: 'hidden' } as const
+  const twoCol    = isMobile ? '1fr' : 'repeat(2, 1fr)'
+
+  function SectionHead({ icon, title, section, onClick }: { icon: string; title: string; section?: string; onClick?: () => void }) {
+    const handler = onClick || (section ? () => setActiveSection(section) : undefined)
     return (
-      <div style={{ background: surf, border: `1px solid ${bdr}`, borderRadius: 10, padding: '16px 18px', display: 'flex', flexDirection: 'column' as const, gap: 10 }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div style={{ fontFamily: cinzel, fontSize: 9, color: GD, letterSpacing: '0.16em' }}>{icon} {title}</div>
-          {section && <button onClick={() => setActiveSection(section)} style={{ background: 'none', border: 'none', color: mut, fontFamily: cinzel, fontSize: 8, letterSpacing: '0.08em', cursor: 'pointer', padding: 0 }}>VIEW ALL →</button>}
-        </div>
-        <div>{children}</div>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+        <div style={{ fontFamily: cinzel, fontSize: 10, color: GD, letterSpacing: '0.16em' }}>{icon} {title}</div>
+        {handler && <button onClick={handler} style={{ background: 'none', border: 'none', color: mut, fontFamily: cinzel, fontSize: 8, letterSpacing: '0.08em', cursor: 'pointer', padding: 0 }}>VIEW ALL →</button>}
       </div>
     )
   }
 
-  const gridCols = isMobile ? '1fr' : 'repeat(2, 1fr)'
+  const empty = (label: string) => <div style={{ fontFamily: crimson, fontSize: 13, color: mut, fontStyle: 'italic' }}>{label}</div>
+
+  function ArsenalCard({ r }: { r: any }) {
+    const inner = (
+      <div style={{ width: 150, flexShrink: 0, background: inset, border: `1px solid ${bdr}`, borderRadius: 8, padding: 12, display: 'flex', flexDirection: 'column' as const, gap: 6, opacity: r.locked ? 0.55 : 1, height: '100%', boxSizing: 'border-box' as const }}>
+        <div style={{ fontFamily: cinzel, fontSize: 8, color: mut, letterSpacing: '0.1em', textTransform: 'uppercase' as const }}>{(r.file_type || r.category || 'RESOURCE')}{r.locked ? ' · 🔒' : ''}</div>
+        <div style={{ fontFamily: crimson, fontSize: 13, color: txt, lineHeight: 1.3, display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical' as any, overflow: 'hidden' }}>{r.title}</div>
+      </div>
+    )
+    if (r.locked || !r.file_url) return inner
+    return <a href={r.file_url} target="_blank" rel="noreferrer" style={{ textDecoration: 'none' }}>{inner}</a>
+  }
+
+  const brief         = data?.todaysBrief
+  const arsenalRecent = data?.arsenalRecent || []
+  const forYourWatch  = data?.arsenalForYourWatch || []
+  const sitrep        = data?.sitrepRecent || []
+  const prayers       = data?.prayerRecent || []
+  const testimonies   = data?.testimoniesRecent || []
+  const events        = data?.eventsUpcoming || []
+  const cases         = data?.activeCases || []
+  const searches      = data?.recentSearches || []
+
+  const MOODS = [
+    { emoji: '🛡', label: 'Standing Firm' },
+    { emoji: '⚔', label: 'Under Fire' },
+    { emoji: '🔥', label: 'Seeking' },
+    { emoji: '✨', label: 'Breakthrough' },
+    { emoji: '🕯', label: 'Weary' },
+    { emoji: '🏆', label: 'Victorious' },
+  ]
+
+  const quickActions = [
+    { label: '+ Prayer Request', onClick: () => setActiveSection('prayer-wall') },
+    { label: '+ Field Report',   onClick: () => setActiveSection('sitrep') },
+    { label: '+ Testimony',      onClick: () => setActiveSection('testimony-wall') },
+    ...(isCommander ? [
+      { label: '+ New Case File', onClick: goCaseFiles },
+      { label: 'Session Center',  onClick: () => setActiveSection('session-center') },
+    ] : []),
+  ]
 
   return (
     <div style={{ flex: 1, overflowY: 'auto', background: bg, padding: isMobile ? '16px' : '24px 32px', minHeight: 0 }}>
-      <div style={{ marginBottom: 24, display: 'flex', alignItems: 'center', gap: 10 }}>
-        <div>
-          <div style={{ fontFamily: cinzel, fontSize: isMobile ? 18 : 22, color: GD, letterSpacing: '0.08em', fontWeight: 700 }}>⚡ Ops Dashboard</div>
-          {!isMobile && <div style={{ fontFamily: crimson, fontSize: 13, color: mut, marginTop: 2 }}>Adjutant command center</div>}
-        </div>
+      <div style={{ marginBottom: 20 }}>
+        <div style={{ fontFamily: cinzel, fontSize: isMobile ? 18 : 22, color: GDS, letterSpacing: '0.08em', fontWeight: 700 }}>⚡ Command Center</div>
+        {!isMobile && <div style={{ fontFamily: crimson, fontSize: 13, color: mut, marginTop: 2 }}>Your watch, at a glance</div>}
       </div>
 
       {!loaded ? (
         <div style={{ color: mut, fontFamily: crimson, fontStyle: 'italic', fontSize: 15, textAlign: 'center' as const, paddingTop: 48 }}>Loading dashboard…</div>
       ) : (
-        <>
-          <div style={{ display: 'grid', gridTemplateColumns: gridCols, gap: 16, marginBottom: 16 }}>
+        <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 16 }}>
 
-            {/* Active Cases */}
-            <Widget title="ACTIVE CASES" icon="📁" section="case-files">
-              {cases.length === 0
-                ? <div style={{ fontFamily: crimson, fontSize: 13, color: mut, fontStyle: 'italic' }}>No active cases</div>
-                : cases.map(c => (
-                  <div key={c.id} style={{ borderBottom: `1px solid ${bdr}`, paddingBottom: 8, marginBottom: 8 }}>
-                    <div style={{ fontFamily: cinzel, fontSize: 11, color: txt }}>{c.subject_name || c.subject_alias || 'Unnamed'}</div>
-                    <div style={{ fontFamily: crimson, fontSize: 11, color: mut }}>{c.primary_issue || c.status}</div>
+          {/* 1 ── TODAY'S BRIEF (hero) */}
+          <div style={{ ...cardStyle, padding: isMobile ? '20px' : '28px 32px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+              <div style={{ fontFamily: cinzel, fontSize: 10, color: GD, letterSpacing: '0.16em' }}>☀️ TODAY'S BRIEF</div>
+              <button onClick={() => setActiveSection('daily-brief')} style={{ background: 'none', border: 'none', color: mut, fontFamily: cinzel, fontSize: 8, letterSpacing: '0.08em', cursor: 'pointer', padding: 0 }}>OPEN →</button>
+            </div>
+            {!brief ? empty('No brief posted today') : (
+              <>
+                <div style={{ fontFamily: cinzel, fontSize: isMobile ? 18 : 24, color: txt, lineHeight: 1.25, marginBottom: 8 }}>{brief.title}</div>
+                {brief.scripture_reference && <div style={{ fontFamily: cinzel, fontSize: 11, color: GD, letterSpacing: '0.1em', marginBottom: 10 }}>{brief.scripture_reference}</div>}
+                {(brief.devotional_text || brief.morning_prayer) && (
+                  <div style={{ fontFamily: crimson, fontSize: isMobile ? 14 : 16, color: mut, lineHeight: 1.6, display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical' as any, overflow: 'hidden' }}>
+                    {String(brief.devotional_text || brief.morning_prayer).split('\n').filter(Boolean)[0]}
                   </div>
-                ))
-              }
-            </Widget>
-
-            {/* Upcoming Events */}
-            <Widget title="UPCOMING EVENTS" icon="📅" section="events">
-              {events.length === 0
-                ? <div style={{ fontFamily: crimson, fontSize: 13, color: mut, fontStyle: 'italic' }}>No upcoming events</div>
-                : events.map(e => (
-                  <div key={e.id} style={{ borderBottom: `1px solid ${bdr}`, paddingBottom: 8, marginBottom: 8 }}>
-                    <div style={{ fontFamily: cinzel, fontSize: 11, color: txt }}>{e.title}</div>
-                    <div style={{ fontFamily: crimson, fontSize: 11, color: mut }}>{e.event_date ? new Date(e.event_date).toLocaleDateString() : ''} {e.type && `· ${e.type}`}</div>
-                  </div>
-                ))
-              }
-            </Widget>
-
-            {/* Recent SOL Searches */}
-            <Widget title="RECENT SOL SEARCHES" icon="🔍" section="my-intel">
-              {intel.length === 0
-                ? <div style={{ fontFamily: crimson, fontSize: 13, color: mut, fontStyle: 'italic' }}>No searches yet</div>
-                : intel.map(i => (
-                  <div key={i.id} style={{ borderBottom: `1px solid ${bdr}`, paddingBottom: 8, marginBottom: 8 }}>
-                    <div style={{ fontFamily: crimson, fontSize: 12, color: txt, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{i.query}</div>
-                    <div style={{ fontFamily: cinzel, fontSize: 9, color: mut, letterSpacing: '0.06em' }}>{displayToolLabel(i.tool)}</div>
-                  </div>
-                ))
-              }
-            </Widget>
-
-            {/* Prayer Requests */}
-            <Widget title="PRAYER WALL" icon="🙏" section="prayer-wall">
-              {prayers.length === 0
-                ? <div style={{ fontFamily: crimson, fontSize: 13, color: mut, fontStyle: 'italic' }}>No recent prayer requests</div>
-                : prayers.map((p: any) => (
-                  <div key={p.id || p.cid} style={{ borderBottom: `1px solid ${bdr}`, paddingBottom: 8, marginBottom: 8 }}>
-                    <div style={{ fontFamily: cinzel, fontSize: 11, color: txt }}>{p.user?.name || p.user?.firstName || 'Anonymous'}</div>
-                    <div style={{ fontFamily: crimson, fontSize: 12, color: mut, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{p.text || p.message || p.body || ''}</div>
-                  </div>
-                ))
-              }
-            </Widget>
+                )}
+              </>
+            )}
           </div>
 
-          {/* Today's Brief widget — full width */}
-          <Widget title="TODAY'S BRIEF" icon="☀️" section="daily-brief">
-            {!brief
-              ? <div style={{ fontFamily: crimson, fontSize: 14, color: mut, fontStyle: 'italic' }}>No brief posted today</div>
-              : <>
-                <div style={{ fontFamily: cinzel, fontSize: 13, color: txt }}>{brief.title}</div>
-                {brief.morning_prayer && <div style={{ fontFamily: crimson, fontSize: 13, color: mut, marginTop: 4, overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' as any }}>{brief.morning_prayer.split('\n')[0]}</div>}
+          {/* 2 ── WATCHMAN CHECK-IN */}
+          <div style={cardStyle}>
+            <SectionHead icon="📡" title="WATCHMAN CHECK-IN" />
+            {checkinMood ? (
+              <div style={{ fontFamily: crimson, fontSize: 14, color: mut }}>✓ Check-in logged — <span style={{ color: txt }}>{checkinMood}</span>. The watch is noted.</div>
+            ) : (
+              <>
+                <div style={{ fontFamily: crimson, fontSize: 13, color: mut, marginBottom: 12 }}>How's the atmosphere on your watch today?</div>
+                <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 8 }}>
+                  {MOODS.map(m => (
+                    <button key={m.label} onClick={() => submitCheckin(m.label)} disabled={checkinSaving}
+                      style={{ padding: '8px 14px', background: inset, border: `1px solid ${bdr}`, borderRadius: 20, color: txt, fontFamily: cinzel, fontSize: 11, letterSpacing: '0.04em', cursor: checkinSaving ? 'default' : 'pointer', opacity: checkinSaving ? 0.6 : 1 }}>
+                      {m.emoji} {m.label}
+                    </button>
+                  ))}
+                </div>
               </>
-            }
-          </Widget>
+            )}
+          </div>
 
-          {/* Quick Actions */}
-          <div style={{ marginTop: 16 }}>
+          {/* 3 ── ARSENAL shelves */}
+          <div style={cardStyle}>
+            <SectionHead icon="🗄" title="NEW IN ARSENAL" section="arsenal" />
+            {arsenalRecent.length === 0 ? empty('Nothing new yet') : (
+              <div style={{ display: 'flex', gap: 10, overflowX: 'auto' as const, paddingBottom: 4 }}>
+                {arsenalRecent.map((r: any) => <ArsenalCard key={r.id} r={r} />)}
+              </div>
+            )}
+          </div>
+          <div style={cardStyle}>
+            <SectionHead icon="🎯" title="FOR YOUR WATCH" section="arsenal" />
+            {forYourWatch.length === 0 ? empty('Nothing here yet') : (
+              <div style={{ display: 'flex', gap: 10, overflowX: 'auto' as const, paddingBottom: 4 }}>
+                {forYourWatch.map((r: any) => <ArsenalCard key={r.id} r={r} />)}
+              </div>
+            )}
+          </div>
+
+          {/* 4 ── SITREP PULSE + PRAYER WALL */}
+          <div style={{ display: 'grid', gridTemplateColumns: twoCol, gap: 16 }}>
+            <div style={cardStyle}>
+              <SectionHead icon="📻" title="SITREP PULSE" section="sitrep" />
+              {sitrep.length === 0 ? empty('No recent activity') : sitrep.map((a: any) => (
+                <div key={a.id} style={rowStyle}>
+                  <div style={{ fontFamily: cinzel, fontSize: 10, color: txt }}>{a.userName} <span style={{ color: mut }}>· {a.type}</span></div>
+                  <div style={{ fontFamily: crimson, fontSize: 13, color: mut, ...clamp2 }}>{a.text}</div>
+                </div>
+              ))}
+            </div>
+            <div style={cardStyle}>
+              <SectionHead icon="🙏" title="PRAYER WALL" section="prayer-wall" />
+              {prayers.length === 0 ? empty('No recent prayer requests') : prayers.map((p: any) => (
+                <div key={p.id} style={rowStyle}>
+                  <div style={{ fontFamily: cinzel, fontSize: 10, color: txt }}>{p.userName}</div>
+                  <div style={{ fontFamily: crimson, fontSize: 13, color: mut, ...clamp2 }}>{p.text}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* 5 ── RECENT TESTIMONIES + UPCOMING EVENTS */}
+          <div style={{ display: 'grid', gridTemplateColumns: twoCol, gap: 16 }}>
+            <div style={cardStyle}>
+              <SectionHead icon="✝️" title="RECENT TESTIMONIES" section="testimony-wall" />
+              {testimonies.length === 0 ? empty('No testimonies yet') : testimonies.map((t: any) => (
+                <div key={t.id} style={rowStyle}>
+                  <div style={{ fontFamily: cinzel, fontSize: 11, color: txt }}>{t.title || t.user_name}</div>
+                  <div style={{ fontFamily: crimson, fontSize: 13, color: mut, ...clamp2 }}>{t.body}</div>
+                  <div style={{ fontFamily: cinzel, fontSize: 9, color: mut, letterSpacing: '0.06em', marginTop: 2 }}>{t.user_name}{t.is_founder ? ' · FOUNDER' : ''}</div>
+                </div>
+              ))}
+            </div>
+            <div style={cardStyle}>
+              <SectionHead icon="📅" title="UPCOMING EVENTS" section="events" />
+              {events.length === 0 ? empty('No upcoming events') : events.map((e: any) => (
+                <div key={e.id} style={rowStyle}>
+                  <div style={{ fontFamily: cinzel, fontSize: 11, color: txt }}>{e.title}</div>
+                  <div style={{ fontFamily: crimson, fontSize: 11, color: mut }}>{e.event_date ? new Date(e.event_date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : ''}{e.event_type ? ` · ${e.event_type}` : ''}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* 6 ── YOUR WORK (Commander+ only) */}
+          {isCommander && (
+            <div>
+              <div style={{ fontFamily: cinzel, fontSize: 10, color: mut, letterSpacing: '0.16em', margin: '4px 0 12px' }}>🎖 YOUR WORK</div>
+              <div style={{ display: 'grid', gridTemplateColumns: twoCol, gap: 16 }}>
+                <div style={cardStyle}>
+                  <SectionHead icon="📁" title="ACTIVE CASES" onClick={goCaseFiles} />
+                  {cases.length === 0 ? empty('No active cases') : cases.map((c: any) => (
+                    <div key={c.id} style={rowStyle}>
+                      <div style={{ fontFamily: cinzel, fontSize: 11, color: txt }}>{c.subject_name}</div>
+                      <div style={{ fontFamily: crimson, fontSize: 11, color: mut }}>{c.primary_issue}</div>
+                    </div>
+                  ))}
+                </div>
+                <div style={cardStyle}>
+                  <SectionHead icon="🔍" title="RECENT SOL SEARCHES" section="my-intel" />
+                  {searches.length === 0 ? empty('No searches yet') : searches.map((s: any) => (
+                    <div key={s.id} style={rowStyle}>
+                      <div style={{ fontFamily: crimson, fontSize: 12, color: txt, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{s.query}</div>
+                      <div style={{ fontFamily: cinzel, fontSize: 9, color: mut, letterSpacing: '0.06em' }}>{displayToolLabel(s.tool)}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* 7 ── QUICK ACTIONS */}
+          <div>
             <div style={{ fontFamily: cinzel, fontSize: 9, color: mut, letterSpacing: '0.14em', marginBottom: 10 }}>QUICK ACTIONS</div>
             <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 8 }}>
-              {[
-                { label: '+ New Case File', section: 'case-files' },
-                { label: '+ Session Center', section: 'session-center' },
-                { label: '+ Prayer Request', section: 'prayer-wall' },
-                { label: '+ Field Report', section: 'forum' },
-              ].map(a => (
-                <button key={a.label} onClick={() => setActiveSection(a.section)}
-                  style={{ padding: '8px 14px', background: 'rgba(201,168,76,0.06)', border: `1px solid ${bdr}`, borderRadius: 6, color: GD, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: 'pointer', flexShrink: 0 }}>
+              {quickActions.map(a => (
+                <button key={a.label} onClick={a.onClick}
+                  style={{ padding: '8px 14px', background: inset, border: `1px solid ${bdr}`, borderRadius: 6, color: GD, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: 'pointer', flexShrink: 0 }}>
                   {a.label}
                 </button>
               ))}
             </div>
           </div>
-        </>
+        </div>
       )}
     </div>
   )
