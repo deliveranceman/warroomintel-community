@@ -33,7 +33,7 @@ export default async function handler(req: Request) {
   // 1. Load LES
   const { data: les, error: lesErr } = await client
     .from('library_enrichment_suggestions')
-    .select('id, resource_id, book_title, spirit_name, status, is_adversarial')
+    .select('id, resource_id, book_title, spirit_name, status, is_adversarial, source_excerpt')
     .eq('id', lesId)
     .single()
 
@@ -88,7 +88,13 @@ export default async function handler(req: Request) {
     )
   }
 
-  const queryText = les.spirit_name
+  // Prefer the source_excerpt (the exact chunk the original Layer-1
+  // ingestion identified as this spirit's source content) — embedding
+  // it pulls same-book neighbors to the top of the vector match. Fall
+  // back to bare spirit_name if source_excerpt is missing or too short
+  // to embed meaningfully.
+  const excerpt = (les.source_excerpt ?? '').trim()
+  const queryText = excerpt.length >= 50 ? excerpt : les.spirit_name
 
   const embRes = await fetch('https://api.openai.com/v1/embeddings', {
     method:  'POST',
