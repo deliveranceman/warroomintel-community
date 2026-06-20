@@ -73,7 +73,7 @@ export default async function handler(req: Request) {
     }
 
     // 2. Status guard — write skipped marker and exit
-    if (les.status === 'applied' || les.status === 'rejected') {
+    if (les.status === 'rejected') {
       console.warn(`[admin-retrofit-layer2-background] skipped: status=${les.status} for LES ${lesId}`)
       await client
         .from('library_enrichment_suggestions')
@@ -84,6 +84,10 @@ export default async function handler(req: Request) {
         .eq('id', lesId)
       return
     }
+    // status='applied' now allowed — operator can re-retrofit an
+    // already-approved LES to deepen its fan-out. Fan-out helpers are
+    // idempotent (UNIQUE constraints handle dedup) so re-approval after
+    // retrofit is safe.
 
     // 3. resource_id required for RAG
     if (!les.resource_id) {
