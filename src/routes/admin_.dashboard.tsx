@@ -356,12 +356,12 @@ function IntelDashboardPage() {
           label="Library"
           value={fmt(stats?.row3?.libraryChunks?.count)}
           sub="chunks indexed"
-          breakdown={stats ? `${stats.row3.resources.count} books` : null}
+          breakdown={stats ? `${stats.row3.resources.count} resources` : null}
         />
         <StatCard
           label="Resources"
           value={fmt(stats?.row3?.resources?.count)}
-          sub="books"
+          sub="resources indexed"
           breakdown={
             stats?.row3?.resources?.recentDaysAgo !== null &&
             stats?.row3?.resources?.recentDaysAgo !== undefined
