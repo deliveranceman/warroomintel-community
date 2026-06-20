@@ -1,8 +1,17 @@
-import { createFileRoute, useNavigate } from '@tanstack/react-router'
+import { createFileRoute, redirect, useNavigate } from '@tanstack/react-router'
 import { useState, useEffect, useRef } from 'react'
 import { useAuth } from '@clerk/tanstack-start'
 
 export const Route = createFileRoute('/admin/')({
+  beforeLoad: ({ location }) => {
+    // Only redirect when no ?tab= is set — preserve legacy bookmarks
+    // like /admin/?tab=spirit-candidates that target a specific tab
+    // in the legacy admin Command Center.
+    const search = location.search as Record<string, unknown> | undefined
+    if (!search || !search.tab) {
+      throw redirect({ to: '/admin/dashboard' })
+    }
+  },
   component: AdminDashboard,
 })
 
