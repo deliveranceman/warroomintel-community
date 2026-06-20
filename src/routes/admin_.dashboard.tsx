@@ -3,7 +3,7 @@ import { createFileRoute } from '@tanstack/react-router'
 import { useAuth } from '@clerk/tanstack-start'
 import { useEffect, useState } from 'react'
 
-export const Route = createFileRoute('/admin/dashboard')({
+export const Route = createFileRoute('/admin_/dashboard')({
   component: IntelDashboardPage,
 })
 
