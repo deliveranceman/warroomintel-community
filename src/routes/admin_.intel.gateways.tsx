@@ -107,9 +107,9 @@ function GatewaysBrowsePage() {
     if (sourceFilter === 'legacy') {
       if (r.provenance) return false
     } else if (sourceFilter === 'ministry') {
-      if (!r.provenance?.resource || r.provenance.resource.isAdversarial) return false
+      if (!r.provenance || r.provenance.isAdversarial) return false
     } else if (sourceFilter === 'intelligence') {
-      if (!r.provenance?.resource || !r.provenance.resource.isAdversarial) return false
+      if (!r.provenance || !r.provenance.isAdversarial) return false
     }
     if (search.trim()) {
       const q = search.trim().toLowerCase()
@@ -268,7 +268,7 @@ function GatewaysBrowsePage() {
                   }}>
                     {gw.provenance?.resource ? (
                       <>
-                        {gw.provenance.resource.isAdversarial ? '🕯️ INTEL' : '📖 MINISTRY'}
+                        {gw.provenance.isAdversarial ? '🕯️ INTEL' : '📖 MINISTRY'}
                         {' · '}
                         {gw.provenance.resource.title}
                         {gw.provenance.resource.author ? ` — ${gw.provenance.resource.author}` : ''}
