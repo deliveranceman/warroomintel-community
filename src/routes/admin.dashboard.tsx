@@ -2,7 +2,6 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useAuth } from '@clerk/tanstack-start'
 import { useEffect, useState } from 'react'
-import { useNavigate } from '@tanstack/react-router'
 
 export const Route = createFileRoute('/admin/dashboard')({
   component: IntelDashboardPage,
@@ -19,96 +18,32 @@ const MUTED    = '#6b6b6b'
 const cinzel   = "'Cinzel', serif"
 const crimson  = "'Crimson Pro', serif"
 
-// ── Mock data (replaced by /api/admin-dashboard-stats in Commit 2) ────────────
-const MOCK: DashboardStats = {
-  // Active Workflows
-  lesPending:         142,
-  lesApplied:         389,
-  lesRejected:         47,
-  lesNeedsRetrofit:    91,
-  candidatesPending:   58,
-  candidatesApproved: 1204,
-
-  // Intel Depth
-  spiritsTotal:       1204,
-  spiritsWithLayer2:   817,
-  layer2Substantial:   502,
-  layer2Partial:       219,
-  layer2Minimal:        96,
-  avgScriptureRefs:    6.4,
-  attestedTrue:        731,
-  attestedFalse:        86,
-
-  // Sources & Ingestion
-  resourcesTotal:      148,
-  resourcesEmbedded:   134,
-  chunksTotal:       42871,
-  sourceMinistry:       89,
-  sourceIntelligence:   59,
-  lastIngestedAt:    '2026-06-19T14:22:00Z',
-
-  // Health & Ops
-  jobsLast7d:          312,
-  costLast7d:         18.74,
-  errorRatePct:         2.1,
-  avgExtractionMs:    4820,
-  retrofitQueue:        91,
-}
-
-// ── Types ─────────────────────────────────────────────────────────────────────
-interface DashboardStats {
-  lesPending:         number
-  lesApplied:         number
-  lesRejected:        number
-  lesNeedsRetrofit:   number
-  candidatesPending:  number
-  candidatesApproved: number
-  spiritsTotal:       number
-  spiritsWithLayer2:  number
-  layer2Substantial:  number
-  layer2Partial:      number
-  layer2Minimal:      number
-  avgScriptureRefs:   number
-  attestedTrue:       number
-  attestedFalse:      number
-  resourcesTotal:     number
-  resourcesEmbedded:  number
-  chunksTotal:        number
-  sourceMinistry:     number
-  sourceIntelligence: number
-  lastIngestedAt:     string
-  jobsLast7d:         number
-  costLast7d:         number
-  errorRatePct:       number
-  avgExtractionMs:    number
-  retrofitQueue:      number
-}
-
 // ── Sub-components ────────────────────────────────────────────────────────────
 
 interface StatCardProps {
-  label:     string
-  value:     string | number
-  sub?:      string
-  accent?:   string
-  wide?:     boolean
-  bar?:      { value: number; max: number; color?: string }
+  label:      string
+  value:      string | number
+  sub?:       string
+  breakdown?: string | null
+  accent?:    string
+  wide?:      boolean
+  bar?:       { value: number; max: number; color?: string }
 }
 
-function StatCard({ label, value, sub, accent, wide, bar }: StatCardProps) {
+function StatCard({ label, value, sub, breakdown, accent, wide, bar }: StatCardProps) {
   const pct = bar ? Math.round((bar.value / bar.max) * 100) : 0
 
   return (
     <div style={{
-      background:   CARD_BG,
-      border:       `1px solid ${BDR}`,
-      borderRadius: 8,
-      padding:      '16px 20px',
-      gridColumn:   wide ? 'span 2' : undefined,
-      display:      'flex',
-      flexDirection:'column',
-      gap:          4,
-      minWidth:     0,
+      background:    CARD_BG,
+      border:        `1px solid ${BDR}`,
+      borderRadius:  8,
+      padding:       '16px 20px',
+      gridColumn:    wide ? 'span 2' : undefined,
+      display:       'flex',
+      flexDirection: 'column',
+      gap:           4,
+      minWidth:      0,
     }}>
       <span style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.12em', color: MUTED, textTransform: 'uppercase' }}>
         {label}
@@ -119,6 +54,11 @@ function StatCard({ label, value, sub, accent, wide, bar }: StatCardProps) {
       {sub && (
         <span style={{ fontFamily: crimson, fontSize: 13, color: MUTED, marginTop: 2 }}>
           {sub}
+        </span>
+      )}
+      {breakdown && (
+        <span style={{ fontFamily: crimson, fontSize: 12, color: MUTED, marginTop: 1, opacity: 0.8 }}>
+          {breakdown}
         </span>
       )}
       {bar && (
@@ -168,29 +108,62 @@ function DashboardRow({ title, children }: DashboardRowProps) {
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 function IntelDashboardPage() {
-  const { isLoaded, userId } = useAuth()
-  const navigate             = useNavigate()
-  const [stats]              = useState<DashboardStats>(MOCK)
+  const { getToken }          = useAuth()
+  const [stats, setStats]     = useState<any>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError]     = useState<string | null>(null)
 
   useEffect(() => {
-    if (isLoaded && !userId) navigate({ to: '/admin/login' })
-  }, [isLoaded, userId, navigate])
+    let cancelled = false
+    async function load() {
+      try {
+        setLoading(true)
+        const token = await getToken()
+        const resp = await fetch('/api/admin-dashboard-stats', {
+          headers: { Authorization: `Bearer ${token}` },
+        })
+        if (!resp.ok) throw new Error(`Stats endpoint returned ${resp.status}`)
+        const data = await resp.json()
+        if (!cancelled) { setStats(data); setError(null) }
+      } catch (err: any) {
+        if (!cancelled) setError(String(err?.message ?? err))
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    }
+    load()
+    return () => { cancelled = true }
+  }, [])
 
-  if (!isLoaded || !userId) return null
+  const fmt = (n: number | null | undefined) =>
+    loading ? '—' : (n ?? 0).toLocaleString()
 
-  const layer2Coverage = stats.spiritsWithLayer2 / Math.max(stats.spiritsTotal, 1)
-  const l2Total        = stats.layer2Substantial + stats.layer2Partial + stats.layer2Minimal
-  const lastIngested   = stats.lastIngestedAt
-    ? new Date(stats.lastIngestedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
-    : 'never'
+  const fmtMoney = (n: number | null | undefined) =>
+    loading ? '—' : `$${(n ?? 0).toFixed(2)}`
 
   return (
     <div style={{
-      minHeight:   '100vh',
-      background:  PAGE_BG,
-      padding:     '32px 24px',
-      boxSizing:   'border-box',
+      minHeight:  '100vh',
+      background: PAGE_BG,
+      padding:    '32px 24px',
+      boxSizing:  'border-box',
     }}>
+      {/* Error banner */}
+      {error && (
+        <div style={{
+          background:   '#FEE2E2',
+          border:       '1px solid #FCA5A5',
+          borderRadius: 4,
+          padding:      '8px 12px',
+          marginBottom: 16,
+          fontFamily:   crimson,
+          fontSize:     13,
+          color:        '#991B1B',
+        }}>
+          Stats unavailable: {error}
+        </div>
+      )}
+
       {/* Header */}
       <div style={{ marginBottom: 32, borderBottom: `1px solid ${BDR}`, paddingBottom: 20 }}>
         <h1 style={{ fontFamily: cinzel, fontSize: 22, fontWeight: 700, color: DEEP, letterSpacing: '0.06em', margin: 0 }}>
@@ -198,7 +171,6 @@ function IntelDashboardPage() {
         </h1>
         <p style={{ fontFamily: crimson, fontSize: 14, color: MUTED, margin: '6px 0 0' }}>
           Live view of WRI enrichment workflows, spirit coverage, and system health.
-          {' '}<span style={{ color: '#b08020', fontStyle: 'italic' }}>(Mock data -- connect stats endpoint in Commit 2)</span>
         </p>
         <nav style={{ marginTop: 16, display: 'flex', gap: 12 }}>
           {[
@@ -224,58 +196,135 @@ function IntelDashboardPage() {
 
       {/* Row 1: Active Workflows */}
       <DashboardRow title="Active Workflows">
-        <StatCard label="LES Pending"         value={stats.lesPending}         sub="awaiting review" accent={GOLD} />
-        <StatCard label="LES Applied"         value={stats.lesApplied}         sub="approved to spirit" />
-        <StatCard label="LES Rejected"        value={stats.lesRejected}        sub="not attested" />
-        <StatCard label="Needs Retrofit"      value={stats.lesNeedsRetrofit}   sub="legacy / no _meta" accent="#b08020" />
-        <StatCard label="Candidates Pending"  value={stats.candidatesPending}  sub="new spirits to review" accent={GOLD} />
-        <StatCard label="Candidates Approved" value={stats.candidatesApproved} sub="in spirits table" />
+        <StatCard
+          label="Spirits"
+          value={fmt(stats?.row1?.spirits?.count)}
+          sub="active in archive"
+        />
+        <StatCard
+          label="Enrichment Queue"
+          value={fmt(stats?.row1?.enrichment?.count)}
+          sub="pending review"
+          accent={GOLD}
+          breakdown={
+            stats?.row1?.enrichment?.triage
+              ? `🟢 ${stats.row1.enrichment.triage.ready} · 🟡 ${stats.row1.enrichment.triage.needsRead} · 🔴 ${stats.row1.enrichment.triage.reject} · ⚪ ${stats.row1.enrichment.triage.legacy}`
+              : null
+          }
+        />
+        <StatCard
+          label="Candidates"
+          value={fmt(stats?.row1?.candidates?.count)}
+          sub="awaiting triage"
+          breakdown={
+            stats?.row1?.candidates?.byConfidence
+              ? `HIGH: ${stats.row1.candidates.byConfidence.HIGH} · MID: ${stats.row1.candidates.byConfidence.MID} · LOW: ${stats.row1.candidates.byConfidence.LOW}`
+              : null
+          }
+        />
+        <StatCard
+          label="Approved Today"
+          value={fmt(stats?.row1?.today?.spiritsApproved)}
+          sub="spirits approved 24h"
+          breakdown={stats ? `${stats.row1.today.retrofitted} retrofitted` : null}
+        />
       </DashboardRow>
 
       {/* Row 2: Intel Depth */}
       <DashboardRow title="Intel Depth">
         <StatCard
-          label="Layer 2 Coverage"
-          value={`${Math.round(layer2Coverage * 100)}%`}
-          sub={`${stats.spiritsWithLayer2} of ${stats.spiritsTotal} spirits`}
-          bar={{ value: stats.spiritsWithLayer2, max: stats.spiritsTotal, color: GOLD }}
-          wide
+          label="Body Map"
+          value={
+            loading
+              ? '—'
+              : `${stats?.row2?.bodyMap?.mapped ?? 0} / ${stats?.row2?.bodyMap?.total ?? 80}`
+          }
+          sub="regions mapped"
+          breakdown={
+            stats
+              ? `${((stats.row2.bodyMap.mapped / stats.row2.bodyMap.total) * 100).toFixed(1)}% coverage`
+              : null
+          }
         />
-        <StatCard label="Substantial"   value={stats.layer2Substantial} sub={`${Math.round(stats.layer2Substantial / Math.max(l2Total, 1) * 100)}% of retrofitted`} accent="#2d7a3a" />
-        <StatCard label="Partial"       value={stats.layer2Partial}     sub="needs read"  accent="#b08020" />
-        <StatCard label="Minimal"       value={stats.layer2Minimal}     sub="low coverage" accent="#b04020" />
-        <StatCard label="Avg Scripture Refs"  value={stats.avgScriptureRefs.toFixed(1)} sub="per retrofitted LES" />
-        <StatCard label="Attested True"       value={stats.attestedTrue}  sub="spirit confirmed in source" accent="#2d7a3a" />
-        <StatCard label="Attested False"      value={stats.attestedFalse} sub="reject candidates" accent="#b04020" />
+        <StatCard
+          label="Gateways"
+          value={fmt(stats?.row2?.gateways?.count)}
+          sub="mapped"
+          breakdown={stats ? `across ${stats.row2.gateways.spirits} spirits` : null}
+        />
+        <StatCard
+          label="Scriptures"
+          value={fmt(stats?.row2?.scriptures?.count)}
+          sub="mapped"
+          breakdown={stats ? `across ${stats.row2.scriptures.spirits} spirits` : null}
+        />
+        <StatCard
+          label="Network"
+          value={fmt(
+            (stats?.row2?.network?.hierarchy ?? 0) +
+            (stats?.row2?.network?.companions ?? 0)
+          )}
+          sub="relationships"
+          breakdown={
+            stats
+              ? `${stats.row2.network.hierarchy} hierarchy · ${stats.row2.network.companions} companions`
+              : null
+          }
+        />
       </DashboardRow>
 
-      {/* Row 3: Sources & Ingestion */}
+      {/* Row 3: Sources and Ingestion */}
       <DashboardRow title="Sources and Ingestion">
         <StatCard
-          label="Embedded Resources"
-          value={`${stats.resourcesEmbedded}/${stats.resourcesTotal}`}
-          sub="sources with vector chunks"
-          bar={{ value: stats.resourcesEmbedded, max: stats.resourcesTotal, color: '#5C7CBF' }}
-          wide
+          label="Library"
+          value={fmt(stats?.row3?.libraryChunks?.count)}
+          sub="chunks indexed"
+          breakdown={stats ? `${stats.row3.resources.count} books` : null}
         />
-        <StatCard label="Total Chunks"      value={stats.chunksTotal.toLocaleString()} sub="library_chunks indexed" />
-        <StatCard label="Ministry Sources"  value={stats.sourceMinistry}     sub="is_adversarial=false" accent="#2d7a3a" />
-        <StatCard label="Intel Sources"     value={stats.sourceIntelligence} sub="is_adversarial=true"  accent="#7C5CBF" />
-        <StatCard label="Last Ingested"     value={lastIngested}             sub="most recent embedding" />
+        <StatCard
+          label="Resources"
+          value={fmt(stats?.row3?.resources?.count)}
+          sub="books"
+          breakdown={
+            stats?.row3?.resources?.recentDaysAgo !== null &&
+            stats?.row3?.resources?.recentDaysAgo !== undefined
+              ? `last added: ${stats.row3.resources.recentDaysAgo}d ago`
+              : null
+          }
+        />
+        <StatCard
+          label="Recent Extractions"
+          value={fmt(stats?.row3?.recentExtractions?.successesLastHour)}
+          sub="last hour"
+          breakdown={
+            stats
+              ? `${stats.row3.recentExtractions.failuresLast24h} failures 24h`
+              : null
+          }
+        />
       </DashboardRow>
 
-      {/* Row 4: Health & Ops */}
+      {/* Row 4: Health and Ops */}
       <DashboardRow title="Health and Ops">
-        <StatCard label="AI Jobs (7d)"        value={stats.jobsLast7d}                   sub="extractions + retrofits" />
-        <StatCard label="Cost (7d)"           value={`$${stats.costLast7d.toFixed(2)}`}  sub="OpenAI + Anthropic" accent={GOLD} />
-        <StatCard label="Error Rate"          value={`${stats.errorRatePct.toFixed(1)}%`} sub="extraction failures"  accent={stats.errorRatePct > 5 ? '#b04020' : MUTED} />
-        <StatCard label="Avg Extraction Time" value={`${(stats.avgExtractionMs / 1000).toFixed(1)}s`} sub="p50 wall time" />
-        <StatCard label="Retrofit Queue"      value={stats.retrofitQueue} sub="legacy LES ready for L2" accent="#b08020" />
+        <StatCard
+          label="Failures"
+          value={fmt(stats?.row4?.failures24h)}
+          sub="last 24h"
+          accent={!loading && (stats?.row4?.failures24h ?? 0) > 5 ? '#b04020' : MUTED}
+        />
+        <StatCard
+          label="AI Spend"
+          value={fmtMoney(stats?.row4?.aiSpendToday)}
+          sub="today"
+          accent={GOLD}
+          breakdown={stats ? `${fmtMoney(stats.row4.aiSpend7d)} trailing 7d` : null}
+        />
+        <StatCard
+          label="Active Members"
+          value={fmt(stats?.row4?.membersActive7d)}
+          sub="active 7d"
+        />
       </DashboardRow>
-
-      <p style={{ fontFamily: crimson, fontSize: 11, color: MUTED, textAlign: 'center', marginTop: 8 }}>
-        Mock data -- wire /api/admin-dashboard-stats in Commit 2 to see live counts.
-      </p>
     </div>
   )
 }
