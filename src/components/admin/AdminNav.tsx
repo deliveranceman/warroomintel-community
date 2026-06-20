@@ -12,7 +12,8 @@ const LINKS: Array<{
 }> = [
   { key: 'dashboard',  label: 'DASHBOARD',  icon: '🏠', to: '/admin/dashboard' },
   { key: 'gateways',   label: 'GATEWAYS',   icon: '🚪', to: '/admin/intel/gateways' },
-  // Add scriptures/hierarchy/companions/regions here as they ship.
+  { key: 'scriptures', label: 'SCRIPTURES', icon: '📜', to: '/admin/intel/scriptures' },
+  // Add hierarchy/companions/regions here as they ship.
 ]
 
 const NAV_BG     = '#FFFFFF'

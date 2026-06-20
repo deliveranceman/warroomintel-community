@@ -28,7 +28,8 @@ export default async function handler(req: Request) {
         library_enrichment_suggestions!source_suggestion_id (
           id,
           spirit_name,
-          resources ( id, title, author, is_adversarial )
+          is_adversarial,
+          resources ( id, title, author )
         )
       `)
       .order('reference', { ascending: true })
@@ -48,11 +49,11 @@ export default async function handler(req: Request) {
       } : null,
       provenance: row.library_enrichment_suggestions ? {
         lesId: row.library_enrichment_suggestions.id,
+        isAdversarial: row.library_enrichment_suggestions.is_adversarial,
         resource: row.library_enrichment_suggestions.resources ? {
           id: row.library_enrichment_suggestions.resources.id,
           title: row.library_enrichment_suggestions.resources.title,
           author: row.library_enrichment_suggestions.resources.author,
-          isAdversarial: row.library_enrichment_suggestions.resources.is_adversarial,
         } : null,
       } : null,
     }))

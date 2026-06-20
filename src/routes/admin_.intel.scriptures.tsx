@@ -2,6 +2,7 @@ import { createFileRoute } from '@tanstack/react-router'
 import { useState, useEffect } from 'react'
 import { useAuth, useUser } from '@clerk/tanstack-start'
 import { getAccessLevel } from '@/lib/access'
+import { AdminNav } from '../components/admin/AdminNav'
 
 export const Route = createFileRoute('/admin_/intel/scriptures')({
   component: ScripturesBrowsePage,
@@ -128,9 +129,9 @@ function ScripturesBrowsePage() {
     if (sourceFilter === 'legacy') {
       if (r.provenance) return false
     } else if (sourceFilter === 'ministry') {
-      if (!r.provenance?.resource || r.provenance.resource.isAdversarial) return false
+      if (!r.provenance || r.provenance.isAdversarial) return false
     } else if (sourceFilter === 'intelligence') {
-      if (!r.provenance?.resource || !r.provenance.resource.isAdversarial) return false
+      if (!r.provenance || !r.provenance.isAdversarial) return false
     }
     if (kindFilter !== 'all' && r.kind !== kindFilter) return false
     if (search.trim()) {
@@ -151,20 +152,9 @@ function ScripturesBrowsePage() {
   const spiritGroups = Object.entries(grouped).sort((a, b) => a[0].localeCompare(b[0]))
 
   return (
-    <div style={{ minHeight: '100vh', background: PAGE_BG, padding: '32px 24px' }}>
-      <div style={{ maxWidth: 1200, margin: '0 auto' }}>
-        {/* Breadcrumb */}
-        <a
-          href="/admin/dashboard"
-          style={{
-            fontFamily: 'Cinzel, serif', fontSize: 11, color: GOLD,
-            textDecoration: 'none', letterSpacing: '0.12em',
-            display: 'inline-block', marginBottom: 8,
-          }}
-        >
-          &larr; DASHBOARD
-        </a>
-
+    <div style={{ minHeight: '100vh', background: PAGE_BG }}>
+      <AdminNav current="scriptures" />
+      <div style={{ maxWidth: 1200, margin: '0 auto', padding: '32px 24px' }}>
         {/* Header */}
         <div style={{ marginBottom: 32 }}>
           <h1 style={{
@@ -339,7 +329,7 @@ function ScripturesBrowsePage() {
                   }}>
                     {sc.provenance?.resource ? (
                       <>
-                        {sc.provenance.resource.isAdversarial ? '🕯️ INTEL' : '📖 MINISTRY'}
+                        {sc.provenance.isAdversarial ? '🕯️ INTEL' : '📖 MINISTRY'}
                         {' · '}
                         {sc.provenance.resource.title}
                         {sc.provenance.resource.author ? ` — ${sc.provenance.resource.author}` : ''}
