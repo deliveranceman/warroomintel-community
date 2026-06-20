@@ -15364,6 +15364,13 @@ function EnrichmentSuggestions({ getToken, isDark }: { getToken: any; isDark: bo
     sourceClass:  'all',
     resourceId:   null,
   })
+  const [bulkRejectModalOpen, setBulkRejectModalOpen]   = useState(false)
+  const [bulkRejectInProgress, setBulkRejectInProgress] = useState(false)
+  const [bulkRejectResult, setBulkRejectResult]         = useState<{
+    succeeded: number
+    failed:    number
+    errors:    string[]
+  } | null>(null)
 
   const cinzel  = "'Cinzel', serif"
   const crimson = "'Crimson Pro', serif"
@@ -15517,6 +15524,48 @@ function EnrichmentSuggestions({ getToken, isDark }: { getToken: any; isDark: bo
     for (const s of [...suggestions]) {
       await handleApply(s.id, 'reject')
     }
+  }
+
+  async function handleBulkReject() {
+    // SAFETY GATE 1: filter must explicitly target reject-candidate
+    if (triageFilter.triageStatus !== 'reject-candidate') {
+      console.warn('[bulk-reject] aborted: filter not reject-candidate')
+      return
+    }
+
+    // SAFETY GATE 2: hard count cap
+    const MAX_BULK = 50
+    if (filteredSuggestions.length === 0) return
+    if (filteredSuggestions.length > MAX_BULK) {
+      console.warn(`[bulk-reject] aborted: ${filteredSuggestions.length} rows exceeds MAX_BULK=${MAX_BULK}`)
+      return
+    }
+
+    setBulkRejectInProgress(true)
+    setBulkRejectResult(null)
+
+    const snapshot = [...filteredSuggestions]
+    let succeeded = 0
+    let failed = 0
+    const errors: string[] = []
+
+    for (const les of snapshot) {
+      try {
+        // handleApply catches errors internally (does not rethrow), so this
+        // resolves even on server-side failure. succeeded count reflects rows
+        // dispatched to the per-row reject path, not confirmed server successes.
+        // Per-row failures surface via setCardErrors inside handleApply.
+        await handleApply(les.id, 'reject')
+        succeeded++
+      } catch (err: any) {
+        failed++
+        errors.push(`${les.id?.slice(0, 8)}: ${err?.message ?? String(err)}`)
+      }
+    }
+
+    setBulkRejectResult({ succeeded, failed, errors: errors.slice(0, 10) })
+    setBulkRejectInProgress(false)
+    await loadSuggestions()
   }
 
   // Derive filter options from loaded data
@@ -15707,6 +15756,32 @@ function EnrichmentSuggestions({ getToken, isDark }: { getToken: any; isDark: bo
             style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.06em', padding: '4px 8px', borderRadius: 4, border: `1px solid ${triageFilter.sourceClass === v ? EG : EBDR}`, background: triageFilter.sourceClass === v ? 'rgba(201,168,76,0.1)' : 'transparent', color: triageFilter.sourceClass === v ? EG : EMUT, cursor: 'pointer' }}
           >{label}</button>
         ))}
+        {triageFilter.triageStatus === 'reject-candidate' && filteredSuggestions.length > 0 && (
+          <button
+            type="button"
+            onClick={() => setBulkRejectModalOpen(true)}
+            disabled={bulkRejectInProgress || filteredSuggestions.length > 50}
+            style={{
+              fontSize: 11,
+              padding: '4px 10px',
+              background: filteredSuggestions.length > 50 ? '#ccc' : '#c0392b',
+              color: 'white',
+              border: 'none',
+              borderRadius: 4,
+              cursor: filteredSuggestions.length > 50 ? 'not-allowed' : 'pointer',
+              fontWeight: 600,
+              marginLeft: 12,
+            }}
+            title={
+              filteredSuggestions.length > 50
+                ? `Refusing bulk action on ${filteredSuggestions.length} rows (cap: 50). Narrow filters further.`
+                : `Reject all ${filteredSuggestions.length} filtered LES rows`
+            }
+          >
+            🔴 Bulk Reject Filtered ({filteredSuggestions.length})
+            {filteredSuggestions.length > 50 && ' — cap exceeded'}
+          </button>
+        )}
       </div>
 
       {/* Showing-N-of-M counter */}
@@ -15992,6 +16067,97 @@ function EnrichmentSuggestions({ getToken, isDark }: { getToken: any; isDark: bo
           </>)}
         </div>
       ))}
+
+      {/* Bulk Reject Confirmation Modal */}
+      {bulkRejectModalOpen && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(0,0,0,0.5)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          zIndex: 9999,
+        }}>
+          <div style={{
+            background: 'white', padding: 24, borderRadius: 8,
+            maxWidth: 600, width: '90%', maxHeight: '80vh', overflow: 'auto',
+          }}>
+            <h3 style={{ margin: 0, color: '#c0392b' }}>
+              🔴 Bulk Reject {filteredSuggestions.length} LES Rows?
+            </h3>
+
+            <p style={{ fontSize: 13, color: '#555', marginTop: 12 }}>
+              This will set <code>status='rejected'</code> on all {filteredSuggestions.length}{' '}
+              currently filtered LES rows. Each row goes through the standard
+              reject flow (server validation + status guard). Operation cannot
+              be undone without manual SQL.
+            </p>
+
+            <p style={{ fontSize: 13, color: '#555' }}>
+              Triage filter: <strong>{triageFilter.triageStatus}</strong>
+              {triageFilter.sourceClass !== 'all' && (
+                <> · Source: <strong>{triageFilter.sourceClass}</strong></>
+              )}
+            </p>
+
+            <details style={{ marginTop: 12, marginBottom: 12 }}>
+              <summary style={{ cursor: 'pointer', fontSize: 12 }}>
+                Preview rows ({Math.min(filteredSuggestions.length, 10)} of {filteredSuggestions.length})
+              </summary>
+              <ul style={{ fontSize: 11, color: '#666', maxHeight: 200, overflow: 'auto', marginTop: 8 }}>
+                {filteredSuggestions.slice(0, 10).map((les: any) => (
+                  <li key={les.id}>
+                    {les.spirit_name} · {les.id?.slice(0, 8)}
+                  </li>
+                ))}
+              </ul>
+            </details>
+
+            {bulkRejectResult && (
+              <div style={{
+                background: bulkRejectResult.failed === 0 ? '#d4edda' : '#fff3cd',
+                padding: 12, borderRadius: 4, marginBottom: 12, fontSize: 12,
+              }}>
+                <strong>Result:</strong> {bulkRejectResult.succeeded} succeeded, {bulkRejectResult.failed} failed
+                {bulkRejectResult.errors.length > 0 && (
+                  <ul style={{ marginTop: 8, marginBottom: 0 }}>
+                    {bulkRejectResult.errors.map((e, i) => (
+                      <li key={i}>{e}</li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            )}
+
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 16 }}>
+              <button
+                type="button"
+                onClick={() => { setBulkRejectModalOpen(false); setBulkRejectResult(null) }}
+                disabled={bulkRejectInProgress}
+                style={{ padding: '6px 14px' }}
+              >
+                {bulkRejectResult ? 'Close' : 'Cancel'}
+              </button>
+              {!bulkRejectResult && (
+                <button
+                  type="button"
+                  onClick={handleBulkReject}
+                  disabled={bulkRejectInProgress}
+                  style={{
+                    padding: '6px 14px',
+                    background: '#c0392b',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: 4,
+                    cursor: bulkRejectInProgress ? 'wait' : 'pointer',
+                    fontWeight: 600,
+                  }}
+                >
+                  {bulkRejectInProgress ? '⏳ Rejecting…' : `🔴 Confirm Reject ${filteredSuggestions.length}`}
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
