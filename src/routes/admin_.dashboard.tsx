@@ -243,6 +243,17 @@ function IntelDashboardPage() {
 
       {/* Header */}
       <div style={{ marginBottom: 32, borderBottom: `1px solid ${BDR}`, paddingBottom: 20 }}>
+        <a href="/admin" style={{
+          fontFamily:    'Cinzel, serif',
+          fontSize:      11,
+          color:         '#8B6914',
+          textDecoration: 'none',
+          letterSpacing: '0.12em',
+          display:       'inline-block',
+          marginBottom:  8,
+        }}>
+          &larr; ADMIN
+        </a>
         <h1 style={{ fontFamily: cinzel, fontSize: 22, fontWeight: 700, color: DEEP, letterSpacing: '0.06em', margin: 0 }}>
           Intel Dashboard
         </h1>
