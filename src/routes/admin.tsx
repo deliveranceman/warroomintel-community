@@ -15357,6 +15357,8 @@ function EnrichmentSuggestions({ getToken, isDark }: { getToken: any; isDark: bo
   const [adversarialFilter, setAdversarialFilter] = useState<string>('all')
   const [expandedIds, setExpandedIds]             = useState<Set<string>>(new Set())
   const [expandedLayers, setExpandedLayers]       = useState<Set<string>>(new Set())
+  const [focusedRowId, setFocusedRowId]           = useState<string | null>(null)
+  const [hotkeyHelpOpen, setHotkeyHelpOpen]       = useState(false)
   const [triageFilter, setTriageFilter]           = useState<TriageFilterSpec>({
     triageStatus: 'all',
     attested:     'all',
@@ -15436,6 +15438,19 @@ function EnrichmentSuggestions({ getToken, isDark }: { getToken: any; isDark: bo
       setSuggestions(data.suggestions || [])
     }
     setLoading(false)
+  }
+
+  function toggleExpand(id: string) {
+    setExpandedIds(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) {
+        next.delete(id)
+      } else {
+        next.add(id)
+        setTimeout(() => document.getElementById(`les-${id}`)?.scrollIntoView({ block: 'nearest' }), 0)
+      }
+      return next
+    })
   }
 
   async function handleAIFillField(sugId: string, fieldName: string, spiritName: string, bookTitle: string) {
@@ -15675,6 +15690,80 @@ function EnrichmentSuggestions({ getToken, isDark }: { getToken: any; isDark: bo
     })
   }, [suggestions, statusFilter, search, sourceFilter, hasL2Only, hasBodyRegions, confBands, actionFilter, adversarialFilter, triageFilter])
 
+  useEffect(() => {
+    function handleKey(e: KeyboardEvent) {
+      const tag = (e.target as HTMLElement)?.tagName?.toLowerCase()
+      if (tag === 'input' || tag === 'textarea' || tag === 'select') return
+      if (e.ctrlKey || e.metaKey || e.altKey) return
+
+      const key = e.key.toLowerCase()
+
+      if (key === '?') {
+        setHotkeyHelpOpen((v) => !v)
+        e.preventDefault()
+        return
+      }
+
+      if (filteredSuggestions.length === 0) return
+
+      const currentIndex = focusedRowId
+        ? filteredSuggestions.findIndex((s: any) => s.id === focusedRowId)
+        : -1
+
+      if (key === 'arrowdown' || key === 'arrowright') {
+        const nextIdx = currentIndex < 0 ? 0 : Math.min(currentIndex + 1, filteredSuggestions.length - 1)
+        setFocusedRowId(filteredSuggestions[nextIdx].id)
+        e.preventDefault()
+        return
+      }
+
+      if (key === 'arrowup' || key === 'arrowleft') {
+        const prevIdx = currentIndex < 0 ? 0 : Math.max(currentIndex - 1, 0)
+        setFocusedRowId(filteredSuggestions[prevIdx].id)
+        e.preventDefault()
+        return
+      }
+
+      if (currentIndex < 0) return
+      const focusedLes = filteredSuggestions[currentIndex]
+
+      if (key === 'a') {
+        handleApply(focusedLes.id, 'approve')
+        if (currentIndex < filteredSuggestions.length - 1) {
+          setFocusedRowId(filteredSuggestions[currentIndex + 1].id)
+        }
+        e.preventDefault()
+        return
+      }
+
+      if (key === 'r') {
+        handleApply(focusedLes.id, 'reject')
+        if (currentIndex < filteredSuggestions.length - 1) {
+          setFocusedRowId(filteredSuggestions[currentIndex + 1].id)
+        }
+        e.preventDefault()
+        return
+      }
+
+      if (key === 'e') {
+        toggleExpand(focusedLes.id)
+        e.preventDefault()
+        return
+      }
+    }
+
+    window.addEventListener('keydown', handleKey)
+    return () => window.removeEventListener('keydown', handleKey)
+  }, [filteredSuggestions, focusedRowId, handleApply])
+
+  useEffect(() => {
+    if (!focusedRowId) return
+    const el = document.querySelector(`[data-les-id="${focusedRowId}"]`)
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+    }
+  }, [focusedRowId])
+
   // Color tokens — mirror SpiritCandidatesManager naming
   const ESURF = isDark ? '#13111a' : '#fff'
   const EBDR  = isDark ? 'rgba(201,168,76,0.2)' : 'rgba(139,105,20,0.25)'
@@ -15896,6 +15985,9 @@ function EnrichmentSuggestions({ getToken, isDark }: { getToken: any; isDark: bo
             style={{ fontFamily: cinzel, fontSize: 8, color: '#f87171', background: 'none', border: 'none', cursor: 'pointer', letterSpacing: '0.06em', padding: 0 }}
           >× Clear filters</button>
         )}
+        <span style={{ fontSize: 11, color: '#888', marginLeft: 'auto' }}>
+          Press <kbd style={{ padding: '0 4px', background: '#eee', borderRadius: 3 }}>?</kbd> for hotkeys
+        </span>
       </div>
 
       {filteredSuggestions.length === 0 && (
@@ -15906,12 +15998,12 @@ function EnrichmentSuggestions({ getToken, isDark }: { getToken: any; isDark: bo
 
       {/* Cards */}
       {filteredSuggestions.map(s => (
-        <div key={s.id} id={`les-${s.id}`} style={{ padding: '16px 20px', marginBottom: 10, background: isDark ? '#0a0807' : '#faf6f0', border: `1px solid ${s.action === 'add' ? '#3a2020' : '#1e2a1e'}`, borderLeft: `3px solid ${s.action === 'add' ? '#8B3232' : '#3a6a3a'}`, borderRadius: 6 }}>
+        <div key={s.id} id={`les-${s.id}`} data-les-id={s.id} style={{ padding: '16px 20px', marginBottom: 10, background: isDark ? '#0a0807' : '#faf6f0', border: `1px solid ${s.action === 'add' ? '#3a2020' : '#1e2a1e'}`, borderLeft: `3px solid ${s.action === 'add' ? '#8B3232' : '#3a6a3a'}`, borderRadius: 6, outline: focusedRowId === s.id ? '2px solid #3498db' : 'none', outlineOffset: 2 }}>
           {/* Clickable header — action buttons stopPropagation so they don't toggle expand */}
           <div
             role="button" tabIndex={0}
-            onClick={() => setExpandedIds(prev => { const next = new Set(prev); if (next.has(s.id)) { next.delete(s.id) } else { next.add(s.id); setTimeout(() => document.getElementById(`les-${s.id}`)?.scrollIntoView({ block: 'nearest' }), 0) }; return next })}
-            onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setExpandedIds(prev => { const next = new Set(prev); if (next.has(s.id)) { next.delete(s.id) } else { next.add(s.id) }; return next }) } }}
+            onClick={() => toggleExpand(s.id)}
+            onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleExpand(s.id) } }}
             style={{ cursor: 'pointer', userSelect: 'none' as const }}
           >
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
@@ -16170,6 +16262,46 @@ function EnrichmentSuggestions({ getToken, isDark }: { getToken: any; isDark: bo
       ))}
 
       {/* Bulk Reject Confirmation Modal */}
+      {/* Hotkey Help Overlay */}
+      {hotkeyHelpOpen && (
+        <div
+          onClick={() => setHotkeyHelpOpen(false)}
+          style={{
+            position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+            background: 'rgba(0,0,0,0.5)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            zIndex: 10000,
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{ background: 'white', padding: 24, borderRadius: 8, maxWidth: 500, width: '90%' }}
+          >
+            <h3 style={{ marginTop: 0 }}>⌨️ Hotkeys</h3>
+            <table style={{ width: '100%', fontSize: 13 }}>
+              <tbody>
+                <tr><td><kbd>A</kbd></td><td>Approve focused row</td></tr>
+                <tr><td><kbd>R</kbd></td><td>Reject focused row</td></tr>
+                <tr><td><kbd>E</kbd></td><td>Expand/collapse focused row</td></tr>
+                <tr><td><kbd>↓</kbd> / <kbd>→</kbd></td><td>Next row</td></tr>
+                <tr><td><kbd>↑</kbd> / <kbd>←</kbd></td><td>Previous row</td></tr>
+                <tr><td><kbd>?</kbd></td><td>Toggle this help</td></tr>
+              </tbody>
+            </table>
+            <p style={{ fontSize: 11, color: '#888', marginTop: 16, marginBottom: 0 }}>
+              Hotkeys ignored when typing in form fields. Approve/Reject auto-advance.
+            </p>
+            <button
+              type="button"
+              onClick={() => setHotkeyHelpOpen(false)}
+              style={{ marginTop: 12, padding: '6px 14px' }}
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Bulk Retrofit Confirmation Modal */}
       {bulkRetrofitModalOpen && (
         <div style={{
