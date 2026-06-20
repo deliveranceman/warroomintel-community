@@ -342,12 +342,14 @@ function IntelDashboardPage() {
             breakdown={stats ? `across ${stats.row2.gateways.spirits} spirits` : null}
           />
         </a>
-        <StatCard
-          label="Scriptures"
-          value={fmt(stats?.row2?.scriptures?.count)}
-          sub="mapped"
-          breakdown={stats ? `across ${stats.row2.scriptures.spirits} spirits` : null}
-        />
+        <a href="/admin/intel/scriptures" style={{ textDecoration: 'none', display: 'block', minWidth: 0 }}>
+          <StatCard
+            label="Scriptures"
+            value={fmt(stats?.row2?.scriptures?.count)}
+            sub="mapped"
+            breakdown={stats ? `across ${stats.row2.scriptures.spirits} spirits` : null}
+          />
+        </a>
         <StatCard
           label="Network"
           value={fmt(
