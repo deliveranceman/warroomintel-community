@@ -15371,6 +15371,13 @@ function EnrichmentSuggestions({ getToken, isDark }: { getToken: any; isDark: bo
     failed:    number
     errors:    string[]
   } | null>(null)
+  const [bulkRetrofitModalOpen, setBulkRetrofitModalOpen]   = useState(false)
+  const [bulkRetrofitInProgress, setBulkRetrofitInProgress] = useState(false)
+  const [bulkRetrofitResult, setBulkRetrofitResult]         = useState<{
+    fired:   number
+    failed:  number
+    errors:  string[]
+  } | null>(null)
 
   const cinzel  = "'Cinzel', serif"
   const crimson = "'Crimson Pro', serif"
@@ -15568,6 +15575,74 @@ function EnrichmentSuggestions({ getToken, isDark }: { getToken: any; isDark: bo
     await loadSuggestions()
   }
 
+  async function handleBulkRetrofit() {
+    // SAFETY GATE 1: hard count cap (lower than bulk reject because each
+    // fires real Anthropic API cost ~$0.03-0.10/row)
+    const MAX_BULK_RETROFIT = 20
+
+    // SAFETY GATE 2: filter to only rows WITHOUT layer2_raw — never
+    // re-retrofit a row that already has extraction
+    const targets = filteredSuggestions.filter((les: any) => !les.layer2_raw)
+
+    if (targets.length === 0) return
+    if (targets.length > MAX_BULK_RETROFIT) {
+      console.warn(`[bulk-retrofit] aborted: ${targets.length} rows exceeds MAX=${MAX_BULK_RETROFIT}`)
+      return
+    }
+
+    setBulkRetrofitInProgress(true)
+    setBulkRetrofitResult(null)
+
+    const snapshot = [...targets]
+    let fired = 0
+    let failed = 0
+    const errors: string[] = []
+
+    // Auth token once for the batch — same prop-based getToken pattern as rest of component
+    let token: string | null = null
+    try {
+      token = await getToken()
+    } catch (err: any) {
+      setBulkRetrofitResult({ fired: 0, failed: snapshot.length, errors: ['Auth token unavailable'] })
+      setBulkRetrofitInProgress(false)
+      return
+    }
+    if (!token) {
+      setBulkRetrofitResult({ fired: 0, failed: snapshot.length, errors: ['No auth token'] })
+      setBulkRetrofitInProgress(false)
+      return
+    }
+
+    // Sequential fire with small delay — be gentle on Anthropic rate limits.
+    // Each call returns 202 immediately so this loop completes in ~10s for 20 rows.
+    for (const les of snapshot) {
+      try {
+        const resp = await fetch('/api/admin-retrofit-layer2-background', {
+          method:  'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type':  'application/json',
+          },
+          body: JSON.stringify({ lesId: les.id }),
+        })
+        if (resp.status !== 202) {
+          throw new Error(`Expected 202, got ${resp.status}`)
+        }
+        fired++
+      } catch (err: any) {
+        failed++
+        errors.push(`${les.id?.slice(0, 8)}: ${err?.message ?? String(err)}`)
+      }
+      // 500ms delay between fires (rate limit kindness)
+      await new Promise((r) => setTimeout(r, 500))
+    }
+
+    setBulkRetrofitResult({ fired, failed, errors: errors.slice(0, 10) })
+    setBulkRetrofitInProgress(false)
+    // Do NOT call loadSuggestions() — extractions are still running in background
+    // after the 202 returns. Operator must manually refresh ~5 min later.
+  }
+
   // Derive filter options from loaded data
   const sourcesInData = useMemo(
     () => Array.from(new Set(suggestions.map((s: any) => s.book_title).filter(Boolean))) as string[],
@@ -15756,6 +15831,32 @@ function EnrichmentSuggestions({ getToken, isDark }: { getToken: any; isDark: bo
             style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.06em', padding: '4px 8px', borderRadius: 4, border: `1px solid ${triageFilter.sourceClass === v ? EG : EBDR}`, background: triageFilter.sourceClass === v ? 'rgba(201,168,76,0.1)' : 'transparent', color: triageFilter.sourceClass === v ? EG : EMUT, cursor: 'pointer' }}
           >{label}</button>
         ))}
+        {triageFilter.triageStatus === 'unknown' && filteredSuggestions.filter((s: any) => !s.layer2_raw).length > 0 && (
+          <button
+            type="button"
+            onClick={() => setBulkRetrofitModalOpen(true)}
+            disabled={bulkRetrofitInProgress || filteredSuggestions.filter((s: any) => !s.layer2_raw).length > 20}
+            style={{
+              fontSize: 11,
+              padding: '4px 10px',
+              background: filteredSuggestions.filter((s: any) => !s.layer2_raw).length > 20 ? '#ccc' : '#2c7a3f',
+              color: 'white',
+              border: 'none',
+              borderRadius: 4,
+              cursor: filteredSuggestions.filter((s: any) => !s.layer2_raw).length > 20 ? 'not-allowed' : 'pointer',
+              fontWeight: 600,
+              marginLeft: 12,
+            }}
+            title={
+              filteredSuggestions.filter((s: any) => !s.layer2_raw).length > 20
+                ? `Refusing bulk action on ${filteredSuggestions.filter((s: any) => !s.layer2_raw).length} rows (cap: 20). Narrow filters further.`
+                : `Fire retrofit on ${filteredSuggestions.filter((s: any) => !s.layer2_raw).length} legacy LES (each call ~30-60s + Anthropic API cost)`
+            }
+          >
+            ⚡ Bulk Retrofit Filtered ({filteredSuggestions.filter((s: any) => !s.layer2_raw).length})
+            {filteredSuggestions.filter((s: any) => !s.layer2_raw).length > 20 && ' — cap exceeded'}
+          </button>
+        )}
         {triageFilter.triageStatus === 'reject-candidate' && filteredSuggestions.length > 0 && (
           <button
             type="button"
@@ -16069,6 +16170,113 @@ function EnrichmentSuggestions({ getToken, isDark }: { getToken: any; isDark: bo
       ))}
 
       {/* Bulk Reject Confirmation Modal */}
+      {/* Bulk Retrofit Confirmation Modal */}
+      {bulkRetrofitModalOpen && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(0,0,0,0.5)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          zIndex: 9999,
+        }}>
+          <div style={{
+            background: 'white', padding: 24, borderRadius: 8,
+            maxWidth: 600, width: '90%', maxHeight: '80vh', overflow: 'auto',
+          }}>
+            <h3 style={{ margin: 0, color: '#2c7a3f' }}>
+              ⚡ Bulk Retrofit {filteredSuggestions.filter((s: any) => !s.layer2_raw).length} Legacy LES?
+            </h3>
+
+            <p style={{ fontSize: 13, color: '#555', marginTop: 12 }}>
+              This will fire <code>/api/admin-retrofit-layer2-background</code> on
+              each of {filteredSuggestions.filter((s: any) => !s.layer2_raw).length} LES
+              rows. Each background extraction takes ~30-60 seconds and incurs
+              Anthropic API cost (~$0.03-0.10/row).
+            </p>
+
+            <p style={{ fontSize: 13, color: '#555' }}>
+              Fire returns 202 immediately. Extractions then run asynchronously
+              (~5 minutes total for the batch). Refresh this page after
+              ~5 min to see populated <code>_meta</code> badges.
+            </p>
+
+            <p style={{ fontSize: 12, color: '#888' }}>
+              Triage filter: <strong>{triageFilter.triageStatus}</strong>
+              {triageFilter.sourceClass !== 'all' && (
+                <> · Source: <strong>{triageFilter.sourceClass}</strong></>
+              )}
+            </p>
+
+            <details style={{ marginTop: 12, marginBottom: 12 }}>
+              <summary style={{ cursor: 'pointer', fontSize: 12 }}>
+                Preview rows
+              </summary>
+              <ul style={{ fontSize: 11, color: '#666', maxHeight: 200, overflow: 'auto', marginTop: 8 }}>
+                {filteredSuggestions.filter((s: any) => !s.layer2_raw).slice(0, 10).map((les: any) => (
+                  <li key={les.id}>
+                    {les.spirit_name} · {les.id?.slice(0, 8)}
+                  </li>
+                ))}
+              </ul>
+            </details>
+
+            {bulkRetrofitResult && (
+              <div style={{
+                background: bulkRetrofitResult.failed === 0 ? '#d4edda' : '#fff3cd',
+                padding: 12, borderRadius: 4, marginBottom: 12, fontSize: 12,
+              }}>
+                <strong>Fired:</strong> {bulkRetrofitResult.fired} background jobs (each running ~30-60s)
+                {bulkRetrofitResult.failed > 0 && (
+                  <>
+                    <br /><strong>Failed to fire:</strong> {bulkRetrofitResult.failed}
+                  </>
+                )}
+                {bulkRetrofitResult.errors.length > 0 && (
+                  <ul style={{ marginTop: 8, marginBottom: 0 }}>
+                    {bulkRetrofitResult.errors.map((e, i) => (
+                      <li key={i}>{e}</li>
+                    ))}
+                  </ul>
+                )}
+                <p style={{ marginTop: 8, marginBottom: 0 }}>
+                  Refresh this page in ~5 minutes to see results.
+                </p>
+              </div>
+            )}
+
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 16 }}>
+              <button
+                type="button"
+                onClick={() => { setBulkRetrofitModalOpen(false); setBulkRetrofitResult(null) }}
+                disabled={bulkRetrofitInProgress}
+                style={{ padding: '6px 14px' }}
+              >
+                {bulkRetrofitResult ? 'Close' : 'Cancel'}
+              </button>
+              {!bulkRetrofitResult && (
+                <button
+                  type="button"
+                  onClick={handleBulkRetrofit}
+                  disabled={bulkRetrofitInProgress}
+                  style={{
+                    padding: '6px 14px',
+                    background: '#2c7a3f',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: 4,
+                    cursor: bulkRetrofitInProgress ? 'wait' : 'pointer',
+                    fontWeight: 600,
+                  }}
+                >
+                  {bulkRetrofitInProgress
+                    ? '⏳ Firing…'
+                    : `⚡ Confirm Retrofit ${filteredSuggestions.filter((s: any) => !s.layer2_raw).length}`}
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {bulkRejectModalOpen && (
         <div style={{
           position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
