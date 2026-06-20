@@ -89,7 +89,7 @@ export function WRIReactionPicker({ onSelect, onDismiss, anchorRect, isDark = tr
           </div>
         )}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: isMobile ? 10 : 6, justifyItems: 'center' }}>
-          {WRI_REACTIONS.map(({ type, label }) => {
+          {WRI_REACTIONS.map(({ type, label, color }) => {
             const Icon = WRI_ICONS[type]
             return (
               <button
@@ -108,7 +108,6 @@ export function WRIReactionPicker({ onSelect, onDismiss, anchorRect, isDark = tr
                   background: 'rgba(201,168,76,0.08)',
                   border: `1px solid ${bdr}`,
                   borderRadius: 10,
-                  color: WRI_GOLD,
                   cursor: 'pointer',
                   padding: 0,
                   transition: 'transform 0.1s, background 0.1s',
@@ -116,7 +115,7 @@ export function WRIReactionPicker({ onSelect, onDismiss, anchorRect, isDark = tr
                 onMouseDown={e => (e.currentTarget as HTMLElement).style.transform = 'scale(0.92)'}
                 onMouseUp={e => (e.currentTarget as HTMLElement).style.transform = 'scale(1)'}
               >
-                <Icon size={24} color={WRI_GOLD} />
+                <Icon size={24} color={color} />
               </button>
             )
           })}

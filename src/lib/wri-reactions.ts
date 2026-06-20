@@ -26,21 +26,22 @@ export interface WRIReactionDef {
   type: WRIReactionType
   label: string
   description: string
+  color: string
 }
 
 export const WRI_REACTIONS: WRIReactionDef[] = [
-  { type: 'wri_strike', label: 'STRIKE', description: 'Agreement in offensive prayer' },
-  { type: 'wri_cover', label: 'COVER', description: 'Covering / intercession' },
-  { type: 'wri_burn', label: 'BURN', description: 'Holy fire / anointing' },
-  { type: 'wri_amen', label: 'AMEN', description: 'Stand in agreement' },
-  { type: 'wri_blood', label: 'BLOOD', description: 'Plead the blood of Jesus' },
-  { type: 'wri_watch', label: 'WATCH', description: 'Discernment / watchman' },
-  { type: 'wri_sound', label: 'SOUND', description: 'Sound the alarm' },
-  { type: 'wri_anchor', label: 'ANCHOR', description: 'Stand firm in Christ' },
-  { type: 'wri_crown', label: 'CROWN', description: 'Christ is King / victory' },
-  { type: 'wri_break', label: 'BREAK', description: 'Deliverance / chains broken' },
-  { type: 'wri_intercede', label: 'INTERCEDE', description: 'Standing in the gap' },
-  { type: 'wri_seal', label: 'SEAL', description: 'Sealed in Christ' },
+  { type: 'wri_strike',   label: 'STRIKE',    description: 'Agreement in offensive prayer', color: '#C9A84C' },
+  { type: 'wri_cover',    label: 'COVER',     description: 'Covering / intercession',        color: '#8BA888' },
+  { type: 'wri_burn',     label: 'BURN',      description: 'Holy fire / anointing',           color: '#D97757' },
+  { type: 'wri_amen',     label: 'AMEN',      description: 'Stand in agreement',              color: '#C9A84C' },
+  { type: 'wri_blood',    label: 'BLOOD',     description: 'Plead the blood of Jesus',        color: '#A03A3A' },
+  { type: 'wri_watch',    label: 'WATCH',     description: 'Discernment / watchman',          color: '#7A9BB8' },
+  { type: 'wri_sound',    label: 'SOUND',     description: 'Sound the alarm',                 color: '#C9A84C' },
+  { type: 'wri_anchor',   label: 'ANCHOR',    description: 'Stand firm in Christ',            color: '#C9A84C' },
+  { type: 'wri_crown',    label: 'CROWN',     description: 'Christ is King / victory',        color: '#C9A84C' },
+  { type: 'wri_break',    label: 'BREAK',     description: 'Deliverance / chains broken',     color: '#B8B8B8' },
+  { type: 'wri_intercede',label: 'INTERCEDE', description: 'Standing in the gap',             color: '#ECE3CB' },
+  { type: 'wri_seal',     label: 'SEAL',      description: 'Sealed in Christ',                color: '#C9A84C' },
 ]
 
 export const WRI_REACTION_TYPES: WRIReactionType[] = WRI_REACTIONS.map(r => r.type)

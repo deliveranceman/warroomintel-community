@@ -1,4 +1,4 @@
-import { isWRIReaction, userHasReacted, WRI_GOLD, type ReactionMessage, type WRIReactionType } from '@/lib/wri-reactions'
+import { isWRIReaction, userHasReacted, WRI_GOLD, WRI_REACTIONS, type ReactionMessage, type WRIReactionType } from '@/lib/wri-reactions'
 import { WRI_ICONS } from '@/components/chat/icons/WRIReactionIcons'
 
 interface WRIReactionListProps {
@@ -24,6 +24,7 @@ export function WRIReactionList({ message, currentUserId, onToggle, isDark = tru
         const t = type as WRIReactionType
         const Icon = WRI_ICONS[t]
         const mine = userHasReacted(message, type, currentUserId)
+        const iconColor = WRI_REACTIONS.find(r => r.type === t)?.color ?? WRI_GOLD
         return (
           <button
             key={type}
@@ -35,10 +36,9 @@ export function WRIReactionList({ message, currentUserId, onToggle, isDark = tru
               borderRadius: 12,
               padding: '2px 8px',
               cursor: 'pointer',
-              color: WRI_GOLD,
             }}
           >
-            <Icon size={16} color={WRI_GOLD} />
+            <Icon size={16} color={iconColor} />
             <span style={{ fontSize: 11, color: mine ? WRI_GOLD : txt, fontVariantNumeric: 'tabular-nums' }}>{count}</span>
           </button>
         )
