@@ -30,6 +30,9 @@ import AudioPrayerCallOverlay from '../components/AudioPrayerCallOverlay'
 import { FileText, Plus, BookOpen, MessageSquare, Inbox, Heart, Cross, Users, HelpCircle, FolderOpen, Antenna, Radio, Archive, Sword, Library, Search, Map, Network, Moon, Eye, Calendar, Shield, Settings, GraduationCap, FolderArchive, DoorOpen, Zap, Bell, Mic, Phone, Video, ChevronLeft, Send, MoreHorizontal, PenLine, Image as ImageIcon, SlidersHorizontal } from 'lucide-react'
 import { searchHelp, getArticlesByCategory } from '@/utils/helpSearch'
 import { helpCategories, helpArticles, type HelpArticle } from '@/data/helpContent'
+import { WRIReactionPicker } from '@/components/chat/WRIReactionPicker'
+import { WRIReactionList } from '@/components/chat/WRIReactionList'
+import { applyOptimisticAdd, applyOptimisticRemove, sendWRIReactionDirect, removeWRIReactionDirect, userHasReacted, WRI_GOLD, type WRIReactionType } from '@/lib/wri-reactions'
 
 export const Route = createFileRoute('/community')({
   ssr: false,
@@ -171,6 +174,8 @@ interface StreamMsg {
   user: { id: string; name?: string; image?: string }
   created_at: string
   reaction_counts?: Record<string, number>
+  own_reactions?: Array<{ type: string; user_id?: string; user?: { id?: string } }>
+  latest_reactions?: Array<{ type: string; user_id?: string; user?: { id?: string } }>
   type?: string
   deleted_at?: string
 }
@@ -2923,6 +2928,7 @@ function WarRoomChatView({ streamToken, apiKey, userId, isDark }: WarRoomChatVie
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editText, setEditText] = useState('')
   const [hoveredMsg, setHoveredMsg] = useState<string | null>(null)
+  const [reactionPicker, setReactionPicker] = useState<{ messageId: string; rect: DOMRect } | null>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
   const warRoomFileRef = useRef<HTMLInputElement>(null)
 
@@ -2955,6 +2961,17 @@ function WarRoomChatView({ streamToken, apiKey, userId, isDark }: WarRoomChatVie
     const t = setInterval(fetchMessages, 5000)
     return () => clearInterval(t)
   }, [fetchMessages])
+
+  const toggleWarRoomReaction = useCallback((messageId: string, type: WRIReactionType, hasMine: boolean) => {
+    if (!streamToken || !apiKey) return
+    setMessages(prev => prev.map(m => m.id === messageId
+      ? (hasMine ? applyOptimisticRemove(m, type, userId) : applyOptimisticAdd(m, type, userId))
+      : m))
+    const op = hasMine
+      ? removeWRIReactionDirect(streamToken, apiKey, messageId, type)
+      : sendWRIReactionDirect(streamToken, apiKey, messageId, type)
+    op.then(ok => { if (!ok) fetchMessages() }).catch(() => fetchMessages())
+  }, [streamToken, apiKey, userId, fetchMessages])
 
   async function handleSend() {
     if (!draft.trim() || sending) return
@@ -3080,33 +3097,15 @@ function WarRoomChatView({ streamToken, apiKey, userId, isDark }: WarRoomChatVie
                         </a>
                       ))}
                     </div>
-                    {/* Reactions */}
-                    <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' as const, marginTop: 2, alignItems: 'center' }}>
-                      {msg.reaction_counts && Object.entries(msg.reaction_counts).map(([type, count]) => {
-                        const emojiMap: Record<string, string> = { pray: '🙏', love: '❤️', fire: '🔥', cross: '✝️', sword: '⚔️' }
-                        const emoji = emojiMap[type] || type
-                        return (
-                          <button
-                            key={type}
-                            onClick={() => streamFetch(`/messages/${msg.id}/reaction`, 'POST', streamToken, apiKey, { reaction: { type } }).then(() => fetchMessages())}
-                            style={{ background: 'rgba(201,168,76,0.1)', border: '1px solid rgba(201,168,76,0.25)', borderRadius: 12, padding: '2px 7px', fontSize: 12, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 3, color: V.txt }}
-                          >
-                            {emoji} <span style={{ fontSize: 10, color: V.mut }}>{String(count)}</span>
-                          </button>
-                        )
-                      })}
+                    {/* WRI Reactions */}
+                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' as const, marginTop: 2, alignItems: 'center' }}>
+                      <WRIReactionList message={msg} currentUserId={userId} isDark={isDark} onToggle={(type, mine) => toggleWarRoomReaction(msg.id, type, mine)} />
                       {hoveredMsg === msg.id && (
-                        <div style={{ display: 'flex', gap: 3, background: V.surf, border: `1px solid ${V.bdr}`, borderRadius: 16, padding: '3px 8px', boxShadow: '0 2px 8px rgba(0,0,0,0.3)' }}>
-                          {([['pray','🙏'],['love','❤️'],['fire','🔥'],['cross','✝️'],['sword','⚔️']] as [string,string][]).map(([type, emoji]) => (
-                            <button
-                              key={type}
-                              onClick={() => streamFetch(`/messages/${msg.id}/reaction`, 'POST', streamToken, apiKey, { reaction: { type } }).then(() => fetchMessages())}
-                              style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, padding: '2px 4px', borderRadius: 8, transition: 'transform 0.1s' }}
-                              onMouseEnter={e => (e.currentTarget as HTMLElement).style.transform = 'scale(1.3)'}
-                              onMouseLeave={e => (e.currentTarget as HTMLElement).style.transform = 'scale(1)'}
-                            >{emoji}</button>
-                          ))}
-                        </div>
+                        <button
+                          aria-label="Add reaction"
+                          onClick={e => setReactionPicker({ messageId: msg.id, rect: (e.currentTarget as HTMLElement).getBoundingClientRect() })}
+                          style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 22, height: 22, borderRadius: '50%', background: 'rgba(201,168,76,0.1)', border: `1px solid ${V.bdr}`, color: WRI_GOLD, cursor: 'pointer', padding: 0, marginTop: 6, fontSize: 14, lineHeight: 1 }}
+                        >+</button>
                       )}
                     </div>
                     {isOwn && (
@@ -3204,6 +3203,19 @@ function WarRoomChatView({ streamToken, apiKey, userId, isDark }: WarRoomChatVie
           }}
         >{sending ? '...' : 'Send'}</button>
       </div>
+      {reactionPicker && (
+        <WRIReactionPicker
+          anchorRect={reactionPicker.rect}
+          isDark={isDark}
+          onDismiss={() => setReactionPicker(null)}
+          onSelect={type => {
+            const m = messages.find(x => x.id === reactionPicker.messageId)
+            const mine = m ? userHasReacted(m, type, userId) : false
+            toggleWarRoomReaction(reactionPicker.messageId, type, mine)
+            setReactionPicker(null)
+          }}
+        />
+      )}
     </div>
   )
 }
@@ -11033,6 +11045,9 @@ interface MMessage {
   user: { id: string; name: string }
   created_at: string
   attachments?: Array<{ type: string; asset_url?: string; duration?: number; call_type?: string }>
+  reaction_counts?: Record<string, number>
+  own_reactions?: Array<{ type: string; user_id?: string; user?: { id?: string } }>
+  latest_reactions?: Array<{ type: string; user_id?: string; user?: { id?: string } }>
 }
 
 const SOL_CONVO: MConversation = {
@@ -11061,6 +11076,7 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
   const [activeConvoId, setActiveConvoId]     = useState<string | null>(null)
   const [resolvedChannelId, setResolvedChannelId] = useState<string | null>(null)
   const [messages, setMessages]               = useState<MMessage[]>([])
+  const [dmReactionPicker, setDmReactionPicker] = useState<{ messageId: string; rect: DOMRect } | null>(null)
   const [messageText, setMessageText]         = useState('')
   const [loading, setLoading]                 = useState(true)
   const [loadingMessages, setLoadingMessages] = useState(false)
@@ -11632,6 +11648,24 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
       }, 500)
     }
   }, [messageText, resolvedChannelId, api, userId, wsMessagesEnabled])
+
+  // ── WRI reactions (server-proxied — user derived from verified token) ──
+  const toggleDMReaction = useCallback((messageId: string, type: WRIReactionType, hasMine: boolean) => {
+    if (messageId.startsWith('temp-')) return
+    setMessages(prev => prev.map(m => m.id === messageId
+      ? (hasMine ? applyOptimisticRemove(m, type, userId) : applyOptimisticAdd(m, type, userId))
+      : m))
+    const reload = async () => {
+      const cid = resolvedChannelId
+      if (!cid || cid === 'sol') return
+      const msgs = await api(`get-messages&channelId=${cid}`, 'GET')
+      const list = msgs.messages || msgs.detail?.messages
+      if (Array.isArray(list)) setMessages(list)
+    }
+    api('react', 'POST', { messageId, type, op: hasMine ? 'remove' : 'add' })
+      .then((r: any) => { if (r?.error) reload() })
+      .catch(() => reload())
+  }, [api, userId, resolvedChannelId])
 
   // ── Voice recording ──
   const startRecording = useCallback(async () => {
@@ -12961,12 +12995,36 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
                         {relativeTime(msg.created_at)}
                         {isOwn && <span>✓✓</span>}
                       </div>
+                      {!msg.id.startsWith('temp-') && (
+                        <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexDirection: isOwn ? 'row-reverse' : 'row' }}>
+                          <WRIReactionList message={msg} currentUserId={userId} isDark={isDark} onToggle={(type, mine) => toggleDMReaction(msg.id, type, mine)} />
+                          <button
+                            aria-label="Add reaction"
+                            onClick={e => setDmReactionPicker({ messageId: msg.id, rect: (e.currentTarget as HTMLElement).getBoundingClientRect() })}
+                            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 20, height: 20, borderRadius: '50%', background: 'transparent', border: `1px solid ${isDark ? 'rgba(201,168,76,0.25)' : 'rgba(139,105,20,0.3)'}`, color: WRI_GOLD, cursor: 'pointer', padding: 0, marginTop: 4, fontSize: 13, lineHeight: 1, opacity: 0.6 }}
+                          >+</button>
+                        </div>
+                      )}
                     </div>
                   </div>
                 )
               })}
               <div ref={messagesEndRef} />
             </div>
+
+            {dmReactionPicker && (
+              <WRIReactionPicker
+                anchorRect={dmReactionPicker.rect}
+                isDark={isDark}
+                onDismiss={() => setDmReactionPicker(null)}
+                onSelect={type => {
+                  const m = messages.find(x => x.id === dmReactionPicker.messageId)
+                  const mine = m ? userHasReacted(m, type, userId) : false
+                  toggleDMReaction(dmReactionPicker.messageId, type, mine)
+                  setDmReactionPicker(null)
+                }}
+              />
+            )}
 
             {/* Composer */}
             <div style={{

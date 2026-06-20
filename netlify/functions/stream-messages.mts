@@ -161,7 +161,7 @@ function streamUrl(path: string): string {
 
 async function streamFetch(
   path: string,
-  method: 'GET' | 'POST',
+  method: 'GET' | 'POST' | 'DELETE',
   token: string,
   body?: unknown,
 ): Promise<{ status: number; data: unknown }> {
@@ -305,6 +305,39 @@ async function sendMessage(userId: string, body: any): Promise<Response> {
 
   if (status !== 200 && status !== 201) return json({ error: 'Stream error', detail: data }, status)
   return json({ ok: true, message: (data as any).message ?? null })
+}
+
+// Server-side allowlist — mirrors the type STRINGS in src/lib/wri-reactions.ts.
+// Security boundary: only WRI reaction types may be added/removed via this path.
+const WRI_REACTION_TYPES = new Set([
+  'wri_strike', 'wri_cover', 'wri_burn', 'wri_amen', 'wri_blood', 'wri_watch',
+  'wri_sound', 'wri_anchor', 'wri_crown', 'wri_break', 'wri_intercede', 'wri_seal',
+])
+
+async function react(userId: string, body: any): Promise<Response> {
+  const { messageId, type, op } = body ?? {}
+  if (!messageId || !type) return json({ error: 'messageId and type required' }, 400)
+  if (!WRI_REACTION_TYPES.has(type)) return json({ error: 'invalid reaction type' }, 400)
+
+  // user_id is derived from the verified token (userId param) — never the body.
+  if (op === 'remove') {
+    const { status, data } = await streamFetch(
+      `/messages/${encodeURIComponent(messageId)}/reaction/${encodeURIComponent(type)}`,
+      'DELETE',
+      userToken(userId),
+    )
+    if (status < 200 || status >= 300) return json({ error: 'Stream error', detail: data }, status)
+    return json({ ok: true })
+  }
+
+  const { status, data } = await streamFetch(
+    `/messages/${encodeURIComponent(messageId)}/reaction`,
+    'POST',
+    userToken(userId),
+    { reaction: { type, score: 1 } },
+  )
+  if (status !== 200 && status !== 201) return json({ error: 'Stream error', detail: data }, status)
+  return json({ ok: true })
 }
 
 async function getStreamToken(userId: string): Promise<Response> {
@@ -1186,6 +1219,11 @@ export default async function handler(req: Request): Promise<Response> {
   if (action === 'send-message') {
     const body = await req.json().catch(() => ({}))
     return sendMessage(userId, body)
+  }
+
+  if (action === 'react') {
+    const body = await req.json().catch(() => ({}))
+    return react(userId, body)
   }
 
   if (action === 'create-dm') {
