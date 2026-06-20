@@ -1,7 +1,8 @@
 // STYLE RULE: No em dashes in any UI text. Ever.
 import { createFileRoute } from '@tanstack/react-router'
-import { useAuth } from '@clerk/tanstack-start'
+import { useAuth, useUser } from '@clerk/tanstack-start'
 import { useEffect, useState } from 'react'
+import { getAccessLevel } from '@/lib/access'
 
 export const Route = createFileRoute('/admin_/dashboard')({
   component: IntelDashboardPage,
@@ -108,10 +109,16 @@ function DashboardRow({ title, children }: DashboardRowProps) {
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 function IntelDashboardPage() {
+  // All hooks must fire unconditionally before any early return (React rule)
+  const { isLoaded, isSignedIn, user } = useUser()
   const { getToken }          = useAuth()
   const [stats, setStats]     = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError]     = useState<string | null>(null)
+
+  const tier    = (user?.publicMetadata as any)?.tier as string | undefined
+  const role    = (user?.publicMetadata as any)?.role as string | undefined
+  const isAdmin = getAccessLevel({ tier, role }) >= 4
 
   useEffect(() => {
     let cancelled = false
@@ -134,6 +141,76 @@ function IntelDashboardPage() {
     load()
     return () => { cancelled = true }
   }, [])
+
+  // Gate: Clerk resolving
+  if (!isLoaded) {
+    return (
+      <div style={{
+        minHeight:   '100vh',
+        background:  '#EDEBE2',
+        display:     'flex',
+        alignItems:  'center',
+        justifyContent: 'center',
+        fontFamily:  '"Crimson Pro", serif',
+        color:       '#6b6b6b',
+        fontSize:    14,
+      }}>
+        Verifying access...
+      </div>
+    )
+  }
+
+  // Gate: not signed in or insufficient tier
+  if (!isSignedIn || !isAdmin) {
+    return (
+      <div style={{
+        minHeight:      '100vh',
+        background:     '#EDEBE2',
+        display:        'flex',
+        alignItems:     'center',
+        justifyContent: 'center',
+        padding:        24,
+      }}>
+        <div style={{
+          maxWidth:    420,
+          background:  '#FFFFFF',
+          border:      '1px solid #E5E0D5',
+          borderRadius: 6,
+          padding:     32,
+          textAlign:   'center',
+        }}>
+          <div style={{
+            fontFamily:    'Cinzel, serif',
+            fontSize:      14,
+            fontWeight:    600,
+            color:         '#604408',
+            letterSpacing: '0.15em',
+            marginBottom:  12,
+          }}>
+            ACCESS DENIED
+          </div>
+          <p style={{
+            fontFamily: '"Crimson Pro", serif',
+            fontSize:   15,
+            color:      '#1a1a1a',
+            margin:     '0 0 20px 0',
+            lineHeight: 1.5,
+          }}>
+            This area is restricted to authorized personnel.
+          </p>
+          <a href="/community" style={{
+            fontFamily:    'Cinzel, serif',
+            fontSize:      12,
+            color:         '#8B6914',
+            textDecoration: 'none',
+            letterSpacing: '0.1em',
+          }}>
+            Return to Community
+          </a>
+        </div>
+      </div>
+    )
+  }
 
   const fmt = (n: number | null | undefined) =>
     loading ? '—' : (n ?? 0).toLocaleString()
