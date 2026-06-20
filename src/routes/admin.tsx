@@ -13026,12 +13026,25 @@ function SpiritCandidatesManager({ getToken, isDark, allSpirits }: { getToken: a
                       <div style={{ marginBottom: 14, padding: '10px 14px', background: 'rgba(122,180,224,0.04)', border: '1px solid rgba(122,180,224,0.15)', borderRadius: 5 }}>
                         <div style={{ fontFamily: cinzel, fontSize: 8, color: '#7ab4e0', letterSpacing: '0.1em', marginBottom: 6 }}>NO LAYER 2 DATA</div>
                         <div style={{ fontFamily: crimson, fontSize: 12, color: SMUT, marginBottom: 8 }}>Run a full Layer 2 extraction to surface detailed gateways, manifestations, network, and counter-strategy fields from this source.</div>
-                        <button
-                          onClick={e => { e.stopPropagation(); runLayer2(c) }}
-                          disabled={runningLayer2Id === c.id}
-                          title="Run Sonnet 4.5 against this candidate's source chunks to extract 7-layer field data. ~$0.02 per run."
-                          style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', color: '#7ab4e0', background: runningLayer2Id === c.id ? 'rgba(122,180,224,0.04)' : 'rgba(122,180,224,0.1)', border: '1px solid rgba(122,180,224,0.3)', borderRadius: 4, padding: '6px 14px', cursor: runningLayer2Id === c.id ? 'wait' : 'pointer', opacity: runningLayer2Id === c.id ? 0.7 : 1 }}
-                        >{runningLayer2Id === c.id ? '✦ Extracting…' : '✦ Run Layer 2 Extraction'}</button>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' as const }}>
+                          <button
+                            onClick={e => { e.stopPropagation(); runLayer2(c) }}
+                            disabled={runningLayer2Id === c.id}
+                            title="Legacy sync endpoint (may timeout). Use the background button instead."
+                            style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', color: '#7ab4e0', background: runningLayer2Id === c.id ? 'rgba(122,180,224,0.04)' : 'rgba(122,180,224,0.1)', border: '1px solid rgba(122,180,224,0.3)', borderRadius: 4, padding: '6px 14px', cursor: runningLayer2Id === c.id ? 'wait' : 'pointer', opacity: runningLayer2Id === c.id ? 0.7 : 1 }}
+                          >{runningLayer2Id === c.id ? '✦ Extracting…' : '✦ Run Layer 2 Extraction'}</button>
+                          <span onClick={e => e.stopPropagation()}>
+                            <Layer2Action
+                              kind="extract"
+                              targetId={c.id}
+                              lastExtractionAt={c.last_extraction_at ?? null}
+                              lastExtractionError={c.last_extraction_error ?? null}
+                              alreadyExtracted={!!c.last_extraction_at}
+                              onSuccess={loadCandidates}
+                              compact
+                            />
+                          </span>
+                        </div>
                         <div style={{ fontFamily: crimson, fontSize: 11, color: SMUT, fontStyle: 'italic', marginTop: 6 }}>Sonnet 4.5 · source-faithful · ~$0.02/run</div>
                         {layer2Error?.id === c.id && (() => {
                           const emsg = layer2Error!.msg
