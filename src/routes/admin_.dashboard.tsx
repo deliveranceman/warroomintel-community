@@ -3,6 +3,7 @@ import { createFileRoute } from '@tanstack/react-router'
 import { useAuth, useUser } from '@clerk/tanstack-start'
 import { useEffect, useState } from 'react'
 import { getAccessLevel } from '@/lib/access'
+import { AdminNav } from '../components/admin/AdminNav'
 
 export const Route = createFileRoute('/admin_/dashboard')({
   component: IntelDashboardPage,
@@ -222,9 +223,10 @@ function IntelDashboardPage() {
     <div style={{
       minHeight:  '100vh',
       background: PAGE_BG,
-      padding:    '32px 24px',
       boxSizing:  'border-box',
     }}>
+      <AdminNav current="dashboard" />
+      <div style={{ padding: '32px 24px' }}>
       {/* Error banner */}
       {error && (
         <div style={{
@@ -243,17 +245,6 @@ function IntelDashboardPage() {
 
       {/* Header */}
       <div style={{ marginBottom: 32, borderBottom: `1px solid ${BDR}`, paddingBottom: 20 }}>
-        <a href="/admin" style={{
-          fontFamily:    'Cinzel, serif',
-          fontSize:      11,
-          color:         '#8B6914',
-          textDecoration: 'none',
-          letterSpacing: '0.12em',
-          display:       'inline-block',
-          marginBottom:  8,
-        }}>
-          &larr; ADMIN
-        </a>
         <h1 style={{ fontFamily: cinzel, fontSize: 22, fontWeight: 700, color: DEEP, letterSpacing: '0.06em', margin: 0 }}>
           Intel Dashboard
         </h1>
@@ -417,6 +408,7 @@ function IntelDashboardPage() {
           sub="active 7d"
         />
       </DashboardRow>
+      </div>
     </div>
   )
 }

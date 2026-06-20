@@ -2,6 +2,7 @@ import { createFileRoute } from '@tanstack/react-router'
 import { useState, useEffect } from 'react'
 import { useAuth, useUser } from '@clerk/tanstack-start'
 import { getAccessLevel } from '@/lib/access'
+import { AdminNav } from '../components/admin/AdminNav'
 
 export const Route = createFileRoute('/admin_/intel/gateways')({
   component: GatewaysBrowsePage,
@@ -129,20 +130,9 @@ function GatewaysBrowsePage() {
   const spiritGroups = Object.entries(grouped).sort((a, b) => a[0].localeCompare(b[0]))
 
   return (
-    <div style={{ minHeight: '100vh', background: PAGE_BG, padding: '32px 24px' }}>
-      <div style={{ maxWidth: 1200, margin: '0 auto' }}>
-        {/* Breadcrumb */}
-        <a
-          href="/admin/dashboard"
-          style={{
-            fontFamily: 'Cinzel, serif', fontSize: 11, color: GOLD,
-            textDecoration: 'none', letterSpacing: '0.12em',
-            display: 'inline-block', marginBottom: 8,
-          }}
-        >
-          &larr; DASHBOARD
-        </a>
-
+    <div style={{ minHeight: '100vh', background: PAGE_BG }}>
+      <AdminNav current="gateways" />
+      <div style={{ maxWidth: 1200, margin: '0 auto', padding: '32px 24px' }}>
         {/* Header */}
         <div style={{ marginBottom: 32 }}>
           <h1 style={{
