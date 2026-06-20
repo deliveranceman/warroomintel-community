@@ -3,6 +3,7 @@ import { useState, useEffect, useRef, useMemo, Fragment, type CSSProperties } fr
 import { createFileRoute } from '@tanstack/react-router'
 import { useAuth, useUser } from '@clerk/tanstack-start'
 import { SpiritTagEditor } from '@/components/SpiritTagEditor'
+import { Layer2Action } from '@/components/Layer2Action'
 import { extractText, computeFileHash } from '@/lib/extractFileText'
 import { classifyField, FIELD_GROUPS, RELATIONAL_FIELDS, appendMerge, type FieldState } from '@/lib/spiritMergeHelpers'
 
@@ -15716,6 +15717,17 @@ function EnrichmentSuggestions({ getToken, isDark }: { getToken: any; isDark: bo
                 style={{ padding: '6px 14px', background: 'transparent', border: '1px solid #3a2020', borderRadius: 4, color: '#6b4040', fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: applying[s.id] ? 'not-allowed' : 'pointer' }}>
                 ✗ REJECT
               </button>
+              <span onClick={e => e.stopPropagation()}>
+                <Layer2Action
+                  kind="retrofit"
+                  targetId={s.id}
+                  lastExtractionAt={s.last_extraction_at ?? null}
+                  lastExtractionError={s.last_extraction_error ?? null}
+                  alreadyExtracted={!!s.layer2_raw}
+                  onSuccess={loadSuggestions}
+                  compact
+                />
+              </span>
             </div>
           </div>
 
