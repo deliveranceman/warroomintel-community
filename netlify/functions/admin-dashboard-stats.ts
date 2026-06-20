@@ -23,7 +23,9 @@ export default async function handler(req: Request) {
       lesPendingCount,
       lesTriageRaw,
       candidatesPendingCount,
-      candidatesByConfidence,
+      candidatesHighCount,
+      candidatesMediumCount,
+      candidatesLowCount,
       todayApplied,
       todayRetrofitted,
       regionsRaw,
@@ -65,11 +67,22 @@ export default async function handler(req: Request) {
         .select('*', { count: 'exact', head: true })
         .eq('status', 'pending'),
 
-      // Candidates confidence breakdown
+      // Candidates confidence breakdown — server-side counts (avoids 1k row limit)
       supabase
         .from('spirit_candidates')
-        .select('confidence')
-        .eq('status', 'pending'),
+        .select('*', { count: 'exact', head: true })
+        .eq('status', 'pending')
+        .eq('confidence', 'high'),
+      supabase
+        .from('spirit_candidates')
+        .select('*', { count: 'exact', head: true })
+        .eq('status', 'pending')
+        .eq('confidence', 'medium'),
+      supabase
+        .from('spirit_candidates')
+        .select('*', { count: 'exact', head: true })
+        .eq('status', 'pending')
+        .eq('confidence', 'low'),
 
       // Today's approvals (LES applied in last 24h)
       supabase
@@ -189,13 +202,6 @@ export default async function handler(req: Request) {
       }
     }
 
-    // Candidate confidence breakdown
-    const conf: Record<string, number> = { HIGH: 0, MID: 0, LOW: 0 }
-    for (const row of (candidatesByConfidence.data ?? [])) {
-      const c = String((row as any).confidence ?? '').toUpperCase()
-      if (c in conf) conf[c]++
-    }
-
     // Body map: distinct region_keys mapped
     const distinctRegions = new Set(
       (regionsRaw.data ?? []).map((r: any) => r.region_key).filter(Boolean)
@@ -236,7 +242,11 @@ export default async function handler(req: Request) {
         },
         candidates: {
           count: candidatesPendingCount.count ?? 0,
-          byConfidence: conf,
+          byConfidence: {
+            high:   candidatesHighCount.count ?? 0,
+            medium: candidatesMediumCount.count ?? 0,
+            low:    candidatesLowCount.count ?? 0,
+          },
         },
         today: {
           spiritsApproved: todayApplied.count ?? 0,

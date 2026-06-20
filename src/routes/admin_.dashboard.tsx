@@ -306,7 +306,7 @@ function IntelDashboardPage() {
           sub="awaiting triage"
           breakdown={
             stats?.row1?.candidates?.byConfidence
-              ? `HIGH: ${stats.row1.candidates.byConfidence.HIGH} · MID: ${stats.row1.candidates.byConfidence.MID} · LOW: ${stats.row1.candidates.byConfidence.LOW}`
+              ? `HIGH: ${stats.row1.candidates.byConfidence.high} · MED: ${stats.row1.candidates.byConfidence.medium} · LOW: ${stats.row1.candidates.byConfidence.low}`
               : null
           }
         />
