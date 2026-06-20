@@ -31,8 +31,6 @@ import { Route as AdminIndexRouteImport } from './routes/admin.index'
 import { Route as ProductsProductIdRouteImport } from './routes/products/$productId'
 import { Route as CommunitySpiritualMappingRouteImport } from './routes/community_.spiritual-mapping'
 import { Route as CommunitySearchRouteImport } from './routes/community_.search'
-import { Route as CommunityArsenalResourceIdRouteImport } from './routes/community_.arsenal.$resourceId'
-import { Route as CommunitySpiritsSpiriIdRouteImport } from './routes/community_.spirits.$spiritId'
 import { Route as CommunityScriptureRouteImport } from './routes/community_.scripture'
 import { Route as CommunityQrfRouteImport } from './routes/community_.qrf'
 import { Route as CommunityForumRouteImport } from './routes/community_.forum'
@@ -64,6 +62,8 @@ import { Route as ApiAdminUploadRouteImport } from './routes/api.admin-upload'
 import { Route as ApiAdminAuthRouteImport } from './routes/api.admin-auth'
 import { Route as AdminLoginRouteImport } from './routes/admin.login'
 import { Route as AdminChurchFathersLibraryRouteImport } from './routes/admin.church-fathers-library'
+import { Route as CommunitySpiritsSpiritIdRouteImport } from './routes/community_.spirits.$spiritId'
+import { Route as CommunityArsenalResourceIdRouteImport } from './routes/community_.arsenal.$resourceId'
 
 const TermsRoute = TermsRouteImport.update({
   id: '/terms',
@@ -176,16 +176,6 @@ const CommunitySearchRoute = CommunitySearchRouteImport.update({
   path: '/community/search',
   getParentRoute: () => rootRouteImport,
 } as any)
-const CommunityArsenalResourceIdRoute = CommunityArsenalResourceIdRouteImport.update({
-  id: '/community_/arsenal/$resourceId',
-  path: '/community/arsenal/$resourceId',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const CommunitySpiritsSpiriIdRoute = CommunitySpiritsSpiriIdRouteImport.update({
-  id: '/community_/spirits/$spiritId',
-  path: '/community/spirits/$spiritId',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const CommunityScriptureRoute = CommunityScriptureRouteImport.update({
   id: '/community_/scripture',
   path: '/community/scripture',
@@ -277,14 +267,14 @@ const ApiResourcesRoute = ApiResourcesRouteImport.update({
   path: '/api/resources',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiResourceRoute = ApiResourceRouteImport.update({
-  id: '/api/resource',
-  path: '/api/resource',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const ApiResourceDownloadRoute = ApiResourceDownloadRouteImport.update({
   id: '/api/resource-download',
   path: '/api/resource-download',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiResourceRoute = ApiResourceRouteImport.update({
+  id: '/api/resource',
+  path: '/api/resource',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiMnVerifyRoute = ApiMnVerifyRouteImport.update({
@@ -343,6 +333,18 @@ const AdminChurchFathersLibraryRoute =
     path: '/church-fathers-library',
     getParentRoute: () => AdminRoute,
   } as any)
+const CommunitySpiritsSpiritIdRoute =
+  CommunitySpiritsSpiritIdRouteImport.update({
+    id: '/community_/spirits/$spiritId',
+    path: '/community/spirits/$spiritId',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const CommunityArsenalResourceIdRoute =
+  CommunityArsenalResourceIdRouteImport.update({
+    id: '/community_/arsenal/$resourceId',
+    path: '/community/arsenal/$resourceId',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -395,11 +397,11 @@ export interface FileRoutesByFullPath {
   '/community/qrf': typeof CommunityQrfRoute
   '/community/scripture': typeof CommunityScriptureRoute
   '/community/search': typeof CommunitySearchRoute
-  '/community/arsenal/$resourceId': typeof CommunityArsenalResourceIdRoute
   '/community/spiritual-mapping': typeof CommunitySpiritualMappingRoute
-  '/community/spirits/$spiritId': typeof CommunitySpiritsSpiriIdRoute
   '/products/$productId': typeof ProductsProductIdRoute
   '/admin/': typeof AdminIndexRoute
+  '/community/arsenal/$resourceId': typeof CommunityArsenalResourceIdRoute
+  '/community/spirits/$spiritId': typeof CommunitySpiritsSpiritIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -451,11 +453,11 @@ export interface FileRoutesByTo {
   '/community/qrf': typeof CommunityQrfRoute
   '/community/scripture': typeof CommunityScriptureRoute
   '/community/search': typeof CommunitySearchRoute
-  '/community/arsenal/$resourceId': typeof CommunityArsenalResourceIdRoute
   '/community/spiritual-mapping': typeof CommunitySpiritualMappingRoute
-  '/community/spirits/$spiritId': typeof CommunitySpiritsSpiriIdRoute
   '/products/$productId': typeof ProductsProductIdRoute
   '/admin': typeof AdminIndexRoute
+  '/community/arsenal/$resourceId': typeof CommunityArsenalResourceIdRoute
+  '/community/spirits/$spiritId': typeof CommunitySpiritsSpiritIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -501,7 +503,6 @@ export interface FileRoutesById {
   '/api/update-profile': typeof ApiUpdateProfileRoute
   '/api/user-tier': typeof ApiUserTierRoute
   '/api/warroom-chat': typeof ApiWarroomChatRoute
-  '/community_/arsenal/$resourceId': typeof CommunityArsenalResourceIdRoute
   '/community_/ask-sol': typeof CommunityAskSolRoute
   '/community_/dream-interpreter': typeof CommunityDreamInterpreterRoute
   '/community_/field-manual': typeof CommunityFieldManualRoute
@@ -511,9 +512,10 @@ export interface FileRoutesById {
   '/community_/scripture': typeof CommunityScriptureRoute
   '/community_/search': typeof CommunitySearchRoute
   '/community_/spiritual-mapping': typeof CommunitySpiritualMappingRoute
-  '/community_/spirits/$spiritId': typeof CommunitySpiritsSpiriIdRoute
   '/products/$productId': typeof ProductsProductIdRoute
   '/admin/': typeof AdminIndexRoute
+  '/community_/arsenal/$resourceId': typeof CommunityArsenalResourceIdRoute
+  '/community_/spirits/$spiritId': typeof CommunitySpiritsSpiritIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -568,11 +570,11 @@ export interface FileRouteTypes {
     | '/community/qrf'
     | '/community/scripture'
     | '/community/search'
-    | '/community/arsenal/$resourceId'
     | '/community/spiritual-mapping'
-    | '/community/spirits/$spiritId'
     | '/products/$productId'
     | '/admin/'
+    | '/community/arsenal/$resourceId'
+    | '/community/spirits/$spiritId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -624,11 +626,11 @@ export interface FileRouteTypes {
     | '/community/qrf'
     | '/community/scripture'
     | '/community/search'
-    | '/community/arsenal/$resourceId'
     | '/community/spiritual-mapping'
-    | '/community/spirits/$spiritId'
     | '/products/$productId'
     | '/admin'
+    | '/community/arsenal/$resourceId'
+    | '/community/spirits/$spiritId'
   id:
     | '__root__'
     | '/'
@@ -677,15 +679,15 @@ export interface FileRouteTypes {
     | '/community_/dream-interpreter'
     | '/community_/field-manual'
     | '/community_/field-ops'
-    | '/community_/arsenal/$resourceId'
     | '/community_/forum'
     | '/community_/qrf'
     | '/community_/scripture'
     | '/community_/search'
     | '/community_/spiritual-mapping'
-    | '/community_/spirits/$spiritId'
     | '/products/$productId'
     | '/admin/'
+    | '/community_/arsenal/$resourceId'
+    | '/community_/spirits/$spiritId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -737,10 +739,10 @@ export interface RootRouteChildren {
   CommunityQrfRoute: typeof CommunityQrfRoute
   CommunityScriptureRoute: typeof CommunityScriptureRoute
   CommunitySearchRoute: typeof CommunitySearchRoute
-  CommunityArsenalResourceIdRoute: typeof CommunityArsenalResourceIdRoute
   CommunitySpiritualMappingRoute: typeof CommunitySpiritualMappingRoute
-  CommunitySpiritsSpiriIdRoute: typeof CommunitySpiritsSpiriIdRoute
   ProductsProductIdRoute: typeof ProductsProductIdRoute
+  CommunityArsenalResourceIdRoute: typeof CommunityArsenalResourceIdRoute
+  CommunitySpiritsSpiritIdRoute: typeof CommunitySpiritsSpiritIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -899,20 +901,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CommunitySearchRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/community_/arsenal/$resourceId': {
-      id: '/community_/arsenal/$resourceId'
-      path: '/community/arsenal/$resourceId'
-      fullPath: '/community/arsenal/$resourceId'
-      preLoaderRoute: typeof CommunityArsenalResourceIdRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/community_/spirits/$spiritId': {
-      id: '/community_/spirits/$spiritId'
-      path: '/community/spirits/$spiritId'
-      fullPath: '/community/spirits/$spiritId'
-      preLoaderRoute: typeof CommunitySpiritsSpiriIdRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/community_/scripture': {
       id: '/community_/scripture'
       path: '/community/scripture'
@@ -1039,18 +1027,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiResourcesRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/resource': {
-      id: '/api/resource'
-      path: '/api/resource'
-      fullPath: '/api/resource'
-      preLoaderRoute: typeof ApiResourceRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/api/resource-download': {
       id: '/api/resource-download'
       path: '/api/resource-download'
       fullPath: '/api/resource-download'
       preLoaderRoute: typeof ApiResourceDownloadRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/resource': {
+      id: '/api/resource'
+      path: '/api/resource'
+      fullPath: '/api/resource'
+      preLoaderRoute: typeof ApiResourceRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/mn-verify': {
@@ -1130,6 +1118,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminChurchFathersLibraryRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/community_/spirits/$spiritId': {
+      id: '/community_/spirits/$spiritId'
+      path: '/community/spirits/$spiritId'
+      fullPath: '/community/spirits/$spiritId'
+      preLoaderRoute: typeof CommunitySpiritsSpiritIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/community_/arsenal/$resourceId': {
+      id: '/community_/arsenal/$resourceId'
+      path: '/community/arsenal/$resourceId'
+      fullPath: '/community/arsenal/$resourceId'
+      preLoaderRoute: typeof CommunityArsenalResourceIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -1196,10 +1198,10 @@ const rootRouteChildren: RootRouteChildren = {
   CommunityQrfRoute: CommunityQrfRoute,
   CommunityScriptureRoute: CommunityScriptureRoute,
   CommunitySearchRoute: CommunitySearchRoute,
-  CommunityArsenalResourceIdRoute: CommunityArsenalResourceIdRoute,
   CommunitySpiritualMappingRoute: CommunitySpiritualMappingRoute,
-  CommunitySpiritsSpiriIdRoute: CommunitySpiritsSpiriIdRoute,
   ProductsProductIdRoute: ProductsProductIdRoute,
+  CommunityArsenalResourceIdRoute: CommunityArsenalResourceIdRoute,
+  CommunitySpiritsSpiritIdRoute: CommunitySpiritsSpiritIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

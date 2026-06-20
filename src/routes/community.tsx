@@ -11077,6 +11077,7 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
   const [resolvedChannelId, setResolvedChannelId] = useState<string | null>(null)
   const [messages, setMessages]               = useState<MMessage[]>([])
   const [dmReactionPicker, setDmReactionPicker] = useState<{ messageId: string; rect: DOMRect } | null>(null)
+  const [hoveredBubble, setHoveredBubble]      = useState<string | null>(null)
   const [messageText, setMessageText]         = useState('')
   const [loading, setLoading]                 = useState(true)
   const [loadingMessages, setLoadingMessages] = useState(false)
@@ -11162,6 +11163,7 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
   const recSecondsRef    = useRef(0)
   const loadSessionRef   = React.useRef(0)
   const activeChannelRef = React.useRef<string | null>(null)
+  const dmLongPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const isMobileLayout = typeof window !== 'undefined' && window.innerWidth < 768
   const wsMessagesEnabled = user?.publicMetadata?.stream_ws_messages !== false
@@ -11662,10 +11664,15 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
       const list = msgs.messages || msgs.detail?.messages
       if (Array.isArray(list)) setMessages(list)
     }
-    api('react', 'POST', { messageId, type, op: hasMine ? 'remove' : 'add' })
-      .then((r: any) => { if (r?.error) reload() })
-      .catch(() => reload())
-  }, [api, userId, resolvedChannelId])
+    const cTok = token
+    getToken().then(freshTok => {
+      fetch('/api/dm-reaction', {
+        method: hasMine ? 'DELETE' : 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${freshTok || cTok || ''}` },
+        body: JSON.stringify({ channelType: 'messaging', channelId: resolvedChannelId, messageId, type }),
+      }).then(res => { if (!res.ok) reload() }).catch(() => reload())
+    }).catch(() => reload())
+  }, [token, getToken, api, userId, resolvedChannelId])
 
   // ── Voice recording ──
   const startRecording = useCallback(async () => {
@@ -12956,7 +12963,24 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
                         }
                       </div>
                     )}
-                    <div style={{ display: 'flex', flexDirection: 'column' as const, alignItems: isOwn ? 'flex-end' : 'flex-start', maxWidth: '72%' }}>
+                    <div
+                      style={{ display: 'flex', flexDirection: 'column' as const, alignItems: isOwn ? 'flex-end' : 'flex-start', maxWidth: '72%', userSelect: 'none' }}
+                      onContextMenu={e => e.preventDefault()}
+                      onMouseEnter={() => !isMobileLayout && setHoveredBubble(msg.id)}
+                      onMouseLeave={() => !isMobileLayout && setHoveredBubble(null)}
+                      onTouchStart={e => {
+                        if (msg.id.startsWith('temp-')) return
+                        if (dmLongPressTimer.current) clearTimeout(dmLongPressTimer.current)
+                        const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
+                        dmLongPressTimer.current = setTimeout(() => {
+                          dmLongPressTimer.current = null
+                          setDmReactionPicker({ messageId: msg.id, rect })
+                        }, 350)
+                      }}
+                      onTouchEnd={() => { if (dmLongPressTimer.current) { clearTimeout(dmLongPressTimer.current); dmLongPressTimer.current = null } }}
+                      onTouchMove={() => { if (dmLongPressTimer.current) { clearTimeout(dmLongPressTimer.current); dmLongPressTimer.current = null } }}
+                      onTouchCancel={() => { if (dmLongPressTimer.current) { clearTimeout(dmLongPressTimer.current); dmLongPressTimer.current = null } }}
+                    >
                       {voiceAtt ? (
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: isOwn ? 'rgba(201,168,76,0.2)' : (isDark ? 'rgba(255,255,255,0.08)' : '#EDEBE2'), borderRadius: 20, padding: '8px 12px', maxWidth: 220 }}>
                           <button style={{ width: 26, height: 26, borderRadius: '50%', background: GLD, border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
@@ -13001,7 +13025,7 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
                           <button
                             aria-label="Add reaction"
                             onClick={e => setDmReactionPicker({ messageId: msg.id, rect: (e.currentTarget as HTMLElement).getBoundingClientRect() })}
-                            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 20, height: 20, borderRadius: '50%', background: 'transparent', border: `1px solid ${isDark ? 'rgba(201,168,76,0.25)' : 'rgba(139,105,20,0.3)'}`, color: WRI_GOLD, cursor: 'pointer', padding: 0, marginTop: 4, fontSize: 13, lineHeight: 1, opacity: 0.6 }}
+                            style={{ display: isMobileLayout ? 'none' : 'flex', alignItems: 'center', justifyContent: 'center', width: 20, height: 20, borderRadius: '50%', background: 'transparent', border: `1px solid ${isDark ? 'rgba(201,168,76,0.25)' : 'rgba(139,105,20,0.3)'}`, color: WRI_GOLD, cursor: 'pointer', padding: 0, marginTop: 4, fontSize: 13, lineHeight: 1, opacity: hoveredBubble === msg.id ? 0.7 : 0, transition: 'opacity 0.15s', pointerEvents: hoveredBubble === msg.id ? 'auto' : 'none' }}
                           >+</button>
                         </div>
                       )}
