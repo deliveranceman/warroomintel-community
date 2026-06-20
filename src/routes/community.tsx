@@ -32,7 +32,10 @@ import { searchHelp, getArticlesByCategory } from '@/utils/helpSearch'
 import { helpCategories, helpArticles, type HelpArticle } from '@/data/helpContent'
 import { WRIReactionPicker } from '@/components/chat/WRIReactionPicker'
 import { WRIReactionList } from '@/components/chat/WRIReactionList'
+import { GiphyPicker } from '@/components/chat/GiphyPicker'
 import { applyOptimisticAdd, applyOptimisticRemove, sendWRIReactionDirect, removeWRIReactionDirect, userHasReacted, WRI_GOLD, type WRIReactionType } from '@/lib/wri-reactions'
+import { buildGifAttachment } from '@/lib/stream-attachments'
+import type { GiphyHit } from '@/lib/giphy-types'
 
 export const Route = createFileRoute('/community')({
   ssr: false,
@@ -168,6 +171,21 @@ function streamFetch(path: string, method: string, token: string, apiKey: string
   }).then(r => r.json())
 }
 
+interface StreamMsgAttachment {
+  type: string
+  asset_url?: string
+  thumb_url?: string
+  image_url?: string
+  title?: string
+  duration?: number
+  call_type?: string
+  file_size?: number
+  og_scrape_url?: string
+  title_link?: string
+  text?: string
+  custom?: Record<string, unknown>
+}
+
 interface StreamMsg {
   id: string
   text: string
@@ -178,6 +196,7 @@ interface StreamMsg {
   latest_reactions?: Array<{ type: string; user_id?: string; user?: { id?: string } }>
   type?: string
   deleted_at?: string
+  attachments?: StreamMsgAttachment[]
 }
 
 // ── SIGN-IN GATE ───────────────────────────────────────────
@@ -907,6 +926,16 @@ function PostCard({ msg, pinned, actions, isDark = true, hoveredId, onHover, str
             <MonoTime color="var(--t-3)" size={11}>{time}</MonoTime>
           </div>
           <p style={{ fontFamily: 'Georgia, serif', fontSize: 15, color: V.txt, lineHeight: 1.6, margin: 0, wordBreak: 'break-word' }}>{msg.text}</p>
+          {(msg as any).attachments?.filter((a: any) => a.type === 'giphy').map((att: any, i: number) => (
+            <img
+              key={i}
+              src={att.asset_url || att.thumb_url}
+              alt={att.title || 'GIF'}
+              loading="lazy"
+              style={{ display: 'block', maxWidth: 280, maxHeight: 240, borderRadius: 8, marginTop: msg.text ? 8 : 0, cursor: 'pointer', objectFit: 'contain' }}
+              onClick={() => window.open(att.asset_url, '_blank')}
+            />
+          ))}
           {/* Reactions */}
           <div style={{ position: 'relative', display: 'flex', gap: 4, flexWrap: 'wrap' as const, marginTop: 8, alignItems: 'center' }}>
             {hoveredId === msg.id && streamToken && (
@@ -971,6 +1000,10 @@ interface PrayerViewProps {
 }
 function PrayerView({ streamToken, apiKey, userId, isDark, founderIds, isMinister = false, userLevel = 0 }: PrayerViewProps) {
   const { beginUpgrade } = useContext(UpgradeFlowCtx)
+  const { getToken } = useAuth()
+  const [showPrayerGif, setShowPrayerGif] = useState(false)
+  const [prayerGifAnchor, setPrayerGifAnchor] = useState<DOMRect | undefined>(undefined)
+  const [prayerToken, setPrayerToken] = useState('')
   const V = {
     bg: isDark ? '#0D0B14' : '#FAF8F5', surf: isDark ? '#1a1714' : '#FFFFFF',
     card: isDark ? 'rgba(255,255,255,0.03)' : '#FFFFFF',
@@ -1026,6 +1059,8 @@ function PrayerView({ streamToken, apiKey, userId, isDark, founderIds, isMiniste
     return () => clearInterval(t)
   }, [fetchPrayers])
 
+  useEffect(() => { getToken().then(t => setPrayerToken(t || '')) }, [])
+
   async function handleDeletePrayer(messageId: string) {
     if (!confirm('Delete this prayer request?')) return
     try {
@@ -1041,6 +1076,16 @@ function PrayerView({ streamToken, apiKey, userId, isDark, founderIds, isMiniste
       setDraft('')
       await fetchPrayers()
     } catch (err) { console.error('PRAYER ERROR:', err) }
+  }
+
+  async function sendPrayerGif(hit: GiphyHit) {
+    setShowPrayerGif(false)
+    try {
+      await streamFetch('/channels/messaging/prayer-wall-requests/message', 'POST', streamToken, apiKey, {
+        message: { text: '', attachments: [buildGifAttachment(hit)] },
+      })
+      await fetchPrayers()
+    } catch {}
   }
 
   return (
@@ -1188,12 +1233,29 @@ function PrayerView({ streamToken, apiKey, userId, isDark, founderIds, isMiniste
               </div>
             )}
           </div>
+          {userLevel >= 1 && (
+            <button
+              type="button"
+              onClick={e => { setPrayerGifAnchor((e.currentTarget as HTMLElement).getBoundingClientRect()); setShowPrayerGif(v => !v) }}
+              style={{ background: showPrayerGif ? 'rgba(201,168,76,0.15)' : 'transparent', border: `1px solid ${showPrayerGif ? 'rgba(201,168,76,0.5)' : 'rgba(201,168,76,0.3)'}`, borderRadius: 6, padding: '6px 10px', cursor: 'pointer', color: showPrayerGif ? (isDark ? '#C9A84C' : '#8B6914') : (isDark ? '#C9A84C' : '#8B6914'), fontFamily: cinzel, fontSize: 9, letterSpacing: '0.06em', fontWeight: 700 }}
+              title="Send GIF"
+            >GIF</button>
+          )}
           <button onClick={handleSend} disabled={!draft.trim()}
             style={{ background: draft.trim() ? G : 'rgba(201,168,76,0.3)', color: draft.trim() ? '#0D0B14' : V.mut, border: 'none', borderRadius: 8, padding: '10px 18px', fontFamily: cinzel, fontSize: 13, cursor: draft.trim() ? 'pointer' : 'default', fontWeight: 700, whiteSpace: 'nowrap' }}>
             🙏 Post
           </button>
         </div>
       </div>
+      {showPrayerGif && (
+        <GiphyPicker
+          token={prayerToken}
+          anchorRect={prayerGifAnchor}
+          isDark={isDark}
+          onDismiss={() => setShowPrayerGif(false)}
+          onSelect={sendPrayerGif}
+        />
+      )}
     </div>
   )
 }
@@ -2919,9 +2981,10 @@ interface WarRoomChatViewProps {
   isDark: boolean
   isMobile: boolean
   setSidebarOpen: React.Dispatch<React.SetStateAction<boolean>>
+  userLevel?: number
 }
 
-function WarRoomChatView({ streamToken, apiKey, userId, isDark }: WarRoomChatViewProps) {
+function WarRoomChatView({ streamToken, apiKey, userId, isDark, userLevel = 0 }: WarRoomChatViewProps) {
   const [messages, setMessages] = useState<StreamMsg[]>([])
   const [draft, setDraft] = useState('')
   const [sending, setSending] = useState(false)
@@ -2929,8 +2992,14 @@ function WarRoomChatView({ streamToken, apiKey, userId, isDark }: WarRoomChatVie
   const [editText, setEditText] = useState('')
   const [hoveredMsg, setHoveredMsg] = useState<string | null>(null)
   const [reactionPicker, setReactionPicker] = useState<{ messageId: string; rect: DOMRect } | null>(null)
+  const [showWrcGif, setShowWrcGif] = useState(false)
+  const [wrcGifAnchor, setWrcGifAnchor] = useState<DOMRect | undefined>(undefined)
+  const [wrcToken, setWrcToken] = useState('')
+  const { getToken } = useAuth()
   const bottomRef = useRef<HTMLDivElement>(null)
   const warRoomFileRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => { getToken().then(t => setWrcToken(t || '')) }, [])
 
   const V = {
     bg:   isDark ? '#0D0B14' : '#FAF8F5',
@@ -2986,6 +3055,16 @@ function WarRoomChatView({ streamToken, apiKey, userId, isDark }: WarRoomChatVie
       )
       await fetchMessages()
     } catch { setDraft(text) } finally { setSending(false) }
+  }
+
+  async function sendWrcGif(hit: GiphyHit) {
+    setShowWrcGif(false)
+    try {
+      await streamFetch('/channels/messaging/war-room-general/message', 'POST', streamToken, apiKey, {
+        message: { text: '', user_id: userId, attachments: [buildGifAttachment(hit)] },
+      })
+      await fetchMessages()
+    } catch {}
   }
 
   return (
@@ -3073,7 +3152,12 @@ function WarRoomChatView({ streamToken, apiKey, userId, isDark }: WarRoomChatVie
                     }}>
                       {msg.text}
                       {(msg as any).attachments?.map((att: any, i: number) => (
-                        att.type === 'image' || att.image_url || att.thumb_url ? (
+                        att.type === 'giphy' ? (
+                          <img key={i} src={att.asset_url || att.thumb_url} alt={att.title || 'GIF'}
+                            style={{ display: 'block', maxWidth: 280, maxHeight: 240, borderRadius: 8, marginTop: msg.text ? 6 : 0, cursor: 'pointer', objectFit: 'contain' }}
+                            onClick={() => window.open(att.asset_url, '_blank')}
+                          />
+                        ) : att.type === 'image' || att.image_url || att.thumb_url ? (
                           <img key={i} src={att.asset_url || att.image_url || att.thumb_url} alt={att.title || 'image'}
                             style={{ display: 'block', maxWidth: '100%', maxHeight: 300, borderRadius: 8, marginTop: msg.text ? 6 : 0, cursor: 'pointer' }}
                             onClick={() => window.open(att.asset_url || att.image_url, '_blank')}
@@ -3175,6 +3259,13 @@ function WarRoomChatView({ streamToken, apiKey, userId, isDark }: WarRoomChatVie
           onClick={() => warRoomFileRef.current?.click()}
           style={{ padding: '10px', background: 'transparent', border: '1px solid rgba(201,168,76,0.15)', borderRadius: 8, color: V.mut, cursor: 'pointer', alignSelf: 'flex-end', flexShrink: 0, fontSize: 16 }}
         >📎</button>
+        {userLevel >= 1 ? (
+          <button
+            title="Send GIF"
+            onClick={e => { setWrcGifAnchor((e.currentTarget as HTMLElement).getBoundingClientRect()); setShowWrcGif(v => !v) }}
+            style={{ padding: '8px 10px', background: showWrcGif ? 'rgba(201,168,76,0.15)' : 'transparent', border: `1px solid ${showWrcGif ? 'rgba(201,168,76,0.5)' : 'rgba(201,168,76,0.15)'}`, borderRadius: 8, color: showWrcGif ? (isDark ? '#C9A84C' : '#8B6914') : V.mut, cursor: 'pointer', alignSelf: 'flex-end', flexShrink: 0, fontFamily: "'Cinzel', serif", fontSize: 9, letterSpacing: '0.06em', fontWeight: 700 }}
+          >GIF</button>
+        ) : null}
         <textarea
           value={draft}
           onChange={e => setDraft(e.target.value)}
@@ -3214,6 +3305,15 @@ function WarRoomChatView({ streamToken, apiKey, userId, isDark }: WarRoomChatVie
             toggleWarRoomReaction(reactionPicker.messageId, type, mine)
             setReactionPicker(null)
           }}
+        />
+      )}
+      {showWrcGif && (
+        <GiphyPicker
+          token={wrcToken}
+          anchorRect={wrcGifAnchor}
+          isDark={isDark}
+          onDismiss={() => setShowWrcGif(false)}
+          onSelect={sendWrcGif}
         />
       )}
     </div>
@@ -11044,7 +11144,7 @@ interface MMessage {
   type?: string
   user: { id: string; name: string }
   created_at: string
-  attachments?: Array<{ type: string; asset_url?: string; duration?: number; call_type?: string }>
+  attachments?: Array<{ type: string; asset_url?: string; thumb_url?: string; title?: string; duration?: number; call_type?: string; custom?: Record<string, unknown> }>
   reaction_counts?: Record<string, number>
   own_reactions?: Array<{ type: string; user_id?: string; user?: { id?: string } }>
   latest_reactions?: Array<{ type: string; user_id?: string; user?: { id?: string } }>
@@ -11078,6 +11178,8 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
   const [messages, setMessages]               = useState<MMessage[]>([])
   const [dmReactionPicker, setDmReactionPicker] = useState<{ messageId: string; rect: DOMRect } | null>(null)
   const [hoveredBubble, setHoveredBubble]      = useState<string | null>(null)
+  const [showDmGif, setShowDmGif]              = useState(false)
+  const [dmGifAnchor, setDmGifAnchor]          = useState<DOMRect | undefined>(undefined)
   const [messageText, setMessageText]         = useState('')
   const [loading, setLoading]                 = useState(true)
   const [loadingMessages, setLoadingMessages] = useState(false)
@@ -11673,6 +11775,22 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
       }).then(res => { if (!res.ok) reload() }).catch(() => reload())
     }).catch(() => reload())
   }, [token, getToken, api, userId, resolvedChannelId])
+
+  // ── Send GIF attachment ──
+  const sendDmGif = useCallback(async (hit: GiphyHit) => {
+    setShowDmGif(false)
+    if (!resolvedChannelId) return
+    const sentChannelId = resolvedChannelId
+    const att = buildGifAttachment(hit)
+    const tempId = `temp-${Date.now()}`
+    setMessages(prev => [...prev, {
+      id: tempId, text: '', type: 'regular',
+      user: { id: userId, name: 'You' },
+      created_at: new Date().toISOString(),
+      attachments: [att],
+    }])
+    await api('send-message', 'POST', { channelId: sentChannelId, text: '', attachments: [att] })
+  }, [resolvedChannelId, api, userId])
 
   // ── Voice recording ──
   const startRecording = useCallback(async () => {
@@ -12952,6 +13070,7 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
                 const isOwn = msg.user?.id === userId
                 const voiceAtt = msg.attachments?.find(a => a.type === 'voice')
                 const callAtt  = msg.attachments?.find(a => a.type === 'call_log')
+                const gifAtt   = msg.attachments?.find(a => a.type === 'giphy')
                 const av2 = getAvatarColor(msg.user?.id || '')
                 return (
                   <div key={msg.id} style={{ display: 'flex', flexDirection: isOwn ? 'row-reverse' : 'row', gap: 8, alignItems: 'flex-end' }}>
@@ -13003,6 +13122,14 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
                             <div style={{ fontSize: 10, color: WMUT }}>{fmtDuration(callAtt.duration || 0)}</div>
                           </div>
                         </div>
+                      ) : gifAtt ? (
+                        <img
+                          src={gifAtt.asset_url || gifAtt.thumb_url}
+                          alt={gifAtt.title || 'GIF'}
+                          loading="lazy"
+                          style={{ display: 'block', maxWidth: 280, maxHeight: 240, borderRadius: 12, cursor: 'pointer', objectFit: 'contain' }}
+                          onClick={() => window.open(gifAtt.asset_url, '_blank')}
+                        />
                       ) : (
                         <div style={{
                           padding: '9px 13px', borderRadius: 16, fontSize: 13, lineHeight: 1.5,
@@ -13049,6 +13176,15 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
                 }}
               />
             )}
+            {showDmGif && (
+              <GiphyPicker
+                token={token || ''}
+                anchorRect={dmGifAnchor}
+                isDark={isDark}
+                onDismiss={() => setShowDmGif(false)}
+                onSelect={sendDmGif}
+              />
+            )}
 
             {/* Composer */}
             <div style={{
@@ -13058,9 +13194,17 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
               background: isDark ? 'rgba(0,0,0,0.3)' : '#F5F2E8',
               display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0,
             }}>
-              <button style={{ background: 'none', border: 'none', cursor: 'pointer', color: WMUT, padding: 4, display: 'flex' }} title="Attach image">
-                <ImageIcon size={18} strokeWidth={1.8} />
-              </button>
+              {tierLevel >= 1 ? (
+                <button
+                  title="Send GIF"
+                  onClick={e => { setDmGifAnchor((e.currentTarget as HTMLElement).getBoundingClientRect()); setShowDmGif(v => !v) }}
+                  style={{ background: showDmGif ? 'rgba(201,168,76,0.15)' : 'none', border: `1px solid ${showDmGif ? 'rgba(201,168,76,0.5)' : 'transparent'}`, borderRadius: 6, cursor: 'pointer', color: showDmGif ? (isDark ? '#C9A84C' : '#8B6914') : WMUT, padding: '4px 6px', display: 'flex', alignItems: 'center', fontFamily: "'Cinzel', serif", fontSize: 9, letterSpacing: '0.06em', fontWeight: 700, flexShrink: 0 }}
+                >GIF</button>
+              ) : (
+                <button style={{ background: 'none', border: 'none', cursor: 'pointer', color: WMUT, padding: 4, display: 'flex' }} title="Attach image">
+                  <ImageIcon size={18} strokeWidth={1.8} />
+                </button>
+              )}
               <input
                 value={messageText}
                 onChange={e => setMessageText(e.target.value)}
@@ -15783,7 +15927,7 @@ function CommunityPage() {
       {activeSection === 'intel'          && <WeeklyIntelView theme={theme} userTier={tier} isMobile={isMobile} setSidebarOpen={setSidebarOpen} setActiveSection={setActiveSection} demons={demons} />}
       {activeSection === 'field-ministry' && <FieldMinistryView theme={theme} userTier={tier} isMobile={isMobile} setSidebarOpen={setSidebarOpen} />}
       {activeSection === 'war-room'       && <WarRoomView isMobile={isMobile} isDark={isDark} streamToken={streamToken} apiKey={apiKey} user={user} initials={initials} posts={posts} draft={draft} setDraft={setDraft} sending={sending} sendPost={sendPost} fetchPosts={fetchPosts} bottomRef={bottomRef} setSidebarOpen={setSidebarOpen} />}
-      {activeSection === 'war-room-chat'  && <WarRoomChatView streamToken={streamToken} apiKey={apiKey} userId={user?.id || ''} userName={user?.fullName || user?.firstName || 'Warrior'} userImageUrl={user?.imageUrl || ''} isDark={isDark} isMobile={isMobile} setSidebarOpen={setSidebarOpen} />}
+      {activeSection === 'war-room-chat'  && <WarRoomChatView streamToken={streamToken} apiKey={apiKey} userId={user?.id || ''} userName={user?.fullName || user?.firstName || 'Warrior'} userImageUrl={user?.imageUrl || ''} isDark={isDark} isMobile={isMobile} setSidebarOpen={setSidebarOpen} userLevel={tierLevel} />}
       {activeSection === 'prayer-wall'    && <PrayerView streamToken={streamToken} apiKey={apiKey} userId={user?.id || ''} userName={user?.fullName || user?.firstName || 'Warrior'} userImageUrl={user?.imageUrl || ''} isDark={theme !== 'light'} isMobile={isMobile} setSidebarOpen={setSidebarOpen} founderIds={new Set(members.filter(m => m.publicMetadata?.foundingMember || (m.publicMetadata?.tier || '').startsWith('charter')).map((m: any) => m.id))} isMinister={(user?.publicMetadata?.role as string) === 'minister'} userLevel={tierLevel} />}
       {activeSection === 'dms'            && <MessengerSection userId={user?.id || ''} getToken={getToken} tier={tier} pendingDmUserId={pendingDmWith || undefined} pendingDmUserName={pendingDmName || undefined} isDark={theme !== 'light'} onPendingChange={setDmPendingRequests} onOpenNotifs={() => setActiveRailSection('notifs')} openOnMount={createIntent} onIntentConsumed={() => setCreateIntent(null)} openChannelOnMount={openChannelIntent} onChannelIntentConsumed={() => setOpenChannelIntent(null)} openDmChannelOnMount={pendingDmChannel} onDmChannelIntentConsumed={() => setPendingDmChannel(null)} incomingCallTarget={pendingIncomingCall} onIncomingCallTargetConsumed={() => setPendingIncomingCall(null)} onNotifTap={resolveNotificationTarget} />}
       {activeSection === 'members'        && (tierLevel < 1 ? (
