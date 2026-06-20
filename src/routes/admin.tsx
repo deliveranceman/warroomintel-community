@@ -15593,7 +15593,7 @@ function EnrichmentSuggestions({ getToken, isDark }: { getToken: any; isDark: bo
   async function handleBulkRetrofit() {
     // SAFETY GATE 1: hard count cap (lower than bulk reject because each
     // fires real Anthropic API cost ~$0.03-0.10/row)
-    const MAX_BULK_RETROFIT = 20
+    const MAX_BULK_RETROFIT = 50
 
     // SAFETY GATE 2: filter to only rows WITHOUT layer2_raw — never
     // re-retrofit a row that already has extraction
@@ -15924,26 +15924,26 @@ function EnrichmentSuggestions({ getToken, isDark }: { getToken: any; isDark: bo
           <button
             type="button"
             onClick={() => setBulkRetrofitModalOpen(true)}
-            disabled={bulkRetrofitInProgress || filteredSuggestions.filter((s: any) => !s.layer2_raw).length > 20}
+            disabled={bulkRetrofitInProgress || filteredSuggestions.filter((s: any) => !s.layer2_raw).length > 50}
             style={{
               fontSize: 11,
               padding: '4px 10px',
-              background: filteredSuggestions.filter((s: any) => !s.layer2_raw).length > 20 ? '#ccc' : '#2c7a3f',
+              background: filteredSuggestions.filter((s: any) => !s.layer2_raw).length > 50 ? '#ccc' : '#2c7a3f',
               color: 'white',
               border: 'none',
               borderRadius: 4,
-              cursor: filteredSuggestions.filter((s: any) => !s.layer2_raw).length > 20 ? 'not-allowed' : 'pointer',
+              cursor: filteredSuggestions.filter((s: any) => !s.layer2_raw).length > 50 ? 'not-allowed' : 'pointer',
               fontWeight: 600,
               marginLeft: 12,
             }}
             title={
-              filteredSuggestions.filter((s: any) => !s.layer2_raw).length > 20
-                ? `Refusing bulk action on ${filteredSuggestions.filter((s: any) => !s.layer2_raw).length} rows (cap: 20). Narrow filters further.`
+              filteredSuggestions.filter((s: any) => !s.layer2_raw).length > 50
+                ? `Refusing bulk action on ${filteredSuggestions.filter((s: any) => !s.layer2_raw).length} rows (cap: 50). Narrow filters further.`
                 : `Fire retrofit on ${filteredSuggestions.filter((s: any) => !s.layer2_raw).length} legacy LES (each call ~30-60s + Anthropic API cost)`
             }
           >
             ⚡ Bulk Retrofit Filtered ({filteredSuggestions.filter((s: any) => !s.layer2_raw).length})
-            {filteredSuggestions.filter((s: any) => !s.layer2_raw).length > 20 && ' — cap exceeded'}
+            {filteredSuggestions.filter((s: any) => !s.layer2_raw).length > 50 && ' — cap exceeded'}
           </button>
         )}
         {triageFilter.triageStatus === 'reject-candidate' && filteredSuggestions.length > 0 && (
