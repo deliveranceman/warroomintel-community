@@ -4,6 +4,8 @@ import { createFileRoute } from '@tanstack/react-router'
 import { useAuth, useUser } from '@clerk/tanstack-start'
 import { SpiritTagEditor } from '@/components/SpiritTagEditor'
 import { Layer2Action } from '@/components/Layer2Action'
+import { TriageBadges } from '@/components/TriageBadges'
+import { matchesFilter, type TriageFilterSpec } from '@/lib/triage'
 import { extractText, computeFileHash } from '@/lib/extractFileText'
 import { classifyField, FIELD_GROUPS, RELATIONAL_FIELDS, appendMerge, type FieldState } from '@/lib/spiritMergeHelpers'
 
@@ -15355,6 +15357,13 @@ function EnrichmentSuggestions({ getToken, isDark }: { getToken: any; isDark: bo
   const [adversarialFilter, setAdversarialFilter] = useState<string>('all')
   const [expandedIds, setExpandedIds]             = useState<Set<string>>(new Set())
   const [expandedLayers, setExpandedLayers]       = useState<Set<string>>(new Set())
+  const [triageFilter, setTriageFilter]           = useState<TriageFilterSpec>({
+    triageStatus: 'all',
+    attested:     'all',
+    completeness: 'all',
+    sourceClass:  'all',
+    resourceId:   null,
+  })
 
   const cinzel  = "'Cinzel', serif"
   const crimson = "'Crimson Pro', serif"
@@ -15519,7 +15528,8 @@ function EnrichmentSuggestions({ getToken, isDark }: { getToken: any; isDark: bo
     () => Array.from(new Set(suggestions.map((s: any) => s.action).filter(Boolean))) as string[],
     [suggestions]
   )
-  const activeFilters = statusFilter !== 'all' || search.trim() !== '' || sourceFilter !== 'all' || hasL2Only || hasBodyRegions || confBands.length > 0 || actionFilter !== 'all' || adversarialFilter !== 'all'
+  const triageFilterActive = triageFilter.triageStatus !== 'all' || triageFilter.attested !== 'all' || triageFilter.completeness !== 'all' || triageFilter.sourceClass !== 'all'
+  const activeFilters = statusFilter !== 'all' || search.trim() !== '' || sourceFilter !== 'all' || hasL2Only || hasBodyRegions || confBands.length > 0 || actionFilter !== 'all' || adversarialFilter !== 'all' || triageFilterActive
 
   const filteredSuggestions = useMemo(() => {
     const q = search.trim().toLowerCase()
@@ -15536,9 +15546,10 @@ function EnrichmentSuggestions({ getToken, isDark }: { getToken: any; isDark: bo
       if (actionFilter !== 'all' && s.action !== actionFilter) return false
       if (adversarialFilter === 'true'  && !s.is_adversarial) return false
       if (adversarialFilter === 'false' &&  s.is_adversarial) return false
+      if (!matchesFilter(s, triageFilter)) return false
       return true
     })
-  }, [suggestions, statusFilter, search, sourceFilter, hasL2Only, hasBodyRegions, confBands, actionFilter, adversarialFilter])
+  }, [suggestions, statusFilter, search, sourceFilter, hasL2Only, hasBodyRegions, confBands, actionFilter, adversarialFilter, triageFilter])
 
   // Color tokens — mirror SpiritCandidatesManager naming
   const ESURF = isDark ? '#13111a' : '#fff'
@@ -15666,6 +15677,38 @@ function EnrichmentSuggestions({ getToken, isDark }: { getToken: any; isDark: bo
         })}
       </div>
 
+      {/* Filter row 3: Triage filters */}
+      <div style={{ display: 'flex', gap: 6, marginBottom: 6, flexWrap: 'wrap' as const, alignItems: 'center', padding: '6px 10px', background: isDark ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.03)', borderRadius: 4, border: `1px solid ${triageFilterActive ? EBDR : 'transparent'}` }}>
+        <span style={{ fontFamily: cinzel, fontSize: 8, color: EMUT, letterSpacing: '0.1em', marginRight: 4 }}>TRIAGE:</span>
+        {([['all','All'],['ready','🟢 Ready'],['needs-read','🟡 Needs read'],['reject-candidate','🔴 Reject?'],['unknown','⚪ Legacy']] as const).map(([v, label]) => (
+          <button key={v}
+            onClick={() => setTriageFilter(f => ({ ...f, triageStatus: v as any }))}
+            style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.06em', padding: '4px 10px', borderRadius: 4, border: `1px solid ${triageFilter.triageStatus === v ? EG : EBDR}`, background: triageFilter.triageStatus === v ? 'rgba(201,168,76,0.1)' : 'transparent', color: triageFilter.triageStatus === v ? EG : EMUT, cursor: 'pointer' }}
+          >{label}</button>
+        ))}
+        <span style={{ fontFamily: cinzel, fontSize: 8, color: EMUT, letterSpacing: '0.08em', marginLeft: 8 }}>ATT:</span>
+        {([['all','All'],['yes','Yes'],['no','No'],['unknown','?']] as const).map(([v, label]) => (
+          <button key={v}
+            onClick={() => setTriageFilter(f => ({ ...f, attested: v as any }))}
+            style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.06em', padding: '4px 8px', borderRadius: 4, border: `1px solid ${triageFilter.attested === v ? EG : EBDR}`, background: triageFilter.attested === v ? 'rgba(201,168,76,0.1)' : 'transparent', color: triageFilter.attested === v ? EG : EMUT, cursor: 'pointer' }}
+          >{label}</button>
+        ))}
+        <span style={{ fontFamily: cinzel, fontSize: 8, color: EMUT, letterSpacing: '0.08em', marginLeft: 8 }}>COMP:</span>
+        {([['all','All'],['substantial','Subst.'],['partial','Partial'],['minimal','Min.']] as const).map(([v, label]) => (
+          <button key={v}
+            onClick={() => setTriageFilter(f => ({ ...f, completeness: v as any }))}
+            style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.06em', padding: '4px 8px', borderRadius: 4, border: `1px solid ${triageFilter.completeness === v ? EG : EBDR}`, background: triageFilter.completeness === v ? 'rgba(201,168,76,0.1)' : 'transparent', color: triageFilter.completeness === v ? EG : EMUT, cursor: 'pointer' }}
+          >{label}</button>
+        ))}
+        <span style={{ fontFamily: cinzel, fontSize: 8, color: EMUT, letterSpacing: '0.08em', marginLeft: 8 }}>SRC:</span>
+        {([['all','All'],['ministry','📖 Min.'],['intelligence','🕯️ Intel']] as const).map(([v, label]) => (
+          <button key={v}
+            onClick={() => setTriageFilter(f => ({ ...f, sourceClass: v as any }))}
+            style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.06em', padding: '4px 8px', borderRadius: 4, border: `1px solid ${triageFilter.sourceClass === v ? EG : EBDR}`, background: triageFilter.sourceClass === v ? 'rgba(201,168,76,0.1)' : 'transparent', color: triageFilter.sourceClass === v ? EG : EMUT, cursor: 'pointer' }}
+          >{label}</button>
+        ))}
+      </div>
+
       {/* Showing-N-of-M counter */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
         <span style={{ fontFamily: cinzel, fontSize: 8, color: EMUT, letterSpacing: '0.1em' }}>
@@ -15673,7 +15716,7 @@ function EnrichmentSuggestions({ getToken, isDark }: { getToken: any; isDark: bo
         </span>
         {activeFilters && (
           <button
-            onClick={() => { setStatusFilter('all'); setSearch(''); setSourceFilter('all'); setHasL2Only(false); setHasBodyRegions(false); setConfBands([]); setActionFilter('all'); setAdversarialFilter('all') }}
+            onClick={() => { setStatusFilter('all'); setSearch(''); setSourceFilter('all'); setHasL2Only(false); setHasBodyRegions(false); setConfBands([]); setActionFilter('all'); setAdversarialFilter('all'); setTriageFilter({ triageStatus: 'all', attested: 'all', completeness: 'all', sourceClass: 'all', resourceId: null }) }}
             style={{ fontFamily: cinzel, fontSize: 8, color: '#f87171', background: 'none', border: 'none', cursor: 'pointer', letterSpacing: '0.06em', padding: 0 }}
           >× Clear filters</button>
         )}
@@ -15745,8 +15788,11 @@ function EnrichmentSuggestions({ getToken, isDark }: { getToken: any; isDark: bo
           </div>
 
           {/* Source book */}
-          <div style={{ fontFamily: cinzel, fontSize: 8, color: '#3a3020', letterSpacing: '0.08em', marginBottom: 8 }}>
+          <div style={{ fontFamily: cinzel, fontSize: 8, color: '#3a3020', letterSpacing: '0.08em', marginBottom: 4 }}>
             📖 {s.book_title}
+          </div>
+          <div style={{ marginBottom: 8 }}>
+            <TriageBadges les={s} compact />
           </div>
           </div>{/* end clickable header */}
 
