@@ -65,6 +65,7 @@ import { Route as AdminLoginRouteImport } from './routes/admin.login'
 import { Route as AdminChurchFathersLibraryRouteImport } from './routes/admin.church-fathers-library'
 import { Route as CommunitySpiritsSpiritIdRouteImport } from './routes/community_.spirits.$spiritId'
 import { Route as CommunityArsenalResourceIdRouteImport } from './routes/community_.arsenal.$resourceId'
+import { Route as AdminIntelGatewaysRouteImport } from './routes/admin_.intel.gateways'
 
 const TermsRoute = TermsRouteImport.update({
   id: '/terms',
@@ -351,6 +352,11 @@ const CommunityArsenalResourceIdRoute =
     path: '/community/arsenal/$resourceId',
     getParentRoute: () => rootRouteImport,
   } as any)
+const AdminIntelGatewaysRoute = AdminIntelGatewaysRouteImport.update({
+  id: '/admin_/intel/gateways',
+  path: '/admin/intel/gateways',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -407,6 +413,7 @@ export interface FileRoutesByFullPath {
   '/community/spiritual-mapping': typeof CommunitySpiritualMappingRoute
   '/products/$productId': typeof ProductsProductIdRoute
   '/admin/': typeof AdminIndexRoute
+  '/admin/intel/gateways': typeof AdminIntelGatewaysRoute
   '/community/arsenal/$resourceId': typeof CommunityArsenalResourceIdRoute
   '/community/spirits/$spiritId': typeof CommunitySpiritsSpiritIdRoute
 }
@@ -464,6 +471,7 @@ export interface FileRoutesByTo {
   '/community/spiritual-mapping': typeof CommunitySpiritualMappingRoute
   '/products/$productId': typeof ProductsProductIdRoute
   '/admin': typeof AdminIndexRoute
+  '/admin/intel/gateways': typeof AdminIntelGatewaysRoute
   '/community/arsenal/$resourceId': typeof CommunityArsenalResourceIdRoute
   '/community/spirits/$spiritId': typeof CommunitySpiritsSpiritIdRoute
 }
@@ -523,6 +531,7 @@ export interface FileRoutesById {
   '/community_/spiritual-mapping': typeof CommunitySpiritualMappingRoute
   '/products/$productId': typeof ProductsProductIdRoute
   '/admin/': typeof AdminIndexRoute
+  '/admin_/intel/gateways': typeof AdminIntelGatewaysRoute
   '/community_/arsenal/$resourceId': typeof CommunityArsenalResourceIdRoute
   '/community_/spirits/$spiritId': typeof CommunitySpiritsSpiritIdRoute
 }
@@ -583,6 +592,7 @@ export interface FileRouteTypes {
     | '/community/spiritual-mapping'
     | '/products/$productId'
     | '/admin/'
+    | '/admin/intel/gateways'
     | '/community/arsenal/$resourceId'
     | '/community/spirits/$spiritId'
   fileRoutesByTo: FileRoutesByTo
@@ -640,6 +650,7 @@ export interface FileRouteTypes {
     | '/community/spiritual-mapping'
     | '/products/$productId'
     | '/admin'
+    | '/admin/intel/gateways'
     | '/community/arsenal/$resourceId'
     | '/community/spirits/$spiritId'
   id:
@@ -698,6 +709,7 @@ export interface FileRouteTypes {
     | '/community_/spiritual-mapping'
     | '/products/$productId'
     | '/admin/'
+    | '/admin_/intel/gateways'
     | '/community_/arsenal/$resourceId'
     | '/community_/spirits/$spiritId'
   fileRoutesById: FileRoutesById
@@ -754,6 +766,7 @@ export interface RootRouteChildren {
   CommunitySearchRoute: typeof CommunitySearchRoute
   CommunitySpiritualMappingRoute: typeof CommunitySpiritualMappingRoute
   ProductsProductIdRoute: typeof ProductsProductIdRoute
+  AdminIntelGatewaysRoute: typeof AdminIntelGatewaysRoute
   CommunityArsenalResourceIdRoute: typeof CommunityArsenalResourceIdRoute
   CommunitySpiritsSpiritIdRoute: typeof CommunitySpiritsSpiritIdRoute
 }
@@ -1152,6 +1165,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CommunityArsenalResourceIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin_/intel/gateways': {
+      id: '/admin_/intel/gateways'
+      path: '/admin/intel/gateways'
+      fullPath: '/admin/intel/gateways'
+      preLoaderRoute: typeof AdminIntelGatewaysRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -1221,6 +1241,7 @@ const rootRouteChildren: RootRouteChildren = {
   CommunitySearchRoute: CommunitySearchRoute,
   CommunitySpiritualMappingRoute: CommunitySpiritualMappingRoute,
   ProductsProductIdRoute: ProductsProductIdRoute,
+  AdminIntelGatewaysRoute: AdminIntelGatewaysRoute,
   CommunityArsenalResourceIdRoute: CommunityArsenalResourceIdRoute,
   CommunitySpiritsSpiritIdRoute: CommunitySpiritsSpiritIdRoute,
 }

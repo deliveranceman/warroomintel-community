@@ -334,12 +334,14 @@ function IntelDashboardPage() {
               : null
           }
         />
-        <StatCard
-          label="Gateways"
-          value={fmt(stats?.row2?.gateways?.count)}
-          sub="mapped"
-          breakdown={stats ? `across ${stats.row2.gateways.spirits} spirits` : null}
-        />
+        <a href="/admin/intel/gateways" style={{ textDecoration: 'none', display: 'block', minWidth: 0 }}>
+          <StatCard
+            label="Gateways"
+            value={fmt(stats?.row2?.gateways?.count)}
+            sub="mapped"
+            breakdown={stats ? `across ${stats.row2.gateways.spirits} spirits` : null}
+          />
+        </a>
         <StatCard
           label="Scriptures"
           value={fmt(stats?.row2?.scriptures?.count)}
