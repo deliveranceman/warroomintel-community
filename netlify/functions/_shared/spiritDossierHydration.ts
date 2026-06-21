@@ -180,8 +180,19 @@ export async function hydrateDossiers(
  * Format dossiers into a single text block suitable for injection
  * into a SOL system / context message. Matches the structure laid out
  * in admin_doc 661f5fd2 §5.
+ *
+ * opts.anonymize (default false) — per admin_doc 661f5fd2 §13. When true,
+ * gateway source lines render as a generic class marker
+ * ('📖 ministry source' / '🕯️ intelligence source') instead of the actual
+ * book title, so SOL never surfaces source attribution to the user. The
+ * operator-facing test endpoint (/admin/intel/sol-test) leaves this false
+ * to keep full attribution visible for debugging.
  */
-export function formatDossiersForContext(dossiers: SpiritDossier[]): string {
+export function formatDossiersForContext(
+  dossiers: SpiritDossier[],
+  opts: { anonymize?: boolean } = {}
+): string {
+  const anonymize = opts.anonymize === true
   if (dossiers.length === 0) return ''
 
   const blocks: string[] = ['=== WRI ARCHIVE ===']
@@ -203,7 +214,9 @@ export function formatDossiersForContext(dossiers: SpiritDossier[]): string {
       lines.push(`\nGateways (${d.gateways.length}):`)
       for (const g of d.gateways) {
         const src = g.source_title
-          ? ` — source: ${g.isAdversarial ? '🕯️ ' : '📖 '}${g.source_title}`
+          ? (anonymize
+              ? ` — source: ${g.isAdversarial ? '🕯️ intelligence source' : '📖 ministry source'}`
+              : ` — source: ${g.isAdversarial ? '🕯️ ' : '📖 '}${g.source_title}`)
           : ''
         lines.push(`  - ${g.gateway}${src}`)
         if (g.notes) lines.push(`      ${g.notes}`)

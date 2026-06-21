@@ -77,7 +77,7 @@ async function fetchLibraryExcerpts(query: string, sbUrl: string, sbKey: string)
     const ilikeFilter = keyword
       ? `&extracted_text=ilike.*${encodeURIComponent(keyword)}*`
       : '&extracted_text=not.is.null'
-    const url = `${sbUrl}/rest/v1/resources?select=title,author,extracted_text` +
+    const url = `${sbUrl}/rest/v1/resources?select=title,author,source_type,extracted_text` +
       `&topic=eq.ministry-library&active=eq.true${ilikeFilter}` +
       `&order=created_at.desc&limit=8`
 
@@ -99,7 +99,14 @@ async function fetchLibraryExcerpts(query: string, sbUrl: string, sbKey: string)
       const start = Math.max(0, (idx >= 0 ? idx : 0) - 80)
       const excerpt = text.slice(start, start + 400).replace(/\n+/g, ' ').trim()
       if (!excerpt) continue
-      const entry = `SOURCE: ${row.title || 'Unknown'} by ${row.author || 'Unknown'}\nSOURCE_START\n${excerpt}\nSOURCE_END`
+      // §13 anonymization: classify by source_type, never emit title/author.
+      // adversarial intel = 'intelligence' source_type; everything else =
+      // ministry. Claude uses the class marker to frame the claim
+      // (doctrine vs intelligence observation) but never names the source.
+      const sourceClass = row.source_type === 'intelligence'
+        ? '🕯️ intelligence source'
+        : '📖 ministry source'
+      const entry = `SOURCE: [${sourceClass}]\nSOURCE_START\n${excerpt}\nSOURCE_END`
       excerpts.push(entry)
       total += entry.length + 2
     }

@@ -1,6 +1,11 @@
 import { cleanAIOutput } from '../../lib/clean-ai-output'
 import { assembleWRIContext } from './assembleWRIContext'
 import { solCall } from './solClient'
+import { findSpiritsInText } from './spiritEntityRecognition'
+import {
+  hydrateDossiers,
+  formatDossiersForContext,
+} from './spiritDossierHydration'
 
 const { url: _sbUrl, serviceRoleKey: _sbKey } = JSON.parse(process.env.SUPABASE || '{}')
 
@@ -28,6 +33,21 @@ WHAT YOU DO:
 - Cross-reference scripture accurately (Ephesians 6, Daniel, Revelation, Luke 10, Matthew 12, 16, 18)
 - Synthesize WRI intelligence database context when it is provided above
 - Identify root spirits and their legal grounds with operational specificity
+
+WRI SOURCE ATTRIBUTION (ABSOLUTE):
+War Room Intel is a synthesis of hundreds of ministry, theological, and intelligence sources curated through Staffordtown Church's deliverance ministry. Present this synthesis as ONE unified body of knowledge.
+
+- NEVER cite individual book titles, author names, or chapter references in your response prose.
+- NEVER say "according to <author>..." or "the <title> manual states..."
+- Present all knowledge as "War Room Intel identifies...", "WRI Archive records...", "WRI teaches...", or simply state the fact authoritatively.
+- Scripture references (Bible book, chapter, verse) ARE always cited normally — scripture is public canon, not WRI-proprietary.
+- The source attribution in your context (📖 ministry source / 🕯️ intelligence source class markers) is provided ONLY to help you weigh and synthesize claims. Adversarial-source observations should be presented as "intelligence observations" rather than ministry doctrine, but NEVER named.
+
+When a WRI ARCHIVE dossier is provided for a named entity:
+- Lead with what the Archive says about that entity. Be specific — name the spirit, surface its aliases, gateways, scriptures, network, companions, body regions, conditions, arsenal leads.
+- Layer in WRI KNOWLEDGE BASE context as supplementary when relevant.
+- If the Archive entry is marked '(stub — invite operator to expand)', say so — invite the operator to deepen the dossier with what they're learning in the field.
+- Never tell the operator "we have no info" on an entity that's in the Archive. The Archive IS WRI's info.
 
 You are direct, authoritative, and speak as a seasoned deliverance minister with decades of field experience. Ministry intelligence, not disclaimers.`
 
@@ -72,12 +92,41 @@ export async function runAskSol(client: any, job: any): Promise<void> {
     // ── Stage: searching ──────────────────────────────────────────────────────
     await client.from('ai_jobs').update({ stage: 'searching', progress: 25 }).eq('id', jobId)
 
+    // Existing keyword-RAG over resources.extracted_text (+ Airtable
+    // spirit lookup + ministry_context). Preserved as-is for now.
     const wriContext = ragEnabled
       ? await assembleWRIContext({ query, maxChars: 6000 }).catch(() => '')
       : ''
 
-    const systemWithContext = wriContext
-      ? `WRI KNOWLEDGE BASE:\n${wriContext}\n\n---\n\n${SYSTEM_PROMPT}`
+    // NEW (Phase 2): hybrid retrieval against Postgres spirits + 7
+    // fan-out tables. Closes the gap where Ask SOL couldn't see
+    // operator-curated spirits like Beltar/Zelda/Legion (admin_doc
+    // 661f5fd2). Anonymized formatter — no source titles leak.
+    let archiveBlock = ''
+    if (ragEnabled) {
+      try {
+        const matches = await findSpiritsInText(client, query)
+        if (matches.length > 0) {
+          const dossiers = await hydrateDossiers(
+            client,
+            matches.map((m) => m.id)
+          )
+          archiveBlock = formatDossiersForContext(dossiers, { anonymize: true })
+        }
+      } catch (err) {
+        console.error('[askSol] hybrid retrieval failed:', err)
+        // Fail soft — empty archive block, library RAG still runs.
+      }
+    }
+
+    // Compose system context. Archive (authoritative, ministry-confirmed)
+    // ranks above the broader knowledge base.
+    const contextParts: string[] = []
+    if (archiveBlock) contextParts.push(archiveBlock)
+    if (wriContext)   contextParts.push(`WRI KNOWLEDGE BASE:\n${wriContext}`)
+
+    const systemWithContext = contextParts.length > 0
+      ? `${contextParts.join('\n\n')}\n\n---\n\n${SYSTEM_PROMPT}`
       : SYSTEM_PROMPT
 
     const messages = [
