@@ -11186,6 +11186,7 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
   const [mobileView, setMobileView]           = useState<'list' | 'chat'>('list')
   const [isRecording, setIsRecording]         = useState(false)
   const [recordingSeconds, setRecordingSeconds] = useState(0)
+  const [voicePlayingId, setVoicePlayingId]   = useState<string | null>(null)
   const [activeTab, setActiveTab]             = useState<'all' | 'unread' | 'sol' | 'teams'>('all')
   const [searchQuery, setSearchQuery]         = useState('')
   const [callActive, setCallActive]           = React.useState<{ type: 'audio' | 'video'; otherUser: { id: string; name: string } } | null>(null)
@@ -11263,6 +11264,8 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
   const audioChunksRef   = useRef<Blob[]>([])
   const recordingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const recSecondsRef    = useRef(0)
+  const recStartedAtRef  = useRef(0)
+  const voiceAudioRef    = useRef<HTMLAudioElement | null>(null)
   const loadSessionRef   = React.useRef(0)
   const activeChannelRef = React.useRef<string | null>(null)
   const dmLongPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -11793,14 +11796,63 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
   }, [resolvedChannelId, api, userId])
 
   // ── Voice recording ──
+  // Release the live MediaStream and clear the tick timer. Stopping every track
+  // is what turns off the iOS red mic indicator — must run on stop AND unmount.
+  const releaseRecorder = useCallback(() => {
+    const mr = mediaRecorderRef.current
+    if (mr) {
+      try { mr.stream.getTracks().forEach(t => t.stop()) } catch {}
+    }
+    if (recordingTimerRef.current) { clearInterval(recordingTimerRef.current); recordingTimerRef.current = null }
+  }, [])
+
+  const uploadVoice = useCallback(async (blob: Blob, duration: number, channelId: string) => {
+    try {
+      const form = new FormData()
+      form.append('audio', blob, 'voice.webm')
+      const t = token || await getToken() || ''
+      const uploadRes = await fetch('/api/stream-messages?action=upload-voice', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${t}` },
+        body: form,
+      })
+      if (!uploadRes.ok) { console.error('voice upload failed', uploadRes.status); return }
+      const { url } = await uploadRes.json()
+      if (!url) return
+      await fetch('/api/stream-messages?action=send-message', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${t}` },
+        body: JSON.stringify({ channelId, text: '', attachments: [{ type: 'voice', asset_url: url, duration }] }),
+      })
+      const msgs = await fetch(`/api/stream-messages?action=get-messages&channelId=${encodeURIComponent(channelId)}`, {
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${t}` },
+      }).then(r => r.json())
+      if (activeChannelRef.current === channelId) setMessages(msgs.messages || [])
+    } catch (e) { console.error('voice upload error', e) }
+  }, [token, getToken])
+
   const startRecording = useCallback(async () => {
+    if (mediaRecorderRef.current) return
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      const channelId = resolvedChannelId
       const mr = new MediaRecorder(stream)
       mediaRecorderRef.current = mr
       audioChunksRef.current = []
       mr.ondataavailable = (e) => { if (e.data.size > 0) audioChunksRef.current.push(e.data) }
-      mr.start(100)
+      mr.onerror = (e) => { console.error('recorder error', e); releaseRecorder(); mediaRecorderRef.current = null; setIsRecording(false); setRecordingSeconds(0) }
+      // All post-stop work lives here so the final chunk is guaranteed flushed
+      // before we build the blob (no setTimeout race).
+      mr.onstop = () => {
+        const duration = Math.max(1, Math.round((Date.now() - recStartedAtRef.current) / 1000))
+        const blob = new Blob(audioChunksRef.current, { type: 'audio/webm' })
+        audioChunksRef.current = []
+        releaseRecorder()
+        mediaRecorderRef.current = null
+        if (blob.size > 0 && channelId) void uploadVoice(blob, duration, channelId)
+      }
+      recStartedAtRef.current = Date.now()
+      mr.start()
       setIsRecording(true)
       recSecondsRef.current = 0
       setRecordingSeconds(0)
@@ -11809,43 +11861,45 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
         setRecordingSeconds(s => s + 1)
       }, 1000)
     } catch (e) { console.error('mic error', e) }
-  }, [])
+  }, [resolvedChannelId, releaseRecorder, uploadVoice])
 
-  const stopRecording = useCallback(async () => {
-    if (!mediaRecorderRef.current || !resolvedChannelId) return
+  const stopRecording = useCallback(() => {
     const mr = mediaRecorderRef.current
-    const duration = recSecondsRef.current
-    mr.stop()
-    mr.stream.getTracks().forEach(t => t.stop())
-    if (recordingTimerRef.current) clearInterval(recordingTimerRef.current)
     setIsRecording(false)
     setRecordingSeconds(0)
-    setTimeout(async () => {
-      try {
-        const blob = new Blob(audioChunksRef.current, { type: 'audio/webm' })
-        const form = new FormData()
-        form.append('audio', blob, 'voice.webm')
-        const t = token || await getToken() || ''
-        const uploadRes = await fetch('/api/stream-messages?action=upload-voice', {
-          method: 'POST',
-          headers: { Authorization: `Bearer ${t}` },
-          body: form,
-        })
-        const { url } = await uploadRes.json()
-        if (url && resolvedChannelId) {
-          await fetch('/api/stream-messages?action=send-message', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${t}` },
-            body: JSON.stringify({ channelId: resolvedChannelId, text: '', attachments: [{ type: 'voice', asset_url: url, duration }] }),
-          })
-          const msgs = await fetch(`/api/stream-messages?action=get-messages&channelId=${encodeURIComponent(resolvedChannelId)}`, {
-            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${t}` },
-          }).then(r => r.json())
-          setMessages(msgs.messages || [])
-        }
-      } catch (e) { console.error('voice upload error', e) }
-    }, 300)
-  }, [resolvedChannelId, token, getToken])
+    if (recordingTimerRef.current) { clearInterval(recordingTimerRef.current); recordingTimerRef.current = null }
+    if (!mr) return
+    if (mr.state !== 'inactive') mr.stop()  // onstop handles blob + track release + upload
+    else { releaseRecorder(); mediaRecorderRef.current = null }
+  }, [releaseRecorder])
+
+  // Singleton <audio> — playing one voice note stops any other.
+  const toggleVoicePlayback = useCallback((msgId: string, url?: string) => {
+    if (!url) return
+    const cur = voiceAudioRef.current
+    if (cur && voicePlayingId === msgId) {
+      cur.pause()
+      voiceAudioRef.current = null
+      setVoicePlayingId(null)
+      return
+    }
+    if (cur) { try { cur.pause() } catch {} voiceAudioRef.current = null }
+    const audio = new Audio(url)
+    voiceAudioRef.current = audio
+    audio.onended = () => { if (voiceAudioRef.current === audio) voiceAudioRef.current = null; setVoicePlayingId(null) }
+    audio.onerror = () => { if (voiceAudioRef.current === audio) voiceAudioRef.current = null; setVoicePlayingId(null) }
+    setVoicePlayingId(msgId)
+    audio.play().catch(e => { console.error('voice playback error', e); setVoicePlayingId(null) })
+  }, [voicePlayingId])
+
+  // Stop any live recorder + release the mic on unmount (privacy: kills iOS red dot).
+  useEffect(() => () => {
+    const mr = mediaRecorderRef.current
+    if (mr && mr.state !== 'inactive') { try { mr.stop() } catch {} }
+    releaseRecorder()
+    mediaRecorderRef.current = null
+    if (voiceAudioRef.current) { try { voiceAudioRef.current.pause() } catch {} voiceAudioRef.current = null }
+  }, [releaseRecorder])
 
   // ── Derived state ──
   const displayConvos = React.useMemo(() => {
@@ -13102,8 +13156,12 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
                     >
                       {voiceAtt ? (
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: isOwn ? 'rgba(201,168,76,0.2)' : (isDark ? 'rgba(255,255,255,0.08)' : '#EDEBE2'), borderRadius: 20, padding: '8px 12px', maxWidth: 220 }}>
-                          <button style={{ width: 26, height: 26, borderRadius: '50%', background: GLD, border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                            <span style={{ fontSize: 10, color: '#000' }}>▶</span>
+                          <button
+                            onClick={() => toggleVoicePlayback(msg.id, voiceAtt.asset_url)}
+                            aria-label={voicePlayingId === msg.id ? 'Pause voice message' : 'Play voice message'}
+                            style={{ width: 26, height: 26, borderRadius: '50%', background: GLD, border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
+                          >
+                            <span style={{ fontSize: 10, color: '#000' }}>{voicePlayingId === msg.id ? '❚❚' : '▶'}</span>
                           </button>
                           <div style={{ display: 'flex', gap: 2, alignItems: 'flex-end', height: 22 }}>
                             {waveformBars(msg.id).map((h, i) => (
