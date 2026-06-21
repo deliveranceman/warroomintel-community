@@ -3,6 +3,7 @@ export type SpiritMatch = {
   name: string
   matched_via: 'name' | 'aka'
   matched_token: string
+  matchStrength: number   // higher = stronger
 }
 
 export type SpiritDossier = {

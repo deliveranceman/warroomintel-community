@@ -187,12 +187,17 @@ export async function hydrateDossiers(
  * book title, so SOL never surfaces source attribution to the user. The
  * operator-facing test endpoint (/admin/intel/sol-test) leaves this false
  * to keep full attribution visible for debugging.
+ *
+ * opts.additionalMatchCount (default 0) — when the caller capped the number
+ * of hydrated dossiers, pass the overflow count here. A tail note is
+ * appended inside the WRI ARCHIVE block telling SOL more matches exist.
  */
 export function formatDossiersForContext(
   dossiers: SpiritDossier[],
-  opts: { anonymize?: boolean } = {}
+  opts: { anonymize?: boolean; additionalMatchCount?: number } = {}
 ): string {
   const anonymize = opts.anonymize === true
+  const additional = opts.additionalMatchCount ?? 0
   if (dossiers.length === 0) return ''
 
   const blocks: string[] = ['=== WRI ARCHIVE ===']
@@ -280,6 +285,13 @@ export function formatDossiersForContext(
     }
 
     blocks.push(lines.join('\n'))
+  }
+
+  if (additional > 0) {
+    blocks.push(
+      `\n[Note: ${additional} additional Archive ${additional === 1 ? 'entry matches' : 'entries match'} this query. ` +
+      `Operator can query Intel Database directly for the full list.]`
+    )
   }
 
   blocks.push('\n=== END WRI ARCHIVE ===')

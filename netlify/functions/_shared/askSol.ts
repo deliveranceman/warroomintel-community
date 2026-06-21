@@ -102,16 +102,37 @@ export async function runAskSol(client: any, job: any): Promise<void> {
     // fan-out tables. Closes the gap where Ask SOL couldn't see
     // operator-curated spirits like Beltar/Zelda/Legion (admin_doc
     // 661f5fd2). Anonymized formatter — no source titles leak.
+    const ARCHIVE_CAP = 5
     let archiveBlock = ''
+    let archiveMatchIds: string[] = []
+    let archiveMatchCount = 0
+    let archiveCapped = false
+
     if (ragEnabled) {
       try {
-        const matches = await findSpiritsInText(client, query)
-        if (matches.length > 0) {
-          const dossiers = await hydrateDossiers(
-            client,
-            matches.map((m) => m.id)
-          )
-          archiveBlock = formatDossiersForContext(dossiers, { anonymize: true })
+        const allMatches = await findSpiritsInText(client, query)
+        archiveMatchCount = allMatches.length
+
+        if (allMatches.length > 0) {
+          // Sort by matchStrength desc, then by name asc for deterministic
+          // tie-breaking. Cap at ARCHIVE_CAP.
+          const sorted = [...allMatches].sort((a, b) => {
+            if (b.matchStrength !== a.matchStrength) {
+              return b.matchStrength - a.matchStrength
+            }
+            return a.name.localeCompare(b.name)
+          })
+
+          const capped = sorted.slice(0, ARCHIVE_CAP)
+          const overflow = Math.max(0, sorted.length - ARCHIVE_CAP)
+          archiveCapped = overflow > 0
+          archiveMatchIds = capped.map((m) => m.id)
+
+          const dossiers = await hydrateDossiers(client, archiveMatchIds)
+          archiveBlock = formatDossiersForContext(dossiers, {
+            anonymize: true,
+            additionalMatchCount: overflow,
+          })
         }
       } catch (err) {
         console.error('[askSol] hybrid retrieval failed:', err)
@@ -197,6 +218,12 @@ export async function runAskSol(client: any, job: any): Promise<void> {
       response,
       sources:   [],
       queryEcho: query,
+      hybrid_retrieval: {
+        match_count: archiveMatchCount,
+        match_ids:   archiveMatchIds,
+        capped:      archiveCapped,
+        cap_limit:   ARCHIVE_CAP,
+      },
     }
     if (escalated) result_json.escalated = true
 

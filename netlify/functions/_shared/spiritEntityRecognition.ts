@@ -9,6 +9,14 @@ function buildWordBoundaryPattern(token: string): RegExp {
   return new RegExp(`\\b${escapeRegex(token)}\\b`, 'i')
 }
 
+function computeMatchStrength(
+  matched_via: 'name' | 'aka',
+  matched_token: string
+): number {
+  if (matched_via === 'name') return 100
+  return 50 + Math.min(matched_token.length, 20)
+}
+
 /**
  * Find all spirits whose name or aka tokens appear as whole-word matches
  * in the given text. Uses JS regex word-boundary (\b), not substring,
@@ -45,6 +53,7 @@ export async function findSpiritsInText(
         name: spirit.name,
         matched_via: 'name',
         matched_token: spirit.name,
+        matchStrength: computeMatchStrength('name', spirit.name),
       })
       continue
     }
@@ -64,6 +73,7 @@ export async function findSpiritsInText(
             name: spirit.name,
             matched_via: 'aka',
             matched_token: token,
+            matchStrength: computeMatchStrength('aka', token),
           })
           break  // only one match per spirit
         }
