@@ -1,0 +1,37 @@
+export type SpiritMatch = {
+  id: string
+  name: string
+  matched_via: 'name' | 'aka'
+  matched_token: string
+}
+
+export type SpiritDossier = {
+  id: string
+  name: string
+  slug: string
+  aka: string[]
+  equivalents: string | null
+  description: string
+  is_stub: boolean
+  gateways: Array<{
+    gateway: string
+    notes: string | null
+    source_title: string | null
+    isAdversarial: boolean | null
+  }>
+  scriptures: Array<{
+    reference: string
+    kind: string
+    textNote: string | null
+  }>
+  hierarchy: {
+    parents:  Array<{ relation: string, other_name: string }>
+    children: Array<{ relation: string, other_name: string }>
+  }
+  companions: Array<{ other_name: string, kind: string | null }>
+  regions: Array<{
+    region_key: string
+    manifestation_type: string | null
+    strength: number | null
+  }>
+}
