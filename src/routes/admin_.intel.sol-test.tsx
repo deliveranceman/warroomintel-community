@@ -49,6 +49,9 @@ function SolHybridTestPage() {
   const [error, setError] = useState<string | null>(null)
   const [expanded, setExpanded] = useState<Record<string, boolean>>({})
   const [copied, setCopied] = useState(false)
+  const [backfillRunning, setBackfillRunning] = useState(false)
+  const [backfillResult, setBackfillResult] = useState<any | null>(null)
+  const [backfillError, setBackfillError]   = useState<string | null>(null)
 
   const tier = (user?.publicMetadata as any)?.tier as string | undefined
   const role = (user?.publicMetadata as any)?.role as string | undefined
@@ -74,6 +77,30 @@ function SolHybridTestPage() {
       setError(String(err?.message ?? err))
     } finally {
       setRunning(false)
+    }
+  }
+
+  async function runBackfill() {
+    setBackfillRunning(true)
+    setBackfillError(null)
+    setBackfillResult(null)
+    try {
+      const token = await getToken()
+      const resp = await fetch('/api/admin-backfill-spirit-embeddings', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ onlyMissing: true, batchSize: 50, maxBatches: 20 }),
+      })
+      if (!resp.ok) throw new Error(`Status ${resp.status}`)
+      const data = await resp.json()
+      setBackfillResult(data)
+    } catch (err: any) {
+      setBackfillError(String(err?.message ?? err))
+    } finally {
+      setBackfillRunning(false)
     }
   }
 
@@ -154,6 +181,93 @@ function SolHybridTestPage() {
             Paste a question, see matches + dossiers + the context block SOL
             would receive.
           </p>
+        </div>
+
+        {/* Embedding backfill */}
+        <div style={{
+          marginBottom: 32,
+          padding: 16,
+          background: CARD_BG,
+          border: `1px solid ${BORDER}`,
+          borderRadius: 6,
+        }}>
+          <div style={{
+            fontFamily: 'Cinzel, serif',
+            fontSize: 12,
+            fontWeight: 600,
+            color: GOLD_DEEP,
+            letterSpacing: '0.15em',
+            marginBottom: 12,
+          }}>
+            🧬 EMBEDDING BACKFILL
+          </div>
+          <p style={{
+            fontFamily: '"Crimson Pro", serif',
+            fontSize: 13,
+            color: MUTED,
+            margin: '0 0 12px 0',
+            lineHeight: 1.5,
+          }}>
+            Embed all spirits that lack a vector embedding. One OpenAI call
+            per batch of 50. Idempotent — only embeds rows where{' '}
+            <code>embedding IS NULL</code>. Safe to run repeatedly.
+          </p>
+          <button
+            onClick={runBackfill}
+            disabled={backfillRunning}
+            style={{
+              padding: '10px 16px',
+              fontFamily: 'Cinzel, serif',
+              fontSize: 12,
+              letterSpacing: '0.12em',
+              background: backfillRunning ? MUTED : GOLD_DEEP,
+              color: '#FFFFFF',
+              border: 'none',
+              borderRadius: 4,
+              cursor: backfillRunning ? 'wait' : 'pointer',
+              textTransform: 'uppercase',
+            }}
+          >
+            {backfillRunning ? 'EMBEDDING...' : 'RUN BACKFILL'}
+          </button>
+
+          {backfillError && (
+            <div style={{
+              marginTop: 12,
+              padding: 8,
+              background: '#FEE2E2',
+              border: '1px solid #FCA5A5',
+              borderRadius: 4,
+              fontFamily: '"Crimson Pro", serif',
+              fontSize: 13,
+              color: '#991B1B',
+            }}>
+              Backfill failed: {backfillError}
+            </div>
+          )}
+
+          {backfillResult && (
+            <div style={{
+              marginTop: 12,
+              padding: 12,
+              background: PAGE_BG,
+              border: `1px solid ${BORDER}`,
+              borderRadius: 4,
+              fontFamily: 'ui-monospace, Menlo, monospace',
+              fontSize: 12,
+              color: TEXT,
+              lineHeight: 1.5,
+            }}>
+              <div>✓ processed: <strong>{backfillResult.processed}</strong> spirits</div>
+              <div>batches: {backfillResult.batches}</div>
+              <div>duration: {backfillResult.durationMs} ms</div>
+              {Array.isArray(backfillResult.errors) && backfillResult.errors.length > 0 && (
+                <div style={{ marginTop: 8, color: '#991B1B' }}>
+                  errors: {backfillResult.errors.length} — see console
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Question input */}
