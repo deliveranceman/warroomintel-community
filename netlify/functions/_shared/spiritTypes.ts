@@ -34,4 +34,15 @@ export type SpiritDossier = {
     manifestation_type: string | null
     strength: number | null
   }>
+  conditions: Array<{
+    condition_key: string
+    relationship: string | null
+    notes: string | null
+  }>
+  arsenalLeads: Array<{
+    lead_type: string
+    content: string
+    confidence: number | null
+    notes: string | null
+  }>
 }

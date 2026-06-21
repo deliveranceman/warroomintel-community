@@ -22,6 +22,8 @@ export async function hydrateDossiers(
     hierarchyRes,
     companionsRes,
     regionsRes,
+    conditionsRes,
+    arsenalLeadsRes,
   ] = await Promise.all([
     supabase
       .from('spirits')
@@ -75,6 +77,16 @@ export async function hydrateDossiers(
       .from('spirit_regions')
       .select('spirit_id, region_key, manifestation_type, correlation_strength')
       .in('spirit_id', spiritIds),
+
+    supabase
+      .from('spirit_conditions')
+      .select('spirit_id, condition_key, relationship, notes')
+      .in('spirit_id', spiritIds),
+
+    supabase
+      .from('arsenal_leads')
+      .select('spirit_id, lead_type, content, confidence, notes')
+      .in('spirit_id', spiritIds),
   ])
 
   // Defensive: any query failing throws, but partial data should still hydrate
@@ -86,6 +98,8 @@ export async function hydrateDossiers(
   const [parentRows, childRows] = hierarchyRes  // tuple from Promise.all
   const companionsRows = companionsRes.data ?? []
   const regionsRows = regionsRes.data ?? []
+  const conditionsRows = conditionsRes.data ?? []
+  const arsenalLeadsRows = arsenalLeadsRes.data ?? []
 
   return spiritsRows.map((s: any): SpiritDossier => {
     const description = s.description ?? ''
@@ -142,6 +156,21 @@ export async function hydrateDossiers(
           region_key: r.region_key,
           manifestation_type: r.manifestation_type,
           strength: r.correlation_strength,
+        })),
+      conditions: conditionsRows
+        .filter((c: any) => c.spirit_id === s.id)
+        .map((c: any) => ({
+          condition_key: c.condition_key,
+          relationship: c.relationship,
+          notes: c.notes,
+        })),
+      arsenalLeads: arsenalLeadsRows
+        .filter((a: any) => a.spirit_id === s.id)
+        .map((a: any) => ({
+          lead_type: a.lead_type,
+          content: a.content,
+          confidence: a.confidence,
+          notes: a.notes,
         })),
     }
   })
@@ -213,6 +242,27 @@ export function formatDossiersForContext(dossiers: SpiritDossier[]): string {
       lines.push(`\nBody Regions:`)
       for (const r of d.regions) {
         lines.push(`  - ${r.region_key}${r.manifestation_type ? ` — ${r.manifestation_type}` : ''}`)
+      }
+    }
+
+    if (d.conditions.length > 0) {
+      lines.push(`\nConditions / Manifestations (${d.conditions.length}):`)
+      for (const c of d.conditions) {
+        const rel = c.relationship ? `[${c.relationship}] ` : ''
+        const note = c.notes ? ` — ${c.notes.slice(0, 200)}` : ''
+        lines.push(`  - ${rel}${c.condition_key}${note}`)
+      }
+    }
+
+    if (d.arsenalLeads.length > 0) {
+      lines.push(`\nArsenal Leads (${d.arsenalLeads.length}):`)
+      for (const a of d.arsenalLeads.slice(0, 10)) {
+        const conf = a.confidence != null ? ` [conf:${a.confidence}]` : ''
+        const note = a.notes ? ` — ${a.notes.slice(0, 150)}` : ''
+        lines.push(`  - [${a.lead_type}]${conf} ${a.content.slice(0, 200)}${note}`)
+      }
+      if (d.arsenalLeads.length > 10) {
+        lines.push(`  ... and ${d.arsenalLeads.length - 10} more`)
       }
     }
 
