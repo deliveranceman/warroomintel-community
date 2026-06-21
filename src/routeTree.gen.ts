@@ -65,6 +65,7 @@ import { Route as AdminLoginRouteImport } from './routes/admin.login'
 import { Route as AdminChurchFathersLibraryRouteImport } from './routes/admin.church-fathers-library'
 import { Route as CommunitySpiritsSpiritIdRouteImport } from './routes/community_.spirits.$spiritId'
 import { Route as CommunityArsenalResourceIdRouteImport } from './routes/community_.arsenal.$resourceId'
+import { Route as AdminIntelSolTestRouteImport } from './routes/admin_.intel.sol-test'
 import { Route as AdminIntelScripturesRouteImport } from './routes/admin_.intel.scriptures'
 import { Route as AdminIntelGatewaysRouteImport } from './routes/admin_.intel.gateways'
 
@@ -353,6 +354,11 @@ const CommunityArsenalResourceIdRoute =
     path: '/community/arsenal/$resourceId',
     getParentRoute: () => rootRouteImport,
   } as any)
+const AdminIntelSolTestRoute = AdminIntelSolTestRouteImport.update({
+  id: '/admin_/intel/sol-test',
+  path: '/admin/intel/sol-test',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AdminIntelScripturesRoute = AdminIntelScripturesRouteImport.update({
   id: '/admin_/intel/scriptures',
   path: '/admin/intel/scriptures',
@@ -421,6 +427,7 @@ export interface FileRoutesByFullPath {
   '/admin/': typeof AdminIndexRoute
   '/admin/intel/gateways': typeof AdminIntelGatewaysRoute
   '/admin/intel/scriptures': typeof AdminIntelScripturesRoute
+  '/admin/intel/sol-test': typeof AdminIntelSolTestRoute
   '/community/arsenal/$resourceId': typeof CommunityArsenalResourceIdRoute
   '/community/spirits/$spiritId': typeof CommunitySpiritsSpiritIdRoute
 }
@@ -480,6 +487,7 @@ export interface FileRoutesByTo {
   '/admin': typeof AdminIndexRoute
   '/admin/intel/gateways': typeof AdminIntelGatewaysRoute
   '/admin/intel/scriptures': typeof AdminIntelScripturesRoute
+  '/admin/intel/sol-test': typeof AdminIntelSolTestRoute
   '/community/arsenal/$resourceId': typeof CommunityArsenalResourceIdRoute
   '/community/spirits/$spiritId': typeof CommunitySpiritsSpiritIdRoute
 }
@@ -541,6 +549,7 @@ export interface FileRoutesById {
   '/admin/': typeof AdminIndexRoute
   '/admin_/intel/gateways': typeof AdminIntelGatewaysRoute
   '/admin_/intel/scriptures': typeof AdminIntelScripturesRoute
+  '/admin_/intel/sol-test': typeof AdminIntelSolTestRoute
   '/community_/arsenal/$resourceId': typeof CommunityArsenalResourceIdRoute
   '/community_/spirits/$spiritId': typeof CommunitySpiritsSpiritIdRoute
 }
@@ -603,6 +612,7 @@ export interface FileRouteTypes {
     | '/admin/'
     | '/admin/intel/gateways'
     | '/admin/intel/scriptures'
+    | '/admin/intel/sol-test'
     | '/community/arsenal/$resourceId'
     | '/community/spirits/$spiritId'
   fileRoutesByTo: FileRoutesByTo
@@ -662,6 +672,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/admin/intel/gateways'
     | '/admin/intel/scriptures'
+    | '/admin/intel/sol-test'
     | '/community/arsenal/$resourceId'
     | '/community/spirits/$spiritId'
   id:
@@ -722,6 +733,7 @@ export interface FileRouteTypes {
     | '/admin/'
     | '/admin_/intel/gateways'
     | '/admin_/intel/scriptures'
+    | '/admin_/intel/sol-test'
     | '/community_/arsenal/$resourceId'
     | '/community_/spirits/$spiritId'
   fileRoutesById: FileRoutesById
@@ -780,6 +792,7 @@ export interface RootRouteChildren {
   ProductsProductIdRoute: typeof ProductsProductIdRoute
   AdminIntelGatewaysRoute: typeof AdminIntelGatewaysRoute
   AdminIntelScripturesRoute: typeof AdminIntelScripturesRoute
+  AdminIntelSolTestRoute: typeof AdminIntelSolTestRoute
   CommunityArsenalResourceIdRoute: typeof CommunityArsenalResourceIdRoute
   CommunitySpiritsSpiritIdRoute: typeof CommunitySpiritsSpiritIdRoute
 }
@@ -1178,6 +1191,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CommunityArsenalResourceIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin_/intel/sol-test': {
+      id: '/admin_/intel/sol-test'
+      path: '/admin/intel/sol-test'
+      fullPath: '/admin/intel/sol-test'
+      preLoaderRoute: typeof AdminIntelSolTestRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/admin_/intel/scriptures': {
       id: '/admin_/intel/scriptures'
       path: '/admin/intel/scriptures'
@@ -1263,6 +1283,7 @@ const rootRouteChildren: RootRouteChildren = {
   ProductsProductIdRoute: ProductsProductIdRoute,
   AdminIntelGatewaysRoute: AdminIntelGatewaysRoute,
   AdminIntelScripturesRoute: AdminIntelScripturesRoute,
+  AdminIntelSolTestRoute: AdminIntelSolTestRoute,
   CommunityArsenalResourceIdRoute: CommunityArsenalResourceIdRoute,
   CommunitySpiritsSpiritIdRoute: CommunitySpiritsSpiritIdRoute,
 }
