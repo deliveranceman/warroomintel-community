@@ -21,7 +21,17 @@ export default async function handler(req: Request) {
     })
   }
 
-  let body: { id?: unknown; subject_name?: unknown; notes?: unknown; status?: unknown }
+  let body: {
+    id?: unknown
+    subject_name?: unknown
+    notes?: unknown
+    status?: unknown
+    curse_depth_default?: unknown
+    extended_depth_flag?: unknown
+    extended_depth_reason?: unknown
+    extended_depth_estimate?: unknown
+    discernment_notes?: unknown
+  }
   try {
     body = await req.json()
   } catch {
@@ -64,6 +74,59 @@ export default async function handler(req: Request) {
 
   if (body.notes !== undefined) {
     patch.notes = typeof body.notes === 'string' ? body.notes.trim() || null : null
+  }
+
+  if (body.curse_depth_default !== undefined) {
+    const v = Number(body.curse_depth_default)
+    if (!Number.isInteger(v) || v < 4) {
+      return new Response(
+        JSON.stringify({ error: 'validation', message: 'curse_depth_default must be an integer >= 4' }),
+        { status: 400, headers: CORS }
+      )
+    }
+    patch.curse_depth_default = v
+  }
+
+  if (body.extended_depth_flag !== undefined) {
+    if (typeof body.extended_depth_flag !== 'boolean') {
+      return new Response(
+        JSON.stringify({ error: 'validation', message: 'extended_depth_flag must be boolean' }),
+        { status: 400, headers: CORS }
+      )
+    }
+    patch.extended_depth_flag = body.extended_depth_flag
+  }
+
+  const VALID_REASONS = ['illegitimacy', 'blood_ritual', 'sex_ritual', 'molestation', 'other']
+  if (body.extended_depth_reason !== undefined) {
+    if (body.extended_depth_reason !== null && !VALID_REASONS.includes(body.extended_depth_reason as string)) {
+      return new Response(
+        JSON.stringify({ error: 'validation', message: 'extended_depth_reason must be one of: illegitimacy, blood_ritual, sex_ritual, molestation, other, or null' }),
+        { status: 400, headers: CORS }
+      )
+    }
+    patch.extended_depth_reason = body.extended_depth_reason ?? null
+  }
+
+  if (body.extended_depth_estimate !== undefined) {
+    if (body.extended_depth_estimate === null) {
+      patch.extended_depth_estimate = null
+    } else {
+      const v = Number(body.extended_depth_estimate)
+      if (!Number.isInteger(v) || v < 4) {
+        return new Response(
+          JSON.stringify({ error: 'validation', message: 'extended_depth_estimate must be an integer >= 4 or null' }),
+          { status: 400, headers: CORS }
+        )
+      }
+      patch.extended_depth_estimate = v
+    }
+  }
+
+  if (body.discernment_notes !== undefined) {
+    patch.discernment_notes = typeof body.discernment_notes === 'string'
+      ? body.discernment_notes.trim() || null
+      : null
   }
 
   if (Object.keys(patch).length === 0) {
