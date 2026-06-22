@@ -110,7 +110,11 @@ export async function runAskSol(client: any, job: any): Promise<void> {
 
     if (ragEnabled) {
       try {
-        const allMatches = await findSpiritsInText(client, query)
+        const allMatches = await findSpiritsInText(client, query, {
+            openaiKey: process.env.OPENAI_API_KEY,
+            semanticThreshold: 0.5,
+            semanticLimit: 10,
+          })
         archiveMatchCount = allMatches.length
 
         if (allMatches.length > 0) {

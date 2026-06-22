@@ -45,7 +45,11 @@ export default async function handler(req: Request) {
   const supabase = createClient(env.url, env.serviceRoleKey)
 
   try {
-    const matches = await findSpiritsInText(supabase, question)
+    const matches = await findSpiritsInText(supabase, question, {
+      openaiKey: process.env.OPENAI_API_KEY,
+      semanticThreshold: 0.5,
+      semanticLimit: 10,
+    })
     const spiritIds = matches.map((m) => m.id)
     const dossiers = await hydrateDossiers(supabase, spiritIds)
     const contextBlock = formatDossiersForContext(dossiers)

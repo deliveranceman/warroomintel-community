@@ -1,9 +1,10 @@
 export type SpiritMatch = {
   id: string
   name: string
-  matched_via: 'name' | 'aka'
+  matched_via: 'name' | 'aka' | 'semantic'
   matched_token: string
-  matchStrength: number   // higher = stronger
+  matchStrength: number
+  similarity?: number   // present only on semantic matches
 }
 
 export type SpiritDossier = {
