@@ -32,8 +32,31 @@ export default async function handler(req: Request) {
     })
   }
 
+  // Resolve created_by Clerk IDs to display names via members table (one query, no N+1)
+  const rows       = profiles ?? []
+  const creatorIds = [...new Set(rows.map((p: any) => p.created_by as string))]
+  const memberMap  = new Map<string, { display_name: string | null; username: string | null }>()
+  if (creatorIds.length > 0) {
+    const { data: membersData } = await supabase
+      .from('members')
+      .select('clerk_id, display_name, username')
+      .in('clerk_id', creatorIds)
+    for (const m of (membersData ?? [])) {
+      memberMap.set(m.clerk_id, { display_name: m.display_name, username: m.username })
+    }
+  }
+
+  const annotated = rows.map((p: any) => {
+    const m = memberMap.get(p.created_by)
+    return {
+      ...p,
+      creator_name:     m?.display_name ?? m?.username ?? null,
+      creator_username: m?.username ?? null,
+    }
+  })
+
   return new Response(
-    JSON.stringify({ profiles: profiles ?? [], readOnly: true }),
+    JSON.stringify({ profiles: annotated, readOnly: true }),
     { status: 200, headers: CORS }
   )
 }

@@ -27,6 +27,8 @@ type AdminProfile = {
   notes: string | null
   created_at: string
   updated_at: string
+  creator_name: string | null
+  creator_username: string | null
 }
 
 function AdminBloodlinePage() {
@@ -297,7 +299,7 @@ function AdminBloodlinePage() {
                 marginBottom: 4,
               }}>
                 {[
-                  'SUBJECT', 'CREATOR ID', 'STATUS', 'CREATED',
+                  'SUBJECT', 'CREATOR', 'STATUS', 'CREATED',
                   ...(isCommandant ? ['ACTION'] : []),
                 ].map(h => (
                   <div key={h} style={{
@@ -343,11 +345,21 @@ function AdminBloodlinePage() {
                         </div>
                       )}
                     </div>
-                    <div style={{
-                      fontFamily: 'monospace', fontSize: 11, color: MUTED,
-                      overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                    }}>
-                      {p.created_by.slice(0, 16)}…
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
+                      <div style={{
+                        fontFamily: crimson, fontSize: 14, color: TEXT,
+                        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                      }}>
+                        {p.creator_name ?? `${p.created_by.slice(0, 16)}…`}
+                      </div>
+                      {p.creator_username && (
+                        <div style={{
+                          fontFamily: crimson, fontSize: 12, color: MUTED,
+                          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                        }}>
+                          @{p.creator_username}
+                        </div>
+                      )}
                     </div>
                     <div>
                       <span style={{

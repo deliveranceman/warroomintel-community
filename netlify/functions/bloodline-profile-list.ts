@@ -66,10 +66,31 @@ export default async function handler(req: Request) {
     sharedProfiles = shared ?? []
   }
 
-  const ownedWithFlag = (owned ?? []).map((p: any) => ({ ...p, isMine: true }))
+  const ownedWithFlag  = (owned ?? []).map((p: any) => ({ ...p, isMine: true }))
   const sharedWithFlag = sharedProfiles.map((p: any) => ({ ...p, isMine: false }))
+  const allProfiles    = [...ownedWithFlag, ...sharedWithFlag]
 
-  const profiles = [...ownedWithFlag, ...sharedWithFlag]
+  // Resolve created_by Clerk IDs to display names via members table (one query, no N+1)
+  const creatorIds = [...new Set(allProfiles.map((p: any) => p.created_by as string))]
+  const memberMap  = new Map<string, { display_name: string | null; username: string | null }>()
+  if (creatorIds.length > 0) {
+    const { data: membersData } = await supabase
+      .from('members')
+      .select('clerk_id, display_name, username')
+      .in('clerk_id', creatorIds)
+    for (const m of (membersData ?? [])) {
+      memberMap.set(m.clerk_id, { display_name: m.display_name, username: m.username })
+    }
+  }
+
+  const profiles = allProfiles.map((p: any) => {
+    const m = memberMap.get(p.created_by)
+    return {
+      ...p,
+      creator_name:     m?.display_name ?? m?.username ?? null,
+      creator_username: m?.username ?? null,
+    }
+  })
 
   return new Response(JSON.stringify({ profiles }), { status: 200, headers: CORS })
 }
