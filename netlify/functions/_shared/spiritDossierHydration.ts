@@ -192,6 +192,15 @@ export async function hydrateDossiers(
  * of hydrated dossiers, pass the overflow count here. A tail note is
  * appended inside the WRI ARCHIVE block telling SOL more matches exist.
  */
+// Detects text_note values that are reference-list dumps (e.g., "Gen 3:15; Rev 12:9; ...")
+// rather than meaningful per-verse commentary. Heuristic: >=4 semicolons AND >=4 verse tokens.
+function isReferenceListNote(note: string): boolean {
+  const semicolons = (note.match(/;/g) || []).length
+  if (semicolons < 4) return false
+  const verseTokens = (note.match(/\b\w[\w\s]{0,20}\d+:\d+/g) || []).length
+  return verseTokens >= 4
+}
+
 export function formatDossiersForContext(
   dossiers: SpiritDossier[],
   opts: { anonymize?: boolean; additionalMatchCount?: number } = {}
@@ -231,7 +240,7 @@ export function formatDossiersForContext(
     if (d.scriptures.length > 0) {
       lines.push(`\nScriptures (${d.scriptures.length}):`)
       for (const sc of d.scriptures) {
-        const note = sc.textNote ? ` — ${sc.textNote.slice(0, 200)}` : ''
+        const note = sc.textNote ? ` — ${isReferenceListNote(sc.textNote) ? '(see Archive scripture set for full context)' : sc.textNote.slice(0, 200)}` : ''
         lines.push(`  - ${sc.reference} (${sc.kind})${note}`)
       }
     }
