@@ -1,11 +1,8 @@
 import { createFileRoute } from '@tanstack/react-router'
+import { createClient } from '@supabase/supabase-js'
 import { requireAuth } from '../../netlify/functions/_shared/access'
 
-const { token: airtableToken } = JSON.parse(process.env.AIRTABLE || '{}')
-
-const AIRTABLE_TOKEN = airtableToken
-const BASE_ID = 'appLPhhHPP5rKvlKT'
-const ASSESSMENTS_TABLE = 'tblohf2u576ZXiE4y'
+const { url: supabaseUrl, serviceRoleKey: supabaseServiceKey } = JSON.parse(process.env.SUPABASE || '{}')
 
 function diagnoseFlaggedSpirits(data: Record<string, any>): string {
   const lines: string[] = []
@@ -293,100 +290,130 @@ export const Route = createFileRoute('/api/submit-assessment')({
       POST: async ({ request }) => {
         const auth = await requireAuth(request)
         if (auth instanceof Response) return auth
-        if (!AIRTABLE_TOKEN) return Response.json({ error: 'Missing AIRTABLE_TOKEN' }, { status: 500 })
 
         try {
           const data = await request.json()
-          const flaggedSpirits = diagnoseFlaggedSpirits(data)
+          const sb = createClient(supabaseUrl!, supabaseServiceKey!)
+          const flaggedSpiritsText = diagnoseFlaggedSpirits(data)
 
-          const str = (val: any) => val ? String(val).trim() : ''
-          const arr = (val: any) => Array.isArray(val) ? val.filter((v: string) => v !== 'None').join(', ') : ''
-          const bool = (val: any) => val === 'Yes' || val === true
-
-          const CHECKBOX_FIELDS = ['A - Childhood Home Happy', 'A - Planned Child']
-
-          const fields: Record<string, any> = {
-            'First Name':                   str(data['First Name']),
-            'Email':                        str(data['Email']),
-            'Age Range':                    str(data['Age Range']),
-            'How Long Saved':               str(data['How Long Saved']),
-            'Assurance of Salvation':       str(data['Assurance of Salvation']),
-            'Satisfied With Walk':          str(data['Satisfied With Walk']),
-            'A - Father Relationship':      str(data['A - Father Relationship']),
-            'A - Mother Relationship':      str(data['A - Mother Relationship']),
-            'A - Adopted':                  str(data['A - Adopted']),
-            'A - Parents Divorced':         str(data['A - Parents Divorced']),
-            'A - Lonely As Teenager':       str(data['A - Lonely As Teenager']),
-            'A - Self Image':               arr(data['A - Self Image']),
-            'A - Rejection Notes':          str(data['A - Rejection Notes']),
-            'B - Anxiety Depression':       arr(data['B - Anxiety Depression']),
-            'B - Suicide History':          str(data['B - Suicide History']),
-            'B - Fears':                    arr(data['B - Fears']),
-            'B - Mental Notes':             str(data['B - Mental Notes']),
-            'B - Occult Mind Notes':        arr(data['B - Occult Mind States']),
-            'C - Devil Pact':               str(data['C - Devil Pact']),
-            'C - Occult Activities':        arr(data['C - Occult Activities']),
-            'C - Cult Involvement':         arr(data['C - Cult Involvement']),
-            'C - Freemasonry':              str(data['C - Freemasonry']),
-            'C - Occult Objects':           str(data['C - Occult Objects']),
-            'C - Occult Notes':             str(data['C - Occult Notes']),
-            'D - Lust Struggles':           arr(data['D - Lust Struggles']),
-            'D - Pornography History':      str(data['D - Pornography History']),
-            'D - Abuse History':            str(data['D - Abuse History']),
-            'D - Sexual Notes':             str(data['D - Sexual Notes']),
-            'E - Addictions':               arr(data['E - Addictions']),
-            'E - Family Addiction History': str(data['E - Family Addiction History']),
-            'E - Addiction Notes':          str(data['E - Addiction Notes']),
-            'F - Country of Birth':         str(data['F - Country of Birth']),
-            'F - Counter Culture':          arr(data['F - Counter Culture']),
-            'G - Chronic Illness':          str(data['G - Chronic Illness']),
-            'G - Trauma History':           str(data['G - Trauma History']),
-            'G - Blood Transfusion':        str(data['G - Blood Transfusion']),
-            'Own Words':                    str(data['Own Words']),
-            'Anything Else':                str(data['Anything Else']),
-            'Prayer Life Description':      str(data['Prayer Life Description']),
-            'Flagged Spirits':              flaggedSpirits,
+          const str = (val: any): string | null => {
+            const s = val ? String(val).trim() : ''
+            return s || null
+          }
+          const arr = (val: any): string | null => {
+            if (!Array.isArray(val)) return null
+            const joined = val.filter((v: string) => v !== 'None' && v !== 'None of these').join(', ')
+            return joined || null
+          }
+          const boolVal = (val: any): boolean | null => {
+            if (val === 'Yes' || val === true) return true
+            if (val === 'No' || val === false) return false
+            return null
           }
 
-          // Clean — skip empty strings, handle checkboxes separately
-          const cleanFields: Record<string, any> = {}
-          Object.entries(fields).forEach(([k, v]) => {
-            if (CHECKBOX_FIELDS.includes(k)) return
-            if (v === null || v === undefined) return
-            if (typeof v === 'string' && v.trim() === '') return
-            cleanFields[k] = v
-          })
-          if (bool(data['A - Childhood Home Happy'])) cleanFields['A - Childhood Home Happy'] = true
-          if (bool(data['A - Planned Child'])) cleanFields['A - Planned Child'] = true
+          const { data: inserted, error: insertError } = await sb
+            .from('deliverance_assessments')
+            .insert({
+              created_by:               auth.userId,
+              submitted_at:             new Date().toISOString(),
+              // baseline
+              first_name:               str(data['First Name']),
+              email:                    str(data['Email']),
+              age_range:                str(data['Age Range']),
+              how_long_saved:           str(data['How Long Saved']),
+              church_background:        str(data['Church Background']),
+              conversion_experience:    str(data['Conversion Experience']),
+              prayer_life:              str(data['Prayer Life Description']),
+              assurance_of_salvation:   str(data['Assurance of Salvation']),
+              satisfied_with_walk:      str(data['Satisfied With Walk']),
+              // A — rejection
+              a_father_relationship:    str(data['A - Father Relationship']),
+              a_mother_relationship:    str(data['A - Mother Relationship']),
+              a_planned_child:          boolVal(data['A - Planned Child']),
+              a_adopted:                str(data['A - Adopted']),
+              a_parents_divorced:       str(data['A - Parents Divorced']),
+              a_childhood_home_happy:   boolVal(data['A - Childhood Home Happy']),
+              a_lonely_as_teenager:     str(data['A - Lonely As Teenager']),
+              a_self_image:             arr(data['A - Self Image']),
+              a_rejection_notes:        str(data['A - Rejection Notes']),
+              // B — mental
+              b_anxiety_depression:     arr(data['B - Anxiety Depression']),
+              b_mental_notes:           str(data['B - Mental Notes']),
+              b_occult_mind_notes:      arr(data['B - Occult Mind States']),
+              b_suicide_history:        str(data['B - Suicide History']),
+              b_fears:                  arr(data['B - Fears']),
+              b_dreams_sleep:           str(data['B - Dreams Sleep']),
+              // C — occult
+              c_devil_pact:             str(data['C - Devil Pact']),
+              c_occult_activities:      arr(data['C - Occult Activities']),
+              c_cult_involvement:       arr(data['C - Cult Involvement']),
+              c_freemasonry:            str(data['C - Freemasonry']),
+              c_occult_objects:         str(data['C - Occult Objects']),
+              c_occult_notes:           str(data['C - Occult Notes']),
+              c_curses:                 str(data['C - Curses']),
+              // D — sexual
+              d_lust_struggles:         arr(data['D - Lust Struggles']),
+              d_pornography_history:    str(data['D - Pornography History']),
+              d_abuse_history:          str(data['D - Abuse History']),
+              d_sexual_notes:           str(data['D - Sexual Notes']),
+              // E — addiction
+              e_addictions:             arr(data['E - Addictions']),
+              e_family_addiction_history: str(data['E - Family Addiction History']),
+              e_addiction_notes:        str(data['E - Addiction Notes']),
+              // F — heritage-lite
+              f_country_of_birth:       str(data['F - Country of Birth']),
+              f_counter_culture:        arr(data['F - Counter Culture']),
+              // G — physical/trauma
+              g_chronic_illness:        str(data['G - Chronic Illness']),
+              g_trauma_history:         str(data['G - Trauma History']),
+              g_blood_transfusion:      str(data['G - Blood Transfusion']),
+              // H — heritage/genealogy (previously dropped entirely)
+              h_heritage_background:    str(data['H - Heritage Background']),
+              h_family_religion:        arr(data['H - Family Religion']),
+              h_family_occult:          str(data['H - Family Occult']),
+              h_family_occult_notes:    str(data['H - Family Occult Notes']),
+              h_generational_patterns:  arr(data['H - Generational Patterns']),
+              h_family_covenants:       str(data['H - Family Covenants']),
+              h_family_covenants_notes: str(data['H - Family Covenants Notes']),
+              h_country_of_origin:      str(data['H - Country of Origin']),
+              h_ancestral_renunciation: str(data['H - Ancestral Renunciation']),
+              // I — inner healing (previously dropped entirely)
+              i_earliest_fear_memory:   str(data['I - Earliest Fear Memory']),
+              i_unresolved_trauma:      str(data['I - Unresolved Trauma']),
+              i_unresolved_trauma_notes: str(data['I - Unresolved Trauma Notes']),
+              i_emotional_age:          str(data['I - Emotional Age']),
+              i_emotional_age_notes:    str(data['I - Emotional Age Notes']),
+              i_dissociation:           arr(data['I - Dissociation']),
+              i_triggers_present:       str(data['I - Triggers Present']),
+              i_trigger_notes:          str(data['I - Trigger Notes']),
+              i_identity_struggles:     arr(data['I - Identity Struggles']),
+              i_jesus_met_me:           str(data['I - Jesus Met Me']),
+              i_unforgiveness:          str(data['I - Unforgiveness']),
+              i_unforgiveness_notes:    str(data['I - Unforgiveness Notes']),
+              i_inner_vows:             str(data['I - Inner Vows']),
+              i_inner_vows_notes:       str(data['I - Inner Vows Notes']),
+              // free text
+              own_words:                str(data['Own Words']),
+              anything_else:            str(data['Anything Else']),
+              // output — flagged spirits as single-element array (structured diagnostic block)
+              flagged_spirits:          flaggedSpiritsText ? [flaggedSpiritsText] : null,
+            })
+            .select('id')
+            .single()
 
-          const res = await fetch(`https://api.airtable.com/v0/${BASE_ID}/${ASSESSMENTS_TABLE}`, {
-            method: 'POST',
-            headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}`, 'Content-Type': 'application/json' },
-            body: JSON.stringify({ fields: cleanFields }),
-          })
-
-          if (!res.ok) {
-            const err = await res.text()
-            let parsed: any = {}
-            try { parsed = JSON.parse(err) } catch {}
-            return Response.json({
-              error: parsed?.error?.message || `Airtable ${res.status}`,
-              type: parsed?.error?.type,
-              raw: err,
-            }, { status: 502 })
+          if (insertError) {
+            console.error('[submit-assessment] insert error:', insertError.message)
+            return Response.json({ error: insertError.message }, { status: 500 })
           }
 
-          // Get the new record ID
-          const newRecord = await res.json()
-          const recordId = newRecord.id
+          const newId = inserted.id
 
-          // Generate AI content — summary, title, and draft response all in one call
+          // AI generation — same logic, writes back via Supabase update instead of Airtable PATCH
           try {
-            const ownWordsText = cleanFields['Own Words'] || ''
-            const flaggedSpiritsText = cleanFields['Flagged Spirits'] || ''
+            const ownWordsText = str(data['Own Words']) || ''
             const anthropicKey = process.env.ANTHROPIC_API_KEY || ''
 
-            if (anthropicKey && recordId) {
+            if (anthropicKey && newId) {
               const aiRes = await fetch('https://api.anthropic.com/v1/messages', {
                 method: 'POST',
                 headers: {
@@ -412,14 +439,14 @@ Generate ALL THREE sections separated exactly as shown:
 Write 2-3 short paragraphs about what this person is going through. Write like a pastor's handwritten notes — plain, warm, direct. No clinical phrases like "This individual presents with." Use natural language: "They are carrying...", "There is a pattern here of...", "This looks like..." — real minister voice. No bullet points. No headers. Leave out identifying details and explicit trauma/sexual specifics — name the spiritual root instead. End with one genuine sentence of hope.
 
 ===DRAFT RESPONSE===
-A draft letter the minister can edit before sending. Pastoral tone — like a letter from a real person who prayed over this. Warm opening, plain identification of what appears to be at work spiritually (mention the spirits/strongmen naturally in the text, not as a list), 2-3 Scripture references woven in naturally like a pastor would mention them in conversation, a clear next step, and a real closing. Under 300 words. Not formal. Not AI-sounding.` }],                }),
+A draft letter the minister can edit before sending. Pastoral tone — like a letter from a real person who prayed over this. Warm opening, plain identification of what appears to be at work spiritually (mention the spirits/strongmen naturally in the text, not as a list), 2-3 Scripture references woven in naturally like a pastor would mention them in conversation, a clear next step, and a real closing. Under 300 words. Not formal. Not AI-sounding.` }],
+                }),
               })
 
               if (aiRes.ok) {
                 const aiData = await aiRes.json()
                 const fullText = aiData.content?.[0]?.text || ''
 
-                // Parse the three sections
                 const titleMatch = fullText.match(/===TITLE===\s*([\s\S]*?)(?===SUMMARY===|$)/)
                 const summaryMatch = fullText.match(/===SUMMARY===\s*([\s\S]*?)(?===DRAFT RESPONSE===|$)/)
                 const responseMatch = fullText.match(/===DRAFT RESPONSE===\s*([\s\S]*?)$/)
@@ -428,18 +455,16 @@ A draft letter the minister can edit before sending. Pastoral tone — like a le
                 const aiSummary = summaryMatch?.[1]?.trim() || ''
                 const aiDraftResponse = responseMatch?.[1]?.trim() || ''
 
-                // Save all three fields to Airtable
                 const updateFields: Record<string, string> = {}
-                if (aiSummary) updateFields['AI Summary'] = aiSummary
-                if (aiTitle) updateFields['Published Title'] = aiTitle
-                if (aiDraftResponse) updateFields['Your Response'] = aiDraftResponse
+                if (aiSummary) updateFields['ai_summary'] = aiSummary
+                if (aiTitle) updateFields['published_title'] = aiTitle
+                if (aiDraftResponse) updateFields['war_strategy'] = aiDraftResponse
 
                 if (Object.keys(updateFields).length > 0) {
-                  await fetch(`https://api.airtable.com/v0/${BASE_ID}/${ASSESSMENTS_TABLE}/${recordId}`, {
-                    method: 'PATCH',
-                    headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}`, 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ fields: updateFields }),
-                  })
+                  await sb
+                    .from('deliverance_assessments')
+                    .update(updateFields)
+                    .eq('id', newId)
                 }
               }
             }

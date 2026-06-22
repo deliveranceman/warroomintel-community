@@ -1,36 +1,31 @@
 import { createFileRoute } from '@tanstack/react-router'
+import { createClient } from '@supabase/supabase-js'
 
-const { token: airtableToken } = JSON.parse(process.env.AIRTABLE || '{}')
-
-const AIRTABLE_TOKEN = airtableToken
-const BASE_ID = 'appLPhhHPP5rKvlKT'
-const ASSESSMENTS_TABLE = 'tblohf2u576ZXiE4y'
+const { url: supabaseUrl, serviceRoleKey: supabaseServiceKey } = JSON.parse(process.env.SUPABASE || '{}')
 
 export const Route = createFileRoute('/api/assessment-board')({
   server: {
     handlers: {
       GET: async () => {
-        if (!AIRTABLE_TOKEN) return Response.json({ error: 'Missing token' }, { status: 500 })
+        const sb = createClient(supabaseUrl!, supabaseServiceKey!)
         try {
-          const url = new URL(`https://api.airtable.com/v0/${BASE_ID}/${ASSESSMENTS_TABLE}`)
-          url.searchParams.set('filterByFormula', "{Status} = 'Published'")
-          url.searchParams.set('sort[0][field]', 'Submitted At')
-          url.searchParams.set('sort[0][direction]', 'desc')
-          url.searchParams.set('pageSize', '50')
+          const { data, error } = await sb
+            .from('deliverance_assessments')
+            .select('id, published_title, war_strategy, ai_summary, submitted_at')
+            .eq('status', 'published')
+            .order('submitted_at', { ascending: false })
+            .limit(50)
 
-          const res = await fetch(url.toString(), {
-            headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` },
-          })
-          const data = await res.json()
+          if (error) return Response.json({ error: error.message }, { status: 500 })
 
-          const posts = (data.records || [])
-            .filter((r: any) => r.fields['Published Title'] && r.fields['Your Response'])
+          const posts = (data || [])
+            .filter((r: any) => r.published_title && r.war_strategy)
             .map((r: any) => ({
               id: r.id,
-              title: r.fields['Published Title'],
-              response: r.fields['Your Response'],
-              aiSummary: r.fields['AI Summary'] || '',
-              submittedAt: r.fields['Submitted At'] || r.createdTime,
+              title: r.published_title,
+              response: r.war_strategy,
+              aiSummary: r.ai_summary || '',
+              submittedAt: r.submitted_at,
             }))
 
           return Response.json({ posts })
