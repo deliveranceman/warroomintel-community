@@ -32,22 +32,45 @@ export function buildEmbeddingSourceText(spirit: EmbedSpiritInput): string {
   return parts.join('\n')
 }
 
-async function callOpenAIEmbeddings(
+/**
+ * Generic OpenAI embedding call. Accepts a single string or an
+ * array. Returns one vector per input.
+ * Mirrors existing WRI fetch pattern (library-embed-backfill-background).
+ */
+export async function embedTexts(
   apiKey: string,
-  inputs: string[]
+  texts: string | string[]
 ): Promise<number[][]> {
-  const res = await fetch(EMBEDDINGS_URL, {
-    method:  'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
-    body:    JSON.stringify({ model: EMBED_MODEL, input: inputs }),
-    signal:  AbortSignal.timeout(30000),
-  })
-  if (!res.ok) {
-    const detail = await res.text().catch(() => '')
-    throw new Error(`OpenAI embeddings ${res.status}: ${detail.slice(0, 300)}`)
+  const input = Array.isArray(texts) ? texts : [texts]
+  if (input.length === 0) return []
+
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), 30_000)
+
+  try {
+    const resp = await fetch(EMBEDDINGS_URL, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: EMBED_MODEL,
+        input,
+      }),
+      signal: controller.signal,
+    })
+
+    if (!resp.ok) {
+      const errText = await resp.text().catch(() => '')
+      throw new Error(`OpenAI embeddings ${resp.status}: ${errText.slice(0, 200)}`)
+    }
+
+    const data = await resp.json()
+    return (data.data as Array<{ embedding: number[] }>).map((d) => d.embedding)
+  } finally {
+    clearTimeout(timeout)
   }
-  const data = await res.json()
-  return (data?.data ?? []).map((d: any) => d.embedding as number[])
 }
 
 /**
@@ -58,7 +81,7 @@ export async function embedSpirit(
   spirit: EmbedSpiritInput
 ): Promise<{ embedding: number[]; sourceText: string }> {
   const sourceText = buildEmbeddingSourceText(spirit)
-  const [embedding] = await callOpenAIEmbeddings(apiKey, [sourceText])
+  const [embedding] = await embedTexts(apiKey, [sourceText])
   return { embedding, sourceText }
 }
 
@@ -74,7 +97,7 @@ export async function embedSpiritsBatch(
   if (spirits.length === 0) return []
 
   const sourceTexts = spirits.map(buildEmbeddingSourceText)
-  const embeddings  = await callOpenAIEmbeddings(apiKey, sourceTexts)
+  const embeddings  = await embedTexts(apiKey, sourceTexts)
 
   return spirits.map((s, i) => ({
     id: s.id,

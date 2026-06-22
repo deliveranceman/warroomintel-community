@@ -3,6 +3,8 @@
 // Supabase `spirits` table. Behavior is byte-identical to the original inline
 // version that the live admin write path was verified against.
 
+import { reembedSpiritAfterWrite } from './reembedSpiritAfterWrite'
+
 const NAME_FIELD = '⚔ WAR ROOM COMMUNITY — MASTER DEMON DATABASE'
 
 // Single authoritative bridge: [camelCase key, Airtable field name, snake column].
@@ -212,6 +214,7 @@ async function updateSpiritBySlug(
   const { data, error } = await sb.from('spirits').update(cols).eq('slug', slug).select('*')
   if (error) return { record: null, error: error.message }
   if (!data || data.length === 0) return { record: null, error: 'Spirit not found' }
+  await reembedSpiritAfterWrite(sb, data[0].id, process.env.OPENAI_API_KEY)
   return { record: mapRow(data[0]), error: null }
 }
 
@@ -226,6 +229,7 @@ async function createSpirit(sb: any, inbound: Record<string, any>, explicitName?
   cols.legacy_airtable_id = null
   const { data, error } = await sb.from('spirits').insert(cols).select('*')
   if (error) return { record: null, error: error.message, conflict: false }
+  await reembedSpiritAfterWrite(sb, data[0].id, process.env.OPENAI_API_KEY)
   return { record: mapRow(data[0]), error: null, conflict: false }
 }
 

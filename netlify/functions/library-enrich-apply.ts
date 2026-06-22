@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 import { requireAuth } from './_shared/access'
 import { generateSlug, toColumns, createSpirit, findSpiritSlugByName, insertFieldSnapshots } from './_shared/spiritWrite'
+import { reembedSpiritAfterWrite } from './_shared/reembedSpiritAfterWrite'
 import { solCall } from './_shared/solClient'
 import { LAYER2_FIELD_GENERATION_SYSTEM } from './_shared/prompts/layer2Extraction'
 import { applySpiritRegions } from './_shared/applySpiritRegions'
@@ -343,6 +344,7 @@ Return only the improved field text. No labels, no preamble, no explanation. If 
           }
           const { error: upErr } = await supabase.from('spirits').update(merged).eq('slug', row.slug)
           if (upErr) return new Response(JSON.stringify({ error: `Supabase update failed: ${upErr.message}` }), { status: 500, headers: CORS })
+          await reembedSpiritAfterWrite(supabase, row.id, process.env.OPENAI_API_KEY)
         }
 
         // Body-region fan-out — non-blocking; failure does not abort approval

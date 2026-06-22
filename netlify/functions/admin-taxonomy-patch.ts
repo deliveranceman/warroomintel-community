@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 import { requireAdmin2 } from './_shared/access'
 import { BIBLICAL_RANK, insertFieldSnapshots } from './_shared/spiritWrite'
+import { reembedSpiritAfterWrite } from './_shared/reembedSpiritAfterWrite'
 
 const { token: airtableToken } = JSON.parse(process.env.AIRTABLE || '{}')
 const AIRTABLE_TOKEN = airtableToken!
@@ -69,12 +70,13 @@ export default async function handler(req: Request) {
       return new Response(JSON.stringify({ error: `Snapshot failed — aborting: ${snapErr}` }), { status: 500, headers })
     }
 
-    const { data, error } = await sb.from('spirits').update({ [col]: writeVal }).eq('slug', recordId).select('slug')
+    const { data, error } = await sb.from('spirits').update({ [col]: writeVal }).eq('slug', recordId).select('id, slug')
     if (error) {
       console.error('[admin-taxonomy-patch] Supabase error:', error.message)
       return new Response(JSON.stringify({ error: error.message }), { status: 500, headers })
     }
     if (!data || data.length === 0) return new Response(JSON.stringify({ error: 'Spirit not found' }), { status: 404, headers })
+    await reembedSpiritAfterWrite(sb, data[0].id, process.env.OPENAI_API_KEY)
     return new Response(JSON.stringify({ ok: true, recordId, field, value: writeVal }), { status: 200, headers })
   }
 

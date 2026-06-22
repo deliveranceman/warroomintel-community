@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 import { requireAdmin2 } from './_shared/access'
 import { NAME_FIELD, toColumns, mapRow, uniqueSlug, updateSpiritBySlug } from './_shared/spiritWrite'
+import { reembedSpiritAfterWrite } from './_shared/reembedSpiritAfterWrite'
 
 const { token: airtableToken } = JSON.parse(process.env.AIRTABLE || '{}')
 const AIRTABLE_TOKEN = airtableToken!
@@ -118,6 +119,7 @@ export default async function handler(req: Request) {
       if (!data || data.length === 0) {
         return new Response(JSON.stringify({ error: 'Spirit not found' }), { status: 404 })
       }
+      await reembedSpiritAfterWrite(sb, data[0].id, process.env.OPENAI_API_KEY)
       return new Response(JSON.stringify({ record: mapRow(data[0]) }), { status: 200, headers: { 'Content-Type': 'application/json' } })
     }
 
@@ -349,6 +351,7 @@ export default async function handler(req: Request) {
         console.error('[admin-demon] Supabase POST error:', error.message)
         return new Response(JSON.stringify({ error: error.message }), { status: 500 })
       }
+      await reembedSpiritAfterWrite(sb, data![0].id, process.env.OPENAI_API_KEY)
       return new Response(JSON.stringify({ record: mapRow(data![0]) }), { status: 200, headers: { 'Content-Type': 'application/json' } })
     }
 
