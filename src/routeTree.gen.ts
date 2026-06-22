@@ -37,6 +37,7 @@ import { Route as CommunityForumRouteImport } from './routes/community_.forum'
 import { Route as CommunityFieldOpsRouteImport } from './routes/community_.field-ops'
 import { Route as CommunityFieldManualRouteImport } from './routes/community_.field-manual'
 import { Route as CommunityDreamInterpreterRouteImport } from './routes/community_.dream-interpreter'
+import { Route as CommunityBloodlineRouteImport } from './routes/community_.bloodline'
 import { Route as CommunityAskSolRouteImport } from './routes/community_.ask-sol'
 import { Route as ApiWarroomChatRouteImport } from './routes/api.warroom-chat'
 import { Route as ApiUserTierRouteImport } from './routes/api.user-tier'
@@ -61,6 +62,7 @@ import { Route as ApiAssessmentBoardRouteImport } from './routes/api.assessment-
 import { Route as ApiAdminUploadRouteImport } from './routes/api.admin-upload'
 import { Route as ApiAdminAuthRouteImport } from './routes/api.admin-auth'
 import { Route as AdminDashboardRouteImport } from './routes/admin_.dashboard'
+import { Route as AdminBloodlineRouteImport } from './routes/admin_.bloodline'
 import { Route as AdminLoginRouteImport } from './routes/admin.login'
 import { Route as AdminChurchFathersLibraryRouteImport } from './routes/admin.church-fathers-library'
 import { Route as CommunitySpiritsSpiritIdRouteImport } from './routes/community_.spirits.$spiritId'
@@ -211,6 +213,11 @@ const CommunityDreamInterpreterRoute =
     path: '/community/dream-interpreter',
     getParentRoute: () => rootRouteImport,
   } as any)
+const CommunityBloodlineRoute = CommunityBloodlineRouteImport.update({
+  id: '/community_/bloodline',
+  path: '/community/bloodline',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const CommunityAskSolRoute = CommunityAskSolRouteImport.update({
   id: '/community_/ask-sol',
   path: '/community/ask-sol',
@@ -331,6 +338,11 @@ const AdminDashboardRoute = AdminDashboardRouteImport.update({
   path: '/admin/dashboard',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminBloodlineRoute = AdminBloodlineRouteImport.update({
+  id: '/admin_/bloodline',
+  path: '/admin/bloodline',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AdminLoginRoute = AdminLoginRouteImport.update({
   id: '/login',
   path: '/login',
@@ -391,6 +403,7 @@ export interface FileRoutesByFullPath {
   '/terms': typeof TermsRoute
   '/admin/church-fathers-library': typeof AdminChurchFathersLibraryRoute
   '/admin/login': typeof AdminLoginRoute
+  '/admin/bloodline': typeof AdminBloodlineRoute
   '/admin/dashboard': typeof AdminDashboardRoute
   '/api/admin-auth': typeof ApiAdminAuthRoute
   '/api/admin-upload': typeof ApiAdminUploadRoute
@@ -415,6 +428,7 @@ export interface FileRoutesByFullPath {
   '/api/user-tier': typeof ApiUserTierRoute
   '/api/warroom-chat': typeof ApiWarroomChatRoute
   '/community/ask-sol': typeof CommunityAskSolRoute
+  '/community/bloodline': typeof CommunityBloodlineRoute
   '/community/dream-interpreter': typeof CommunityDreamInterpreterRoute
   '/community/field-manual': typeof CommunityFieldManualRoute
   '/community/field-ops': typeof CommunityFieldOpsRoute
@@ -451,6 +465,7 @@ export interface FileRoutesByTo {
   '/terms': typeof TermsRoute
   '/admin/church-fathers-library': typeof AdminChurchFathersLibraryRoute
   '/admin/login': typeof AdminLoginRoute
+  '/admin/bloodline': typeof AdminBloodlineRoute
   '/admin/dashboard': typeof AdminDashboardRoute
   '/api/admin-auth': typeof ApiAdminAuthRoute
   '/api/admin-upload': typeof ApiAdminUploadRoute
@@ -475,6 +490,7 @@ export interface FileRoutesByTo {
   '/api/user-tier': typeof ApiUserTierRoute
   '/api/warroom-chat': typeof ApiWarroomChatRoute
   '/community/ask-sol': typeof CommunityAskSolRoute
+  '/community/bloodline': typeof CommunityBloodlineRoute
   '/community/dream-interpreter': typeof CommunityDreamInterpreterRoute
   '/community/field-manual': typeof CommunityFieldManualRoute
   '/community/field-ops': typeof CommunityFieldOpsRoute
@@ -513,6 +529,7 @@ export interface FileRoutesById {
   '/terms': typeof TermsRoute
   '/admin/church-fathers-library': typeof AdminChurchFathersLibraryRoute
   '/admin/login': typeof AdminLoginRoute
+  '/admin_/bloodline': typeof AdminBloodlineRoute
   '/admin_/dashboard': typeof AdminDashboardRoute
   '/api/admin-auth': typeof ApiAdminAuthRoute
   '/api/admin-upload': typeof ApiAdminUploadRoute
@@ -537,6 +554,7 @@ export interface FileRoutesById {
   '/api/user-tier': typeof ApiUserTierRoute
   '/api/warroom-chat': typeof ApiWarroomChatRoute
   '/community_/ask-sol': typeof CommunityAskSolRoute
+  '/community_/bloodline': typeof CommunityBloodlineRoute
   '/community_/dream-interpreter': typeof CommunityDreamInterpreterRoute
   '/community_/field-manual': typeof CommunityFieldManualRoute
   '/community_/field-ops': typeof CommunityFieldOpsRoute
@@ -576,6 +594,7 @@ export interface FileRouteTypes {
     | '/terms'
     | '/admin/church-fathers-library'
     | '/admin/login'
+    | '/admin/bloodline'
     | '/admin/dashboard'
     | '/api/admin-auth'
     | '/api/admin-upload'
@@ -600,6 +619,7 @@ export interface FileRouteTypes {
     | '/api/user-tier'
     | '/api/warroom-chat'
     | '/community/ask-sol'
+    | '/community/bloodline'
     | '/community/dream-interpreter'
     | '/community/field-manual'
     | '/community/field-ops'
@@ -636,6 +656,7 @@ export interface FileRouteTypes {
     | '/terms'
     | '/admin/church-fathers-library'
     | '/admin/login'
+    | '/admin/bloodline'
     | '/admin/dashboard'
     | '/api/admin-auth'
     | '/api/admin-upload'
@@ -660,6 +681,7 @@ export interface FileRouteTypes {
     | '/api/user-tier'
     | '/api/warroom-chat'
     | '/community/ask-sol'
+    | '/community/bloodline'
     | '/community/dream-interpreter'
     | '/community/field-manual'
     | '/community/field-ops'
@@ -697,6 +719,7 @@ export interface FileRouteTypes {
     | '/terms'
     | '/admin/church-fathers-library'
     | '/admin/login'
+    | '/admin_/bloodline'
     | '/admin_/dashboard'
     | '/api/admin-auth'
     | '/api/admin-upload'
@@ -721,6 +744,7 @@ export interface FileRouteTypes {
     | '/api/user-tier'
     | '/api/warroom-chat'
     | '/community_/ask-sol'
+    | '/community_/bloodline'
     | '/community_/dream-interpreter'
     | '/community_/field-manual'
     | '/community_/field-ops'
@@ -757,6 +781,7 @@ export interface RootRouteChildren {
   SignUpRoute: typeof SignUpRoute
   SubmitDemonRoute: typeof SubmitDemonRoute
   TermsRoute: typeof TermsRoute
+  AdminBloodlineRoute: typeof AdminBloodlineRoute
   AdminDashboardRoute: typeof AdminDashboardRoute
   ApiAdminAuthRoute: typeof ApiAdminAuthRoute
   ApiAdminUploadRoute: typeof ApiAdminUploadRoute
@@ -781,6 +806,7 @@ export interface RootRouteChildren {
   ApiUserTierRoute: typeof ApiUserTierRoute
   ApiWarroomChatRoute: typeof ApiWarroomChatRoute
   CommunityAskSolRoute: typeof CommunityAskSolRoute
+  CommunityBloodlineRoute: typeof CommunityBloodlineRoute
   CommunityDreamInterpreterRoute: typeof CommunityDreamInterpreterRoute
   CommunityFieldManualRoute: typeof CommunityFieldManualRoute
   CommunityFieldOpsRoute: typeof CommunityFieldOpsRoute
@@ -995,6 +1021,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CommunityDreamInterpreterRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/community_/bloodline': {
+      id: '/community_/bloodline'
+      path: '/community/bloodline'
+      fullPath: '/community/bloodline'
+      preLoaderRoute: typeof CommunityBloodlineRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/community_/ask-sol': {
       id: '/community_/ask-sol'
       path: '/community/ask-sol'
@@ -1163,6 +1196,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminDashboardRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin_/bloodline': {
+      id: '/admin_/bloodline'
+      path: '/admin/bloodline'
+      fullPath: '/admin/bloodline'
+      preLoaderRoute: typeof AdminBloodlineRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/admin/login': {
       id: '/admin/login'
       path: '/login'
@@ -1248,6 +1288,7 @@ const rootRouteChildren: RootRouteChildren = {
   SignUpRoute: SignUpRoute,
   SubmitDemonRoute: SubmitDemonRoute,
   TermsRoute: TermsRoute,
+  AdminBloodlineRoute: AdminBloodlineRoute,
   AdminDashboardRoute: AdminDashboardRoute,
   ApiAdminAuthRoute: ApiAdminAuthRoute,
   ApiAdminUploadRoute: ApiAdminUploadRoute,
@@ -1272,6 +1313,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiUserTierRoute: ApiUserTierRoute,
   ApiWarroomChatRoute: ApiWarroomChatRoute,
   CommunityAskSolRoute: CommunityAskSolRoute,
+  CommunityBloodlineRoute: CommunityBloodlineRoute,
   CommunityDreamInterpreterRoute: CommunityDreamInterpreterRoute,
   CommunityFieldManualRoute: CommunityFieldManualRoute,
   CommunityFieldOpsRoute: CommunityFieldOpsRoute,
