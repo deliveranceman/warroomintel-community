@@ -66,6 +66,7 @@ import { Route as AdminBloodlineRouteImport } from './routes/admin_.bloodline'
 import { Route as AdminLoginRouteImport } from './routes/admin.login'
 import { Route as AdminChurchFathersLibraryRouteImport } from './routes/admin.church-fathers-library'
 import { Route as CommunitySpiritsSpiritIdRouteImport } from './routes/community_.spirits.$spiritId'
+import { Route as CommunityBloodlineProfileIdRouteImport } from './routes/community_.bloodline.$profileId'
 import { Route as CommunityArsenalResourceIdRouteImport } from './routes/community_.arsenal.$resourceId'
 import { Route as AdminIntelSolTestRouteImport } from './routes/admin_.intel.sol-test'
 import { Route as AdminIntelScripturesRouteImport } from './routes/admin_.intel.scriptures'
@@ -360,6 +361,12 @@ const CommunitySpiritsSpiritIdRoute =
     path: '/community/spirits/$spiritId',
     getParentRoute: () => rootRouteImport,
   } as any)
+const CommunityBloodlineProfileIdRoute =
+  CommunityBloodlineProfileIdRouteImport.update({
+    id: '/$profileId',
+    path: '/$profileId',
+    getParentRoute: () => CommunityBloodlineRoute,
+  } as any)
 const CommunityArsenalResourceIdRoute =
   CommunityArsenalResourceIdRouteImport.update({
     id: '/community_/arsenal/$resourceId',
@@ -428,7 +435,7 @@ export interface FileRoutesByFullPath {
   '/api/user-tier': typeof ApiUserTierRoute
   '/api/warroom-chat': typeof ApiWarroomChatRoute
   '/community/ask-sol': typeof CommunityAskSolRoute
-  '/community/bloodline': typeof CommunityBloodlineRoute
+  '/community/bloodline': typeof CommunityBloodlineRouteWithChildren
   '/community/dream-interpreter': typeof CommunityDreamInterpreterRoute
   '/community/field-manual': typeof CommunityFieldManualRoute
   '/community/field-ops': typeof CommunityFieldOpsRoute
@@ -443,6 +450,7 @@ export interface FileRoutesByFullPath {
   '/admin/intel/scriptures': typeof AdminIntelScripturesRoute
   '/admin/intel/sol-test': typeof AdminIntelSolTestRoute
   '/community/arsenal/$resourceId': typeof CommunityArsenalResourceIdRoute
+  '/community/bloodline/$profileId': typeof CommunityBloodlineProfileIdRoute
   '/community/spirits/$spiritId': typeof CommunitySpiritsSpiritIdRoute
 }
 export interface FileRoutesByTo {
@@ -490,7 +498,7 @@ export interface FileRoutesByTo {
   '/api/user-tier': typeof ApiUserTierRoute
   '/api/warroom-chat': typeof ApiWarroomChatRoute
   '/community/ask-sol': typeof CommunityAskSolRoute
-  '/community/bloodline': typeof CommunityBloodlineRoute
+  '/community/bloodline': typeof CommunityBloodlineRouteWithChildren
   '/community/dream-interpreter': typeof CommunityDreamInterpreterRoute
   '/community/field-manual': typeof CommunityFieldManualRoute
   '/community/field-ops': typeof CommunityFieldOpsRoute
@@ -505,6 +513,7 @@ export interface FileRoutesByTo {
   '/admin/intel/scriptures': typeof AdminIntelScripturesRoute
   '/admin/intel/sol-test': typeof AdminIntelSolTestRoute
   '/community/arsenal/$resourceId': typeof CommunityArsenalResourceIdRoute
+  '/community/bloodline/$profileId': typeof CommunityBloodlineProfileIdRoute
   '/community/spirits/$spiritId': typeof CommunitySpiritsSpiritIdRoute
 }
 export interface FileRoutesById {
@@ -554,7 +563,7 @@ export interface FileRoutesById {
   '/api/user-tier': typeof ApiUserTierRoute
   '/api/warroom-chat': typeof ApiWarroomChatRoute
   '/community_/ask-sol': typeof CommunityAskSolRoute
-  '/community_/bloodline': typeof CommunityBloodlineRoute
+  '/community_/bloodline': typeof CommunityBloodlineRouteWithChildren
   '/community_/dream-interpreter': typeof CommunityDreamInterpreterRoute
   '/community_/field-manual': typeof CommunityFieldManualRoute
   '/community_/field-ops': typeof CommunityFieldOpsRoute
@@ -569,6 +578,7 @@ export interface FileRoutesById {
   '/admin_/intel/scriptures': typeof AdminIntelScripturesRoute
   '/admin_/intel/sol-test': typeof AdminIntelSolTestRoute
   '/community_/arsenal/$resourceId': typeof CommunityArsenalResourceIdRoute
+  '/community_/bloodline/$profileId': typeof CommunityBloodlineProfileIdRoute
   '/community_/spirits/$spiritId': typeof CommunitySpiritsSpiritIdRoute
 }
 export interface FileRouteTypes {
@@ -634,6 +644,7 @@ export interface FileRouteTypes {
     | '/admin/intel/scriptures'
     | '/admin/intel/sol-test'
     | '/community/arsenal/$resourceId'
+    | '/community/bloodline/$profileId'
     | '/community/spirits/$spiritId'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -696,6 +707,7 @@ export interface FileRouteTypes {
     | '/admin/intel/scriptures'
     | '/admin/intel/sol-test'
     | '/community/arsenal/$resourceId'
+    | '/community/bloodline/$profileId'
     | '/community/spirits/$spiritId'
   id:
     | '__root__'
@@ -759,6 +771,7 @@ export interface FileRouteTypes {
     | '/admin_/intel/scriptures'
     | '/admin_/intel/sol-test'
     | '/community_/arsenal/$resourceId'
+    | '/community_/bloodline/$profileId'
     | '/community_/spirits/$spiritId'
   fileRoutesById: FileRoutesById
 }
@@ -806,7 +819,7 @@ export interface RootRouteChildren {
   ApiUserTierRoute: typeof ApiUserTierRoute
   ApiWarroomChatRoute: typeof ApiWarroomChatRoute
   CommunityAskSolRoute: typeof CommunityAskSolRoute
-  CommunityBloodlineRoute: typeof CommunityBloodlineRoute
+  CommunityBloodlineRoute: typeof CommunityBloodlineRouteWithChildren
   CommunityDreamInterpreterRoute: typeof CommunityDreamInterpreterRoute
   CommunityFieldManualRoute: typeof CommunityFieldManualRoute
   CommunityFieldOpsRoute: typeof CommunityFieldOpsRoute
@@ -1224,6 +1237,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CommunitySpiritsSpiritIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/community_/bloodline/$profileId': {
+      id: '/community_/bloodline/$profileId'
+      path: '/$profileId'
+      fullPath: '/community/bloodline/$profileId'
+      preLoaderRoute: typeof CommunityBloodlineProfileIdRouteImport
+      parentRoute: typeof CommunityBloodlineRoute
+    }
     '/community_/arsenal/$resourceId': {
       id: '/community_/arsenal/$resourceId'
       path: '/community/arsenal/$resourceId'
@@ -1269,6 +1289,17 @@ const AdminRouteChildren: AdminRouteChildren = {
 
 const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
 
+interface CommunityBloodlineRouteChildren {
+  CommunityBloodlineProfileIdRoute: typeof CommunityBloodlineProfileIdRoute
+}
+
+const CommunityBloodlineRouteChildren: CommunityBloodlineRouteChildren = {
+  CommunityBloodlineProfileIdRoute: CommunityBloodlineProfileIdRoute,
+}
+
+const CommunityBloodlineRouteWithChildren =
+  CommunityBloodlineRoute._addFileChildren(CommunityBloodlineRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   SplatRoute: SplatRoute,
@@ -1313,7 +1344,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiUserTierRoute: ApiUserTierRoute,
   ApiWarroomChatRoute: ApiWarroomChatRoute,
   CommunityAskSolRoute: CommunityAskSolRoute,
-  CommunityBloodlineRoute: CommunityBloodlineRoute,
+  CommunityBloodlineRoute: CommunityBloodlineRouteWithChildren,
   CommunityDreamInterpreterRoute: CommunityDreamInterpreterRoute,
   CommunityFieldManualRoute: CommunityFieldManualRoute,
   CommunityFieldOpsRoute: CommunityFieldOpsRoute,

@@ -303,12 +303,15 @@ function BloodlinePage() {
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
                 {profiles.map(p => (
-                  <div
+                  <a
                     key={p.id}
+                    href={`/community/bloodline/${p.id}`}
                     style={{
                       display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                       padding: '12px 0',
                       borderBottom: `1px solid ${BDR}`,
+                      textDecoration: 'none',
+                      cursor: 'pointer',
                     }}
                   >
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
@@ -346,7 +349,7 @@ function BloodlinePage() {
                         </span>
                       )}
                     </div>
-                  </div>
+                  </a>
                 ))}
               </div>
             )}
