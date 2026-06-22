@@ -5,7 +5,7 @@ import { CommunitySidebarShell } from '@/components/CommunitySidebarShell'
 import { UpgradeGate } from '@/components/UpgradeGate'
 import { getAccessLevel } from '@/lib/access'
 
-export const Route = createFileRoute('/community_/bloodline/$profileId')({
+export const Route = createFileRoute('/community_/bloodline_/$profileId')({
   component: BloodlineDetailPage,
 })
 
