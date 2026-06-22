@@ -86,7 +86,7 @@ function SolHybridTestPage() {
     setBackfillResult(null)
     try {
       const token = await getToken()
-      const resp = await fetch('/api/admin-backfill-spirit-embeddings', {
+      const resp = await fetch('/api/admin-backfill-spirit-embeddings-background', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -95,8 +95,12 @@ function SolHybridTestPage() {
         body: JSON.stringify({ onlyMissing: true, batchSize: 50, maxBatches: 20 }),
       })
       if (!resp.ok) throw new Error(`Status ${resp.status}`)
-      const data = await resp.json()
-      setBackfillResult(data)
+      if (resp.status === 202) {
+        setBackfillResult({ message: 'Backfill started in background — check Netlify function logs for completion.' })
+      } else {
+        const data = await resp.json()
+        setBackfillResult(data)
+      }
     } catch (err: any) {
       setBackfillError(String(err?.message ?? err))
     } finally {
@@ -258,13 +262,19 @@ function SolHybridTestPage() {
               color: TEXT,
               lineHeight: 1.5,
             }}>
-              <div>✓ processed: <strong>{backfillResult.processed}</strong> spirits</div>
-              <div>batches: {backfillResult.batches}</div>
-              <div>duration: {backfillResult.durationMs} ms</div>
-              {Array.isArray(backfillResult.errors) && backfillResult.errors.length > 0 && (
-                <div style={{ marginTop: 8, color: '#991B1B' }}>
-                  errors: {backfillResult.errors.length} — see console
-                </div>
+              {backfillResult.message ? (
+                <div>✓ {backfillResult.message}</div>
+              ) : (
+                <>
+                  <div>✓ processed: <strong>{backfillResult.processed}</strong> spirits</div>
+                  <div>batches: {backfillResult.batches}</div>
+                  <div>duration: {backfillResult.durationMs} ms</div>
+                  {Array.isArray(backfillResult.errors) && backfillResult.errors.length > 0 && (
+                    <div style={{ marginTop: 8, color: '#991B1B' }}>
+                      errors: {backfillResult.errors.length} — see console
+                    </div>
+                  )}
+                </>
               )}
             </div>
           )}

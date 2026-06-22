@@ -2,18 +2,19 @@ import { createClient } from '@supabase/supabase-js'
 import { requireAdmin2, CORS } from './_shared/access'
 import { embedSpiritsBatch, persistSpiritEmbedding } from './_shared/embedSpirit'
 
-export const config = { path: '/api/admin-backfill-spirit-embeddings' }
+export const config = { path: '/api/admin-backfill-spirit-embeddings-background' }
 
 /**
- * POST /api/admin-backfill-spirit-embeddings
+ * POST /api/admin-backfill-spirit-embeddings-background
  * Body (all optional):
  *   { onlyMissing?: boolean = true,    // skip spirits already embedded
  *     batchSize?: number    = 50,      // spirits per OpenAI call
  *     maxBatches?: number   = 20 }     // safety cap (50*20 = 1000 spirits)
  *
- * Tier: requireAdmin2 (commandant)
+ * Returns 202 immediately; work continues as a Netlify background function
+ * (15-minute timeout via -background filename suffix).
  *
- * Returns: { processed, batches, durationMs, errors }
+ * Tier: requireAdmin2 (commandant)
  */
 export default async function handler(req: Request) {
   if (req.method === 'OPTIONS') {
@@ -48,6 +49,26 @@ export default async function handler(req: Request) {
   const env = JSON.parse(process.env.SUPABASE || '{}')
   const supabase = createClient(env.url, env.serviceRoleKey)
 
+  // Kick off the work without awaiting so the 202 response goes back immediately.
+  // The Netlify background function runtime keeps this process alive (up to 15 min)
+  // until the unawaited promise settles.
+  runBackfill(supabase, apiKey, { onlyMissing, batchSize, maxBatches }).catch(err =>
+    console.error('[admin-backfill-spirit-embeddings-background] fatal:', err)
+  )
+
+  return new Response(
+    JSON.stringify({ accepted: true, message: 'Backfill started in background' }),
+    { status: 202, headers: CORS }
+  )
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function runBackfill(
+  supabase: any,
+  apiKey: string,
+  opts: { onlyMissing: boolean; batchSize: number; maxBatches: number }
+) {
+  const { onlyMissing, batchSize, maxBatches } = opts
   const startTime = Date.now()
   let processed = 0
   let batches = 0
@@ -55,7 +76,6 @@ export default async function handler(req: Request) {
 
   try {
     while (batches < maxBatches) {
-      // Fetch next batch
       let q = supabase
         .from('spirits')
         .select('id, name, aka, description')
@@ -67,48 +87,27 @@ export default async function handler(req: Request) {
       if (error) throw error
       if (!data || data.length === 0) break
 
-      // One OpenAI call for the whole batch
       try {
         const embedded = await embedSpiritsBatch(apiKey, data)
-
-        // Persist in parallel (PostgREST has no batch update for vectors)
         await Promise.all(
           embedded.map((e) =>
             persistSpiritEmbedding(supabase, e.id, e.embedding, e.sourceText)
           )
         )
-
         processed += embedded.length
       } catch (batchErr: any) {
-        errors.push({
-          batch: batches,
-          error: String(batchErr?.message ?? batchErr),
-        })
+        errors.push({ batch: batches, error: String(batchErr?.message ?? batchErr) })
       }
 
       batches += 1
-      if (data.length < batchSize) break  // last batch
+      if (data.length < batchSize) break
     }
 
-    return new Response(
-      JSON.stringify({
-        processed,
-        batches,
-        durationMs: Date.now() - startTime,
-        errors,
-      }, null, 2),
-      { status: 200, headers: CORS }
+    console.log(
+      `[admin-backfill-spirit-embeddings-background] complete: ${processed} spirits, ` +
+      `${batches} batches, ${Date.now() - startTime} ms, ${errors.length} errors`
     )
   } catch (err: any) {
-    console.error('admin-backfill-spirit-embeddings failed', err)
-    return new Response(
-      JSON.stringify({
-        error: 'backfill_failed',
-        detail: String(err?.message ?? err),
-        processed,
-        batches,
-      }),
-      { status: 500, headers: CORS }
-    )
+    console.error('[admin-backfill-spirit-embeddings-background] failed:', err)
   }
 }
