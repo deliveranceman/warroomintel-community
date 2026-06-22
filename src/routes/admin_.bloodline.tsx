@@ -1,5 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useUser } from '@clerk/tanstack-start'
+import { useState, useEffect } from 'react'
 import { getAccessLevel } from '@/lib/access'
 import { AdminNav } from '../components/admin/AdminNav'
 
@@ -14,8 +15,19 @@ const GOLD     = '#8B6914'
 const DEEP     = '#604408'
 const TEXT     = '#1a1a1a'
 const MUTED    = '#6b6b6b'
+const RED      = '#c0392b'
 const cinzel   = "'Cinzel', serif"
 const crimson  = "'Crimson Pro', serif"
+
+type AdminProfile = {
+  id: string
+  created_by: string
+  subject_name: string
+  status: string
+  notes: string | null
+  created_at: string
+  updated_at: string
+}
 
 function AdminBloodlinePage() {
   const { user, isLoaded, isSignedIn } = useUser()
@@ -23,6 +35,38 @@ function AdminBloodlinePage() {
   const tier    = (user?.publicMetadata as any)?.tier as string | undefined
   const role    = (user?.publicMetadata as any)?.role as string | undefined
   const isAdmin = getAccessLevel({ tier, role }) >= 4
+
+  const [profiles, setProfiles]     = useState<AdminProfile[]>([])
+  const [loading, setLoading]       = useState(false)
+  const [fetchError, setFetchError] = useState<string | null>(null)
+
+  async function fetchProfiles() {
+    setLoading(true)
+    setFetchError(null)
+    try {
+      const w = window as any
+      const token = w.__clerk?.session
+        ? await w.__clerk.session.getToken()
+        : null
+      const res = await fetch('/api/admin-bloodline-profile-list', {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      })
+      if (!res.ok) {
+        setFetchError('Failed to load profiles')
+        return
+      }
+      const data = await res.json()
+      setProfiles(data.profiles ?? [])
+    } catch {
+      setFetchError('Network error')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    if (isLoaded && isSignedIn && isAdmin) { fetchProfiles() }
+  }, [isLoaded, isSignedIn, isAdmin])
 
   // Gate: Clerk resolving
   if (!isLoaded) {
@@ -94,6 +138,12 @@ function AdminBloodlinePage() {
     )
   }
 
+  function statusColor(status: string) {
+    if (status === 'active')  return { bg: 'rgba(139,105,20,0.1)',  border: 'rgba(139,105,20,0.3)',  text: GOLD }
+    if (status === 'paused')  return { bg: 'rgba(107,97,105,0.1)', border: 'rgba(107,97,105,0.25)', text: MUTED }
+    return { bg: 'rgba(192,57,43,0.08)',  border: 'rgba(192,57,43,0.25)',  text: RED }
+  }
+
   return (
     <div style={{ minHeight: '100vh', background: PAGE_BG, color: TEXT }}>
       <AdminNav current="bloodline-overview" />
@@ -109,109 +159,167 @@ function AdminBloodlinePage() {
           }}>
             Admin / Bloodline
           </div>
-          <h1 style={{
-            fontFamily: cinzel, fontSize: 24, fontWeight: 700,
-            color: DEEP, margin: 0, letterSpacing: '0.05em',
-          }}>
-            Bloodline Intelligence Center
-          </h1>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: 8 }}>
+            <h1 style={{
+              fontFamily: cinzel, fontSize: 24, fontWeight: 700,
+              color: DEEP, margin: 0, letterSpacing: '0.05em',
+            }}>
+              Bloodline Intelligence Center
+            </h1>
+            <div style={{
+              fontFamily: cinzel, fontSize: 8, letterSpacing: '0.1em',
+              padding: '4px 10px', borderRadius: 3,
+              background: 'rgba(139,105,20,0.08)',
+              border: `1px solid rgba(139,105,20,0.2)`,
+              color: GOLD,
+            }}>
+              READ-ONLY OVERSIGHT
+            </div>
+          </div>
           <p style={{
             fontFamily: crimson, fontSize: 15, color: MUTED,
             margin: '8px 0 0', lineHeight: 1.5,
           }}>
-            Minister oversight dashboard. View, moderate, and administer bloodline
-            investigation profiles across the community.
+            Minister oversight dashboard. View all active bloodline investigation profiles
+            across the community. No edit or delete actions at this tier.
           </p>
         </div>
 
-        {/* Foundation notice */}
-        <div style={{
-          background:   CARD_BG,
-          border:       `1px solid ${BDR}`,
-          borderLeft:   `3px solid ${GOLD}`,
-          borderRadius: 6,
-          padding:      '18px 22px',
-          marginBottom: 24,
-        }}>
-          <div style={{
-            fontFamily:    cinzel, fontSize: 9,
-            letterSpacing: '0.12em', color: GOLD, marginBottom: 8,
-          }}>
-            PHASE 2A FOUNDATION
-          </div>
-          <p style={{ fontFamily: crimson, fontSize: 15, color: TEXT, margin: 0, lineHeight: 1.6 }}>
-            Types, access helper, and placeholder routes shipped. Profile creation, family tree
-            management, and oversight tooling rolling out across Phase 2B+. Admin endpoints
-            (list all profiles, view individual profiles, moderate) land next build cycle.
-          </p>
-        </div>
-
-        {/* Profiles placeholder */}
+        {/* Profile list */}
         <div style={{
           background:   CARD_BG,
           border:       `1px solid ${BDR}`,
           borderRadius: 6,
           padding:      '24px',
-          marginBottom: 24,
         }}>
           <div style={{
             display:        'flex',
             justifyContent: 'space-between',
             alignItems:     'center',
-            marginBottom:   16,
+            marginBottom:   20,
           }}>
             <div style={{ fontFamily: cinzel, fontSize: 11, letterSpacing: '0.12em', color: DEEP }}>
               ALL PROFILES
             </div>
-            <div style={{
-              fontFamily:    cinzel, fontSize: 9,
-              letterSpacing: '0.1em', color: MUTED,
-            }}>
-              0 profiles
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              {!loading && (
+                <div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.1em', color: MUTED }}>
+                  {profiles.length} profile{profiles.length !== 1 ? 's' : ''}
+                </div>
+              )}
+              <button
+                onClick={fetchProfiles}
+                disabled={loading}
+                style={{
+                  fontFamily: cinzel, fontSize: 8, letterSpacing: '0.08em',
+                  padding: '5px 12px', borderRadius: 3, cursor: loading ? 'not-allowed' : 'pointer',
+                  background: 'transparent',
+                  border: `1px solid ${BDR}`,
+                  color: MUTED,
+                }}
+              >
+                {loading ? '...' : 'REFRESH'}
+              </button>
             </div>
           </div>
-          <div style={{
-            padding:    '32px 0',
-            textAlign:  'center',
-            fontFamily: crimson,
-            fontSize:   15,
-            color:      MUTED,
-            fontStyle:  'italic',
-          }}>
-            No profiles yet. Community members will create bloodline investigations
-            once profile creation endpoints ship in Phase 2B.
-          </div>
-        </div>
 
-        {/* Coming in 2B */}
-        <div style={{
-          background:   CARD_BG,
-          border:       `1px solid ${BDR}`,
-          borderRadius: 6,
-          padding:      '24px',
-        }}>
-          <div style={{
-            fontFamily:    cinzel, fontSize: 9,
-            letterSpacing: '0.12em', color: MUTED, marginBottom: 14,
-          }}>
-            COMING IN PHASE 2B+
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {[
-              'List all active investigation profiles with subject name, status, creator',
-              'View individual profile detail (ancestors, events, oaths, pattern clusters)',
-              'Moderate profiles: pause, close, or flag for review',
-              'Cultural dossier admin: manage cultural background research entries',
-              'Secret society admin: manage lodge/order reference data',
-            ].map((item, i) => (
-              <div key={i} style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
-                <span style={{ color: GOLD, fontFamily: cinzel, fontSize: 11, flexShrink: 0 }}>—</span>
-                <span style={{ fontFamily: crimson, fontSize: 14, color: MUTED, lineHeight: 1.5 }}>
-                  {item}
-                </span>
+          {fetchError && (
+            <div style={{ fontFamily: crimson, fontSize: 14, color: RED, marginBottom: 14 }}>
+              {fetchError}
+            </div>
+          )}
+
+          {loading ? (
+            <div style={{
+              padding: '32px 0', textAlign: 'center',
+              fontFamily: crimson, fontSize: 15, color: MUTED, fontStyle: 'italic',
+            }}>
+              Loading...
+            </div>
+          ) : profiles.length === 0 ? (
+            <div style={{
+              padding: '32px 0', textAlign: 'center',
+              fontFamily: crimson, fontSize: 15, color: MUTED, fontStyle: 'italic',
+            }}>
+              No profiles yet. Community members will create bloodline investigations
+              once they access the Bloodline Intelligence Center.
+            </div>
+          ) : (
+            <div>
+              {/* Table header */}
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: '1fr 160px 100px 100px',
+                gap: 12,
+                padding: '0 0 10px',
+                borderBottom: `1px solid ${BDR}`,
+                marginBottom: 4,
+              }}>
+                {['SUBJECT', 'CREATOR ID', 'STATUS', 'CREATED'].map(h => (
+                  <div key={h} style={{
+                    fontFamily: cinzel, fontSize: 8, letterSpacing: '0.1em', color: MUTED,
+                  }}>
+                    {h}
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
+
+              {/* Rows */}
+              {profiles.map(p => {
+                const sc = statusColor(p.status)
+                const created = new Date(p.created_at).toLocaleDateString('en-US', {
+                  month: 'short', day: 'numeric', year: 'numeric',
+                })
+                return (
+                  <div
+                    key={p.id}
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns: '1fr 160px 100px 100px',
+                      gap: 12,
+                      padding: '12px 0',
+                      borderBottom: `1px solid ${BDR}`,
+                      alignItems: 'center',
+                    }}
+                  >
+                    <div>
+                      <div style={{ fontFamily: crimson, fontSize: 15, color: TEXT }}>
+                        {p.subject_name}
+                      </div>
+                      {p.notes && (
+                        <div style={{
+                          fontFamily: crimson, fontSize: 12, color: MUTED,
+                          fontStyle: 'italic', marginTop: 2,
+                          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                          maxWidth: 320,
+                        }}>
+                          {p.notes}
+                        </div>
+                      )}
+                    </div>
+                    <div style={{
+                      fontFamily: 'monospace', fontSize: 11, color: MUTED,
+                      overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                    }}>
+                      {p.created_by.slice(0, 16)}…
+                    </div>
+                    <div>
+                      <span style={{
+                        fontFamily: cinzel, fontSize: 8, letterSpacing: '0.08em',
+                        padding: '3px 8px', borderRadius: 3,
+                        background: sc.bg, border: `1px solid ${sc.border}`, color: sc.text,
+                      }}>
+                        {p.status.toUpperCase()}
+                      </span>
+                    </div>
+                    <div style={{ fontFamily: crimson, fontSize: 13, color: MUTED }}>
+                      {created}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
         </div>
 
       </div>
