@@ -76,9 +76,14 @@ export default async function handler(req: Request) {
   const env = JSON.parse(process.env.SUPABASE || '{}')
   const supabase = createClient(env.url, env.serviceRoleKey)
 
+  const isCommandant = auth.level >= 5
+
   let canWrite: boolean
   try {
-    const access = await requireProfileAccess(supabase, profileId, auth.userId)
+    const access = await requireProfileAccess(
+      supabase, profileId, auth.userId,
+      { allowCommandantOverride: isCommandant }
+    )
     canWrite = access.canWrite
   } catch (err) {
     return bloodlineAccessErrorResponse(err)

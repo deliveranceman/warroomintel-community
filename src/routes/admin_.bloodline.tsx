@@ -34,11 +34,14 @@ function AdminBloodlinePage() {
 
   const tier    = (user?.publicMetadata as any)?.tier as string | undefined
   const role    = (user?.publicMetadata as any)?.role as string | undefined
-  const isAdmin = getAccessLevel({ tier, role }) >= 4
+  const isAdmin      = getAccessLevel({ tier, role }) >= 4
+  const isCommandant = getAccessLevel({ tier, role }) >= 5
 
   const [profiles, setProfiles]     = useState<AdminProfile[]>([])
   const [loading, setLoading]       = useState(false)
   const [fetchError, setFetchError] = useState<string | null>(null)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
 
   async function fetchProfiles() {
     setLoading(true)
@@ -61,6 +64,36 @@ function AdminBloodlinePage() {
       setFetchError('Network error')
     } finally {
       setLoading(false)
+    }
+  }
+
+  async function handleDelete(profile: AdminProfile) {
+    if (!window.confirm(
+      `Delete investigation for ${profile.subject_name}?\n\nThis removes all ancestors, events, oaths, and patterns. Cannot be undone.`
+    )) return
+    setDeletingId(profile.id)
+    setDeleteError(null)
+    try {
+      const w = window as any
+      const token = w.__clerk?.session ? await w.__clerk.session.getToken() : null
+      const res = await fetch('/api/bloodline-profile-delete', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ id: profile.id }),
+      })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        setDeleteError((err as any).message ?? 'Delete failed')
+        return
+      }
+      setProfiles(prev => prev.filter(p => p.id !== profile.id))
+    } catch {
+      setDeleteError('Network error')
+    } finally {
+      setDeletingId(null)
     }
   }
 
@@ -169,19 +202,21 @@ function AdminBloodlinePage() {
             <div style={{
               fontFamily: cinzel, fontSize: 8, letterSpacing: '0.1em',
               padding: '4px 10px', borderRadius: 3,
-              background: 'rgba(139,105,20,0.08)',
-              border: `1px solid rgba(139,105,20,0.2)`,
-              color: GOLD,
+              background: isCommandant ? 'rgba(192,57,43,0.08)' : 'rgba(139,105,20,0.08)',
+              border: `1px solid ${isCommandant ? 'rgba(192,57,43,0.25)' : 'rgba(139,105,20,0.2)'}`,
+              color: isCommandant ? RED : GOLD,
             }}>
-              READ-ONLY OVERSIGHT
+              {isCommandant ? 'COMMANDANT OVERRIDE' : 'READ-ONLY OVERSIGHT'}
             </div>
           </div>
           <p style={{
             fontFamily: crimson, fontSize: 15, color: MUTED,
             margin: '8px 0 0', lineHeight: 1.5,
           }}>
-            Minister oversight dashboard. View all active bloodline investigation profiles
-            across the community. No edit or delete actions at this tier.
+            {isCommandant
+              ? 'Commandant authority active. Full delete access across all profiles. Actions are permanent and cannot be undone.'
+              : 'Minister oversight dashboard. View all active bloodline investigation profiles across the community. No edit or delete actions at this tier.'
+            }
           </p>
         </div>
 
@@ -229,6 +264,12 @@ function AdminBloodlinePage() {
             </div>
           )}
 
+          {deleteError && (
+            <div style={{ fontFamily: crimson, fontSize: 14, color: RED, marginBottom: 14 }}>
+              Delete failed: {deleteError}
+            </div>
+          )}
+
           {loading ? (
             <div style={{
               padding: '32px 0', textAlign: 'center',
@@ -249,13 +290,16 @@ function AdminBloodlinePage() {
               {/* Table header */}
               <div style={{
                 display: 'grid',
-                gridTemplateColumns: '1fr 160px 100px 100px',
+                gridTemplateColumns: isCommandant ? '1fr 160px 100px 100px 72px' : '1fr 160px 100px 100px',
                 gap: 12,
                 padding: '0 0 10px',
                 borderBottom: `1px solid ${BDR}`,
                 marginBottom: 4,
               }}>
-                {['SUBJECT', 'CREATOR ID', 'STATUS', 'CREATED'].map(h => (
+                {[
+                  'SUBJECT', 'CREATOR ID', 'STATUS', 'CREATED',
+                  ...(isCommandant ? ['ACTION'] : []),
+                ].map(h => (
                   <div key={h} style={{
                     fontFamily: cinzel, fontSize: 8, letterSpacing: '0.1em', color: MUTED,
                   }}>
@@ -270,16 +314,18 @@ function AdminBloodlinePage() {
                 const created = new Date(p.created_at).toLocaleDateString('en-US', {
                   month: 'short', day: 'numeric', year: 'numeric',
                 })
+                const isDeleting = deletingId === p.id
                 return (
                   <div
                     key={p.id}
                     style={{
                       display: 'grid',
-                      gridTemplateColumns: '1fr 160px 100px 100px',
+                      gridTemplateColumns: isCommandant ? '1fr 160px 100px 100px 72px' : '1fr 160px 100px 100px',
                       gap: 12,
                       padding: '12px 0',
                       borderBottom: `1px solid ${BDR}`,
                       alignItems: 'center',
+                      opacity: isDeleting ? 0.5 : 1,
                     }}
                   >
                     <div>
@@ -315,6 +361,24 @@ function AdminBloodlinePage() {
                     <div style={{ fontFamily: crimson, fontSize: 13, color: MUTED }}>
                       {created}
                     </div>
+                    {isCommandant && (
+                      <div>
+                        <button
+                          onClick={() => handleDelete(p)}
+                          disabled={isDeleting}
+                          style={{
+                            fontFamily: cinzel, fontSize: 8, letterSpacing: '0.06em',
+                            padding: '4px 10px', borderRadius: 3,
+                            background: 'rgba(192,57,43,0.07)',
+                            border: '1px solid rgba(192,57,43,0.3)',
+                            color: RED,
+                            cursor: isDeleting ? 'not-allowed' : 'pointer',
+                          }}
+                        >
+                          {isDeleting ? '...' : 'DELETE'}
+                        </button>
+                      </div>
+                    )}
                   </div>
                 )
               })}

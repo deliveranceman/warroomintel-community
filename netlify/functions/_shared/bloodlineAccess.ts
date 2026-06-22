@@ -25,6 +25,14 @@ export class BloodlineAccessError extends Error {
  *   - userId in bloodline_profile_shares -> read-only access
  *   - else                               -> forbidden
  *
+ * opts.allowCommandantOverride — pass true ONLY when the CALLER has already
+ * verified the requesting user is commandant (level >= 5) via the verified
+ * Clerk record. When true, grants canWrite:true on ANY existing profile
+ * immediately after the profile-exists check, bypassing creator/share checks.
+ * The helper trusts the flag; the endpoint is responsible for only setting it
+ * true for verified commandants. This is the single-owner exception that WRI
+ * grants commandant across all systems.
+ *
  * MANDATORY: every endpoint that reads or writes bloodline_*
  * tables for a specific profile MUST call this helper FIRST.
  * Service role bypasses RLS, so this is the only security gate.
@@ -34,7 +42,8 @@ export class BloodlineAccessError extends Error {
 export async function requireProfileAccess(
   supabase: SupabaseClient,
   profileId: string,
-  userId: string
+  userId: string,
+  opts?: { allowCommandantOverride?: boolean }
 ): Promise<ProfileAccessResult> {
   // Basic input validation
   if (!profileId || !userId) {
@@ -59,6 +68,11 @@ export async function requireProfileAccess(
   }
   if (!profile) {
     throw new BloodlineAccessError('not_found', 'profile does not exist')
+  }
+
+  // Commandant override: verified commandant gets full write on any profile
+  if (opts?.allowCommandantOverride) {
+    return { profile: profile as BloodlineProfile, canWrite: true }
   }
 
   // Creator gets full access
