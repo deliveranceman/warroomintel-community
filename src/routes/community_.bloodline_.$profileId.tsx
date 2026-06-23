@@ -498,7 +498,7 @@ function BloodlineDetailPage() {
 
   if (!isLoaded) {
     return (
-      <CommunitySidebarShell activeItem="Bloodline" userName="..." userTierLabel="..." fillViewport>
+      <CommunitySidebarShell activeItem="Bloodline" userName="..." userTierLabel="...">
         <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: crimson, fontSize: 14, color: DIM }}>
           Verifying access...
         </div>
@@ -508,7 +508,7 @@ function BloodlineDetailPage() {
 
   if (!hasAccess) {
     return (
-      <CommunitySidebarShell activeItem="Bloodline" userName={userName} userTierLabel={userTierLabel} fillViewport>
+      <CommunitySidebarShell activeItem="Bloodline" userName={userName} userTierLabel={userTierLabel}>
         <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <UpgradeGate
             variant="screen"
@@ -540,9 +540,9 @@ function BloodlineDetailPage() {
   const sc = profile ? statusStyle(profile.status) : null
 
   return (
-    <CommunitySidebarShell activeItem="Bloodline" userName={userName} userTierLabel={userTierLabel} fillViewport>
+    <CommunitySidebarShell activeItem="Bloodline" userName={userName} userTierLabel={userTierLabel}>
       <div style={{
-        flex: 1, display: 'flex', flexDirection: 'column',
+        minHeight: '100dvh', paddingBottom: 40,
         background: BG, padding: '32px 24px', gap: 24,
         maxWidth: 860, margin: '0 auto', width: '100%',
       }}>
