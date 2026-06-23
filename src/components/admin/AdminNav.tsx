@@ -75,7 +75,9 @@ const NAV_TREE: NavGroup[] = [
         href: '/admin/bloodline', isSlugRoute: true },
       { key: 'cultural-dossiers', label: 'Cultural Dossiers',
         href: '/admin/bloodline/cultural-dossiers', isSlugRoute: true },
-      // Future items: Secret Societies admin, All Profiles oversight
+      { key: 'secret-societies', label: 'Secret Societies',
+        href: '/admin/bloodline/secret-societies', isSlugRoute: true },
+      // Future items: All Profiles oversight
     ],
   },
   {
