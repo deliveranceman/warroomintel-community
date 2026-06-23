@@ -130,6 +130,26 @@ function StepIntro({ data, update }: { data: FormData; update: (n: string, v: st
         <RadioGroup name="Age Range" value={data['Age Range'] as string || ''} onChange={update} options={['Under 18', '18-25', '26-35', '36-45', '46-55', '56-65', '66+']} />
       </Field>
       <Field>
+        <Label>Education Level</Label>
+        <select
+          name="Education Level"
+          value={data['Education Level'] as string || ''}
+          onChange={e => update('Education Level', e.target.value)}
+          style={{ width: '100%', background: deep, border: `1px solid ${border}`, borderRadius: '4px', padding: '10px 14px', fontFamily: crimson, fontSize: '15px', color: text, outline: 'none', boxSizing: 'border-box' as const, cursor: 'pointer' }}
+        >
+          <option value="">Select...</option>
+          <option value="Less than high school">Less than high school</option>
+          <option value="High school / GED">High school / GED</option>
+          <option value="Some college">Some college</option>
+          <option value="Associate degree">Associate degree</option>
+          <option value="Bachelor degree">Bachelor degree</option>
+          <option value="Master degree">Master degree</option>
+          <option value="Doctorate / professional">Doctorate / professional</option>
+          <option value="Trade / vocational">Trade / vocational</option>
+          <option value="Prefer not to say">Prefer not to say</option>
+        </select>
+      </Field>
+      <Field>
         <Label>How Long Have You Been Saved?</Label>
         <RadioGroup name="How Long Saved" value={data['How Long Saved'] as string || ''} onChange={update} options={['Not sure I am', 'Less than 1 year', '1-5 years', '5-10 years', '10-20 years', '20+ years']} />
       </Field>

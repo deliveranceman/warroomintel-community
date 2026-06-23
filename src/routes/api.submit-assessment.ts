@@ -321,6 +321,7 @@ export const Route = createFileRoute('/api/submit-assessment')({
               email:                    str(data['Email']),
               age_range:                str(data['Age Range']),
               how_long_saved:           str(data['How Long Saved']),
+              education_level:          str(data['Education Level']),
               church_background:        str(data['Church Background']),
               conversion_experience:    str(data['Conversion Experience']),
               prayer_life:              str(data['Prayer Life Description']),
