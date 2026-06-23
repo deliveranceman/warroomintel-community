@@ -72,6 +72,7 @@ import { Route as AdminIntelSolTestRouteImport } from './routes/admin_.intel.sol
 import { Route as AdminIntelScripturesRouteImport } from './routes/admin_.intel.scriptures'
 import { Route as AdminIntelGatewaysRouteImport } from './routes/admin_.intel.gateways'
 import { Route as AdminBloodlineSecretSocietiesRouteImport } from './routes/admin_.bloodline.secret-societies'
+import { Route as AdminBloodlineCursesRouteImport } from './routes/admin_.bloodline.curses'
 import { Route as AdminBloodlineCulturalDossiersRouteImport } from './routes/admin_.bloodline.cultural-dossiers'
 
 const TermsRoute = TermsRouteImport.update({
@@ -396,6 +397,11 @@ const AdminBloodlineSecretSocietiesRoute =
     path: '/secret-societies',
     getParentRoute: () => AdminBloodlineRoute,
   } as any)
+const AdminBloodlineCursesRoute = AdminBloodlineCursesRouteImport.update({
+  id: '/curses',
+  path: '/curses',
+  getParentRoute: () => AdminBloodlineRoute,
+} as any)
 const AdminBloodlineCulturalDossiersRoute =
   AdminBloodlineCulturalDossiersRouteImport.update({
     id: '/cultural-dossiers',
@@ -461,6 +467,7 @@ export interface FileRoutesByFullPath {
   '/products/$productId': typeof ProductsProductIdRoute
   '/admin/': typeof AdminIndexRoute
   '/admin/bloodline/cultural-dossiers': typeof AdminBloodlineCulturalDossiersRoute
+  '/admin/bloodline/curses': typeof AdminBloodlineCursesRoute
   '/admin/bloodline/secret-societies': typeof AdminBloodlineSecretSocietiesRoute
   '/admin/intel/gateways': typeof AdminIntelGatewaysRoute
   '/admin/intel/scriptures': typeof AdminIntelScripturesRoute
@@ -526,6 +533,7 @@ export interface FileRoutesByTo {
   '/products/$productId': typeof ProductsProductIdRoute
   '/admin': typeof AdminIndexRoute
   '/admin/bloodline/cultural-dossiers': typeof AdminBloodlineCulturalDossiersRoute
+  '/admin/bloodline/curses': typeof AdminBloodlineCursesRoute
   '/admin/bloodline/secret-societies': typeof AdminBloodlineSecretSocietiesRoute
   '/admin/intel/gateways': typeof AdminIntelGatewaysRoute
   '/admin/intel/scriptures': typeof AdminIntelScripturesRoute
@@ -593,6 +601,7 @@ export interface FileRoutesById {
   '/products/$productId': typeof ProductsProductIdRoute
   '/admin/': typeof AdminIndexRoute
   '/admin_/bloodline/cultural-dossiers': typeof AdminBloodlineCulturalDossiersRoute
+  '/admin_/bloodline/curses': typeof AdminBloodlineCursesRoute
   '/admin_/bloodline/secret-societies': typeof AdminBloodlineSecretSocietiesRoute
   '/admin_/intel/gateways': typeof AdminIntelGatewaysRoute
   '/admin_/intel/scriptures': typeof AdminIntelScripturesRoute
@@ -661,6 +670,7 @@ export interface FileRouteTypes {
     | '/products/$productId'
     | '/admin/'
     | '/admin/bloodline/cultural-dossiers'
+    | '/admin/bloodline/curses'
     | '/admin/bloodline/secret-societies'
     | '/admin/intel/gateways'
     | '/admin/intel/scriptures'
@@ -726,6 +736,7 @@ export interface FileRouteTypes {
     | '/products/$productId'
     | '/admin'
     | '/admin/bloodline/cultural-dossiers'
+    | '/admin/bloodline/curses'
     | '/admin/bloodline/secret-societies'
     | '/admin/intel/gateways'
     | '/admin/intel/scriptures'
@@ -792,6 +803,7 @@ export interface FileRouteTypes {
     | '/products/$productId'
     | '/admin/'
     | '/admin_/bloodline/cultural-dossiers'
+    | '/admin_/bloodline/curses'
     | '/admin_/bloodline/secret-societies'
     | '/admin_/intel/gateways'
     | '/admin_/intel/scriptures'
@@ -1306,6 +1318,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminBloodlineSecretSocietiesRouteImport
       parentRoute: typeof AdminBloodlineRoute
     }
+    '/admin_/bloodline/curses': {
+      id: '/admin_/bloodline/curses'
+      path: '/curses'
+      fullPath: '/admin/bloodline/curses'
+      preLoaderRoute: typeof AdminBloodlineCursesRouteImport
+      parentRoute: typeof AdminBloodlineRoute
+    }
     '/admin_/bloodline/cultural-dossiers': {
       id: '/admin_/bloodline/cultural-dossiers'
       path: '/cultural-dossiers'
@@ -1332,11 +1351,13 @@ const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
 
 interface AdminBloodlineRouteChildren {
   AdminBloodlineCulturalDossiersRoute: typeof AdminBloodlineCulturalDossiersRoute
+  AdminBloodlineCursesRoute: typeof AdminBloodlineCursesRoute
   AdminBloodlineSecretSocietiesRoute: typeof AdminBloodlineSecretSocietiesRoute
 }
 
 const AdminBloodlineRouteChildren: AdminBloodlineRouteChildren = {
   AdminBloodlineCulturalDossiersRoute: AdminBloodlineCulturalDossiersRoute,
+  AdminBloodlineCursesRoute: AdminBloodlineCursesRoute,
   AdminBloodlineSecretSocietiesRoute: AdminBloodlineSecretSocietiesRoute,
 }
 
