@@ -73,10 +73,9 @@ const NAV_TREE: NavGroup[] = [
     items: [
       { key: 'bloodline-overview', label: 'Overview',
         href: '/admin/bloodline', isSlugRoute: true },
-      // Future items added as Phase 2B+ ships:
-      // - Cultural Dossiers admin
-      // - Secret Societies admin
-      // - All Profiles oversight
+      { key: 'cultural-dossiers', label: 'Cultural Dossiers',
+        href: '/admin/bloodline/cultural-dossiers', isSlugRoute: true },
+      // Future items: Secret Societies admin, All Profiles oversight
     ],
   },
   {

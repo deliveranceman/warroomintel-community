@@ -71,6 +71,7 @@ import { Route as CommunityArsenalResourceIdRouteImport } from './routes/communi
 import { Route as AdminIntelSolTestRouteImport } from './routes/admin_.intel.sol-test'
 import { Route as AdminIntelScripturesRouteImport } from './routes/admin_.intel.scriptures'
 import { Route as AdminIntelGatewaysRouteImport } from './routes/admin_.intel.gateways'
+import { Route as AdminBloodlineCulturalDossiersRouteImport } from './routes/admin_.bloodline.cultural-dossiers'
 
 const TermsRoute = TermsRouteImport.update({
   id: '/terms',
@@ -388,6 +389,12 @@ const AdminIntelGatewaysRoute = AdminIntelGatewaysRouteImport.update({
   path: '/admin/intel/gateways',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminBloodlineCulturalDossiersRoute =
+  AdminBloodlineCulturalDossiersRouteImport.update({
+    id: '/cultural-dossiers',
+    path: '/cultural-dossiers',
+    getParentRoute: () => AdminBloodlineRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -410,7 +417,7 @@ export interface FileRoutesByFullPath {
   '/terms': typeof TermsRoute
   '/admin/church-fathers-library': typeof AdminChurchFathersLibraryRoute
   '/admin/login': typeof AdminLoginRoute
-  '/admin/bloodline': typeof AdminBloodlineRoute
+  '/admin/bloodline': typeof AdminBloodlineRouteWithChildren
   '/admin/dashboard': typeof AdminDashboardRoute
   '/api/admin-auth': typeof ApiAdminAuthRoute
   '/api/admin-upload': typeof ApiAdminUploadRoute
@@ -446,6 +453,7 @@ export interface FileRoutesByFullPath {
   '/community/spiritual-mapping': typeof CommunitySpiritualMappingRoute
   '/products/$productId': typeof ProductsProductIdRoute
   '/admin/': typeof AdminIndexRoute
+  '/admin/bloodline/cultural-dossiers': typeof AdminBloodlineCulturalDossiersRoute
   '/admin/intel/gateways': typeof AdminIntelGatewaysRoute
   '/admin/intel/scriptures': typeof AdminIntelScripturesRoute
   '/admin/intel/sol-test': typeof AdminIntelSolTestRoute
@@ -473,7 +481,7 @@ export interface FileRoutesByTo {
   '/terms': typeof TermsRoute
   '/admin/church-fathers-library': typeof AdminChurchFathersLibraryRoute
   '/admin/login': typeof AdminLoginRoute
-  '/admin/bloodline': typeof AdminBloodlineRoute
+  '/admin/bloodline': typeof AdminBloodlineRouteWithChildren
   '/admin/dashboard': typeof AdminDashboardRoute
   '/api/admin-auth': typeof ApiAdminAuthRoute
   '/api/admin-upload': typeof ApiAdminUploadRoute
@@ -509,6 +517,7 @@ export interface FileRoutesByTo {
   '/community/spiritual-mapping': typeof CommunitySpiritualMappingRoute
   '/products/$productId': typeof ProductsProductIdRoute
   '/admin': typeof AdminIndexRoute
+  '/admin/bloodline/cultural-dossiers': typeof AdminBloodlineCulturalDossiersRoute
   '/admin/intel/gateways': typeof AdminIntelGatewaysRoute
   '/admin/intel/scriptures': typeof AdminIntelScripturesRoute
   '/admin/intel/sol-test': typeof AdminIntelSolTestRoute
@@ -538,7 +547,7 @@ export interface FileRoutesById {
   '/terms': typeof TermsRoute
   '/admin/church-fathers-library': typeof AdminChurchFathersLibraryRoute
   '/admin/login': typeof AdminLoginRoute
-  '/admin_/bloodline': typeof AdminBloodlineRoute
+  '/admin_/bloodline': typeof AdminBloodlineRouteWithChildren
   '/admin_/dashboard': typeof AdminDashboardRoute
   '/api/admin-auth': typeof ApiAdminAuthRoute
   '/api/admin-upload': typeof ApiAdminUploadRoute
@@ -574,6 +583,7 @@ export interface FileRoutesById {
   '/community_/spiritual-mapping': typeof CommunitySpiritualMappingRoute
   '/products/$productId': typeof ProductsProductIdRoute
   '/admin/': typeof AdminIndexRoute
+  '/admin_/bloodline/cultural-dossiers': typeof AdminBloodlineCulturalDossiersRoute
   '/admin_/intel/gateways': typeof AdminIntelGatewaysRoute
   '/admin_/intel/scriptures': typeof AdminIntelScripturesRoute
   '/admin_/intel/sol-test': typeof AdminIntelSolTestRoute
@@ -640,6 +650,7 @@ export interface FileRouteTypes {
     | '/community/spiritual-mapping'
     | '/products/$productId'
     | '/admin/'
+    | '/admin/bloodline/cultural-dossiers'
     | '/admin/intel/gateways'
     | '/admin/intel/scriptures'
     | '/admin/intel/sol-test'
@@ -703,6 +714,7 @@ export interface FileRouteTypes {
     | '/community/spiritual-mapping'
     | '/products/$productId'
     | '/admin'
+    | '/admin/bloodline/cultural-dossiers'
     | '/admin/intel/gateways'
     | '/admin/intel/scriptures'
     | '/admin/intel/sol-test'
@@ -767,6 +779,7 @@ export interface FileRouteTypes {
     | '/community_/spiritual-mapping'
     | '/products/$productId'
     | '/admin/'
+    | '/admin_/bloodline/cultural-dossiers'
     | '/admin_/intel/gateways'
     | '/admin_/intel/scriptures'
     | '/admin_/intel/sol-test'
@@ -794,7 +807,7 @@ export interface RootRouteChildren {
   SignUpRoute: typeof SignUpRoute
   SubmitDemonRoute: typeof SubmitDemonRoute
   TermsRoute: typeof TermsRoute
-  AdminBloodlineRoute: typeof AdminBloodlineRoute
+  AdminBloodlineRoute: typeof AdminBloodlineRouteWithChildren
   AdminDashboardRoute: typeof AdminDashboardRoute
   ApiAdminAuthRoute: typeof ApiAdminAuthRoute
   ApiAdminUploadRoute: typeof ApiAdminUploadRoute
@@ -1273,6 +1286,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminIntelGatewaysRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin_/bloodline/cultural-dossiers': {
+      id: '/admin_/bloodline/cultural-dossiers'
+      path: '/cultural-dossiers'
+      fullPath: '/admin/bloodline/cultural-dossiers'
+      preLoaderRoute: typeof AdminBloodlineCulturalDossiersRouteImport
+      parentRoute: typeof AdminBloodlineRoute
+    }
   }
 }
 
@@ -1289,6 +1309,18 @@ const AdminRouteChildren: AdminRouteChildren = {
 }
 
 const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
+
+interface AdminBloodlineRouteChildren {
+  AdminBloodlineCulturalDossiersRoute: typeof AdminBloodlineCulturalDossiersRoute
+}
+
+const AdminBloodlineRouteChildren: AdminBloodlineRouteChildren = {
+  AdminBloodlineCulturalDossiersRoute: AdminBloodlineCulturalDossiersRoute,
+}
+
+const AdminBloodlineRouteWithChildren = AdminBloodlineRoute._addFileChildren(
+  AdminBloodlineRouteChildren,
+)
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
@@ -1309,7 +1341,7 @@ const rootRouteChildren: RootRouteChildren = {
   SignUpRoute: SignUpRoute,
   SubmitDemonRoute: SubmitDemonRoute,
   TermsRoute: TermsRoute,
-  AdminBloodlineRoute: AdminBloodlineRoute,
+  AdminBloodlineRoute: AdminBloodlineRouteWithChildren,
   AdminDashboardRoute: AdminDashboardRoute,
   ApiAdminAuthRoute: ApiAdminAuthRoute,
   ApiAdminUploadRoute: ApiAdminUploadRoute,
