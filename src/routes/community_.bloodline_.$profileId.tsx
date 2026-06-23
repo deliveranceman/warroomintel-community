@@ -1,6 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useUser } from '@clerk/tanstack-start'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, type CSSProperties } from 'react'
 import { CommunitySidebarShell } from '@/components/CommunitySidebarShell'
 import { UpgradeGate } from '@/components/UpgradeGate'
 import { getAccessLevel } from '@/lib/access'
@@ -33,6 +33,60 @@ type DetailProfile = {
   extended_depth_reason: string | null
   extended_depth_estimate: number | null
   discernment_notes: string | null
+}
+
+type AncestorRow = {
+  id: string
+  profile_id: string
+  name: string | null
+  gender: string | null
+  generation: number | null
+  parent_lineage: string | null
+  birth_country: string | null
+  birth_year: number | null
+  death_year: number | null
+  occupation: string | null
+  religion: string | null
+  military_service: string | null
+  secret_societies: string[] | null
+  known_trauma: string | null
+  abuse: string | null
+  addiction: string | null
+  suicide: boolean
+  occult_involvement: string | null
+  freemasonry_degree: number | null
+  lodge_membership: string | null
+  notes: string | null
+  unknown_fields: string[] | null
+  created_at: string
+  updated_at: string
+}
+
+type AncestorDraft = {
+  name: string; gender: string; generation: string; parent_lineage: string
+  birth_country: string; birth_year: string; death_year: string
+  occupation: string; religion: string; military_service: string
+  secret_societies: string; known_trauma: string; abuse: string
+  addiction: string; suicide: boolean; occult_involvement: string
+  freemasonry_degree: string; lodge_membership: string; notes: string
+  unknown_fields: string
+}
+
+const EMPTY_DRAFT: AncestorDraft = {
+  name: '', gender: '', generation: '', parent_lineage: '',
+  birth_country: '', birth_year: '', death_year: '',
+  occupation: '', religion: '', military_service: '',
+  secret_societies: '', known_trauma: '', abuse: '', addiction: '',
+  suicide: false, occult_involvement: '', freemasonry_degree: '',
+  lodge_membership: '', notes: '', unknown_fields: '',
+}
+
+const GEN_HEADER: Record<number, string> = {
+  0: 'SUBJECT',
+  1: 'GENERATION 1 — PARENTS',
+  2: 'GENERATION 2 — GRANDPARENTS',
+  3: 'GENERATION 3 — GREAT-GRANDPARENTS',
+  4: 'GENERATION 4 — GREAT-GREAT-GRANDPARENTS',
 }
 
 async function getClerkToken(): Promise<string | null> {
@@ -102,6 +156,17 @@ function BloodlineDetailPage() {
   const [reachSaveError, setReachSaveError] = useState<string | null>(null)
   const [reachSaved, setReachSaved]         = useState(false)
 
+  // Ancestor state
+  const [ancestors, setAncestors]               = useState<AncestorRow[]>([])
+  const [ancestorLoading, setAncestorLoading]   = useState(false)
+  const [ancestorError, setAncestorError]       = useState<string | null>(null)
+  const [showAncestorForm, setShowAncestorForm] = useState(false)
+  const [editingAncestorId, setEditingAncestorId] = useState<string | null>(null)
+  const [ancestorDraft, setAncestorDraft]       = useState<AncestorDraft>(EMPTY_DRAFT)
+  const [ancestorSaving, setAncestorSaving]     = useState(false)
+  const [ancestorSaveError, setAncestorSaveError] = useState<string | null>(null)
+  const [deletingAncestorId, setDeletingAncestorId] = useState<string | null>(null)
+
   function syncReachFromProfile(p: DetailProfile) {
     setDiscernNotes(p.discernment_notes ?? '')
     if (!p.extended_depth_flag) {
@@ -121,6 +186,16 @@ function BloodlineDetailPage() {
       setRitualReason(reason)
     }
     setDepthEstimate(String(p.extended_depth_estimate ?? 10))
+  }
+
+  function parseIntOrNull(s: string): number | null {
+    const n = parseInt(s, 10)
+    return isNaN(n) ? null : n
+  }
+
+  function csvToArray(s: string): string[] | null {
+    const arr = s.split(',').map(x => x.trim()).filter(Boolean)
+    return arr.length ? arr : null
   }
 
   async function fetchProfile() {
@@ -147,9 +222,31 @@ function BloodlineDetailPage() {
     }
   }
 
+  async function fetchAncestors(pid: string) {
+    setAncestorLoading(true)
+    setAncestorError(null)
+    try {
+      const token = await getClerkToken()
+      const res = await fetch(`/api/bloodline-ancestor-list?profile_id=${encodeURIComponent(pid)}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      })
+      if (!res.ok) { setAncestorError('Failed to load ancestors'); return }
+      const data = await res.json()
+      setAncestors(data.ancestors ?? [])
+    } catch {
+      setAncestorError('Network error')
+    } finally {
+      setAncestorLoading(false)
+    }
+  }
+
   useEffect(() => {
     if (isLoaded && hasAccess) { fetchProfile() }
   }, [isLoaded, hasAccess, profileId])
+
+  useEffect(() => {
+    if (profile?.id) fetchAncestors(profile.id)
+  }, [profile?.id])
 
   function startEdit() {
     if (!profile) return
@@ -275,6 +372,130 @@ function BloodlineDetailPage() {
     }
   }
 
+  function startAddAncestor() {
+    setEditingAncestorId(null)
+    setAncestorDraft(EMPTY_DRAFT)
+    setAncestorSaveError(null)
+    setShowAncestorForm(true)
+  }
+
+  function startEditAncestor(a: AncestorRow) {
+    setEditingAncestorId(a.id)
+    setAncestorDraft({
+      name: a.name ?? '',
+      gender: a.gender ?? '',
+      generation: a.generation !== null ? String(a.generation) : '',
+      parent_lineage: a.parent_lineage ?? '',
+      birth_country: a.birth_country ?? '',
+      birth_year: a.birth_year !== null ? String(a.birth_year) : '',
+      death_year: a.death_year !== null ? String(a.death_year) : '',
+      occupation: a.occupation ?? '',
+      religion: a.religion ?? '',
+      military_service: a.military_service ?? '',
+      secret_societies: (a.secret_societies ?? []).join(', '),
+      known_trauma: a.known_trauma ?? '',
+      abuse: a.abuse ?? '',
+      addiction: a.addiction ?? '',
+      suicide: a.suicide,
+      occult_involvement: a.occult_involvement ?? '',
+      freemasonry_degree: a.freemasonry_degree !== null ? String(a.freemasonry_degree) : '',
+      lodge_membership: a.lodge_membership ?? '',
+      notes: a.notes ?? '',
+      unknown_fields: (a.unknown_fields ?? []).join(', '),
+    })
+    setAncestorSaveError(null)
+    setShowAncestorForm(true)
+  }
+
+  function cancelAncestorForm() {
+    setShowAncestorForm(false)
+    setEditingAncestorId(null)
+    setAncestorDraft(EMPTY_DRAFT)
+    setAncestorSaveError(null)
+  }
+
+  async function handleAncestorSubmit() {
+    if (!profile?.id) return
+    setAncestorSaving(true)
+    setAncestorSaveError(null)
+    const isEdit = editingAncestorId !== null
+    const payload: Record<string, unknown> = {
+      profile_id: profile.id,
+      name: ancestorDraft.name.trim() || null,
+      gender: ancestorDraft.gender || null,
+      generation: parseIntOrNull(ancestorDraft.generation),
+      parent_lineage: ancestorDraft.parent_lineage || null,
+      birth_country: ancestorDraft.birth_country.trim() || null,
+      birth_year: parseIntOrNull(ancestorDraft.birth_year),
+      death_year: parseIntOrNull(ancestorDraft.death_year),
+      occupation: ancestorDraft.occupation.trim() || null,
+      religion: ancestorDraft.religion.trim() || null,
+      military_service: ancestorDraft.military_service.trim() || null,
+      secret_societies: csvToArray(ancestorDraft.secret_societies),
+      known_trauma: ancestorDraft.known_trauma.trim() || null,
+      abuse: ancestorDraft.abuse || null,
+      addiction: ancestorDraft.addiction.trim() || null,
+      suicide: ancestorDraft.suicide,
+      occult_involvement: ancestorDraft.occult_involvement.trim() || null,
+      freemasonry_degree: parseIntOrNull(ancestorDraft.freemasonry_degree),
+      lodge_membership: ancestorDraft.lodge_membership.trim() || null,
+      notes: ancestorDraft.notes.trim() || null,
+      unknown_fields: csvToArray(ancestorDraft.unknown_fields),
+    }
+    if (isEdit) payload.id = editingAncestorId
+    try {
+      const token = await getClerkToken()
+      const url = isEdit ? '/api/bloodline-ancestor-update' : '/api/bloodline-ancestor-add'
+      const method = isEdit ? 'PATCH' : 'POST'
+      const res = await fetch(url, {
+        method,
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify(payload),
+      })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        setAncestorSaveError((err as any).message ?? 'Save failed')
+        return
+      }
+      const data = await res.json()
+      if (isEdit) {
+        setAncestors(prev => prev.map(a => a.id === editingAncestorId ? data.ancestor : a))
+      } else {
+        setAncestors(prev => [...prev, data.ancestor])
+      }
+      cancelAncestorForm()
+    } catch {
+      setAncestorSaveError('Network error')
+    } finally {
+      setAncestorSaving(false)
+    }
+  }
+
+  async function handleAncestorDelete(id: string) {
+    if (!window.confirm('Remove this ancestor from the record?')) return
+    setDeletingAncestorId(id)
+    try {
+      const token = await getClerkToken()
+      const res = await fetch('/api/bloodline-ancestor-delete', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ id }),
+      })
+      if (!res.ok) return
+      setAncestors(prev => prev.filter(a => a.id !== id))
+    } catch {
+      // network error — list stays as-is
+    } finally {
+      setDeletingAncestorId(null)
+    }
+  }
+
   if (!isLoaded) {
     return (
       <CommunitySidebarShell activeItem="Bloodline" userName="..." userTierLabel="..." fillViewport>
@@ -299,6 +520,21 @@ function BloodlineDetailPage() {
         </div>
       </CommunitySidebarShell>
     )
+  }
+
+  const inputSty: CSSProperties = {
+    width: '100%', boxSizing: 'border-box',
+    background: SURF, border: `1px solid ${BDR}`, borderRadius: 4,
+    padding: '8px 10px', fontFamily: crimson, fontSize: 14, color: TXT, outline: 'none',
+  }
+  const selectSty: CSSProperties = {
+    width: '100%', background: SURF, border: `1px solid ${BDR}`, borderRadius: 4,
+    padding: '8px 10px', fontFamily: crimson, fontSize: 14, color: TXT, outline: 'none', cursor: 'pointer',
+  }
+  const textareaSty: CSSProperties = {
+    width: '100%', boxSizing: 'border-box',
+    background: SURF, border: `1px solid ${BDR}`, borderRadius: 4,
+    padding: '8px 10px', fontFamily: crimson, fontSize: 14, color: TXT, outline: 'none', resize: 'vertical',
   }
 
   const sc = profile ? statusStyle(profile.status) : null
@@ -700,12 +936,259 @@ function BloodlineDetailPage() {
               )}
             </div>
 
-            {/* ── FAMILY TREE placeholder ─────────────────────────────── */}
-            <PlaceholderCard
-              title="FAMILY TREE"
-              phase="2C.2"
-              description="Build the ancestor lineage for this investigation. Map generational patterns, birth countries, occupations, and known spiritual involvements across generations."
-            />
+            {/* ── FAMILY TREE card ─────────────────────────────────────── */}
+            <div style={{ background: SURF, border: `1px solid ${BDR}`, borderRadius: 6, overflow: 'hidden' }}>
+              {/* header row */}
+              <div style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                padding: '18px 24px', borderBottom: `1px solid ${BDR}`,
+              }}>
+                <div style={{ fontFamily: cinzel, fontSize: 10, letterSpacing: '0.14em', color: GOLD }}>
+                  FAMILY TREE
+                </div>
+                {canWrite && !showAncestorForm && (
+                  <button onClick={startAddAncestor} style={{
+                    fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em',
+                    padding: '6px 14px', borderRadius: 3, cursor: 'pointer',
+                    background: 'rgba(201,168,76,0.1)', border: `1px solid rgba(201,168,76,0.3)`, color: GOLD,
+                  }}>
+                    + ADD ANCESTOR
+                  </button>
+                )}
+              </div>
+
+              <div style={{ padding: '20px 24px' }}>
+
+                {/* ancestor form */}
+                {showAncestorForm && (
+                  <div style={{ marginBottom: 24, padding: '18px', background: BG, border: `1px solid ${BDR}`, borderRadius: 5 }}>
+                    <div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.12em', color: GOLD, marginBottom: 16 }}>
+                      {editingAncestorId ? 'EDIT ANCESTOR' : 'NEW ANCESTOR'}
+                    </div>
+
+                    {/* Identity */}
+                    <div style={{ marginBottom: 14 }}>
+                      <div style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.1em', color: DIM, marginBottom: 8 }}>IDENTITY</div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                        <div>
+                          <label style={{ display: 'block', fontFamily: cinzel, fontSize: 8, letterSpacing: '0.08em', color: DIM, marginBottom: 4 }}>NAME</label>
+                          <input value={ancestorDraft.name} onChange={e => setAncestorDraft(p => ({ ...p, name: e.target.value }))} style={inputSty} />
+                        </div>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
+                          <div>
+                            <label style={{ display: 'block', fontFamily: cinzel, fontSize: 8, letterSpacing: '0.08em', color: DIM, marginBottom: 4 }}>GENDER</label>
+                            <select value={ancestorDraft.gender} onChange={e => setAncestorDraft(p => ({ ...p, gender: e.target.value }))} style={selectSty}>
+                              <option value="">—</option>
+                              <option value="M">Male</option>
+                              <option value="F">Female</option>
+                              <option value="unknown">Unknown</option>
+                            </select>
+                          </div>
+                          <div>
+                            <label style={{ display: 'block', fontFamily: cinzel, fontSize: 8, letterSpacing: '0.08em', color: DIM, marginBottom: 4 }}>GENERATION</label>
+                            <select value={ancestorDraft.generation} onChange={e => setAncestorDraft(p => ({ ...p, generation: e.target.value }))} style={selectSty}>
+                              <option value="">—</option>
+                              <option value="0">0 — Subject</option>
+                              <option value="1">1 — Parents</option>
+                              <option value="2">2 — Grandparents</option>
+                              <option value="3">3 — Great-grandparents</option>
+                              <option value="4">4 — Great-great</option>
+                            </select>
+                          </div>
+                          <div>
+                            <label style={{ display: 'block', fontFamily: cinzel, fontSize: 8, letterSpacing: '0.08em', color: DIM, marginBottom: 4 }}>LINEAGE</label>
+                            <select value={ancestorDraft.parent_lineage} onChange={e => setAncestorDraft(p => ({ ...p, parent_lineage: e.target.value }))} style={selectSty}>
+                              <option value="">—</option>
+                              <option value="paternal">Paternal</option>
+                              <option value="maternal">Maternal</option>
+                            </select>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Life Context */}
+                    <div style={{ marginBottom: 14 }}>
+                      <div style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.1em', color: DIM, marginBottom: 8 }}>LIFE CONTEXT</div>
+                      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: 8 }}>
+                        <div>
+                          <label style={{ display: 'block', fontFamily: cinzel, fontSize: 8, letterSpacing: '0.08em', color: DIM, marginBottom: 4 }}>BIRTH COUNTRY</label>
+                          <input value={ancestorDraft.birth_country} onChange={e => setAncestorDraft(p => ({ ...p, birth_country: e.target.value }))} style={inputSty} />
+                        </div>
+                        <div>
+                          <label style={{ display: 'block', fontFamily: cinzel, fontSize: 8, letterSpacing: '0.08em', color: DIM, marginBottom: 4 }}>BIRTH YEAR</label>
+                          <input type="number" value={ancestorDraft.birth_year} onChange={e => setAncestorDraft(p => ({ ...p, birth_year: e.target.value }))} style={inputSty} />
+                        </div>
+                        <div>
+                          <label style={{ display: 'block', fontFamily: cinzel, fontSize: 8, letterSpacing: '0.08em', color: DIM, marginBottom: 4 }}>DEATH YEAR</label>
+                          <input type="number" value={ancestorDraft.death_year} onChange={e => setAncestorDraft(p => ({ ...p, death_year: e.target.value }))} style={inputSty} />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Background */}
+                    <div style={{ marginBottom: 14 }}>
+                      <div style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.1em', color: DIM, marginBottom: 8 }}>BACKGROUND</div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                        <div>
+                          <label style={{ display: 'block', fontFamily: cinzel, fontSize: 8, letterSpacing: '0.08em', color: DIM, marginBottom: 4 }}>OCCUPATION</label>
+                          <input value={ancestorDraft.occupation} onChange={e => setAncestorDraft(p => ({ ...p, occupation: e.target.value }))} style={inputSty} />
+                        </div>
+                        <div>
+                          <label style={{ display: 'block', fontFamily: cinzel, fontSize: 8, letterSpacing: '0.08em', color: DIM, marginBottom: 4 }}>RELIGION</label>
+                          <input value={ancestorDraft.religion} onChange={e => setAncestorDraft(p => ({ ...p, religion: e.target.value }))} style={inputSty} />
+                        </div>
+                        <div>
+                          <label style={{ display: 'block', fontFamily: cinzel, fontSize: 8, letterSpacing: '0.08em', color: DIM, marginBottom: 4 }}>MILITARY SERVICE</label>
+                          <input value={ancestorDraft.military_service} onChange={e => setAncestorDraft(p => ({ ...p, military_service: e.target.value }))} style={inputSty} />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Spiritual */}
+                    <div style={{ marginBottom: 14 }}>
+                      <div style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.1em', color: DIM, marginBottom: 8 }}>SPIRITUAL INVOLVEMENT</div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                        <div>
+                          <label style={{ display: 'block', fontFamily: cinzel, fontSize: 8, letterSpacing: '0.08em', color: DIM, marginBottom: 4 }}>OCCULT INVOLVEMENT</label>
+                          <textarea value={ancestorDraft.occult_involvement} onChange={e => setAncestorDraft(p => ({ ...p, occult_involvement: e.target.value }))} rows={2} style={textareaSty} />
+                        </div>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: 8 }}>
+                          <div>
+                            <label style={{ display: 'block', fontFamily: cinzel, fontSize: 8, letterSpacing: '0.08em', color: DIM, marginBottom: 4 }}>MASONRY DEGREE</label>
+                            <input type="number" value={ancestorDraft.freemasonry_degree} onChange={e => setAncestorDraft(p => ({ ...p, freemasonry_degree: e.target.value }))} style={inputSty} />
+                          </div>
+                          <div>
+                            <label style={{ display: 'block', fontFamily: cinzel, fontSize: 8, letterSpacing: '0.08em', color: DIM, marginBottom: 4 }}>LODGE MEMBERSHIP</label>
+                            <input value={ancestorDraft.lodge_membership} onChange={e => setAncestorDraft(p => ({ ...p, lodge_membership: e.target.value }))} style={inputSty} />
+                          </div>
+                        </div>
+                        <div>
+                          <label style={{ display: 'block', fontFamily: cinzel, fontSize: 8, letterSpacing: '0.08em', color: DIM, marginBottom: 4 }}>SECRET SOCIETIES (comma-separated)</label>
+                          <input value={ancestorDraft.secret_societies} onChange={e => setAncestorDraft(p => ({ ...p, secret_societies: e.target.value }))} style={inputSty} />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Wounds */}
+                    <div style={{ marginBottom: 14 }}>
+                      <div style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.1em', color: DIM, marginBottom: 8 }}>WOUNDS & PATTERNS</div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                        <div>
+                          <label style={{ display: 'block', fontFamily: cinzel, fontSize: 8, letterSpacing: '0.08em', color: DIM, marginBottom: 4 }}>KNOWN TRAUMA</label>
+                          <textarea value={ancestorDraft.known_trauma} onChange={e => setAncestorDraft(p => ({ ...p, known_trauma: e.target.value }))} rows={2} style={textareaSty} />
+                        </div>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                          <div>
+                            <label style={{ display: 'block', fontFamily: cinzel, fontSize: 8, letterSpacing: '0.08em', color: DIM, marginBottom: 4 }}>ABUSE</label>
+                            <select value={ancestorDraft.abuse} onChange={e => setAncestorDraft(p => ({ ...p, abuse: e.target.value }))} style={selectSty}>
+                              <option value="">—</option>
+                              <option value="received">Received</option>
+                              <option value="perpetrated">Perpetrated</option>
+                              <option value="both">Both</option>
+                              <option value="unknown">Unknown</option>
+                            </select>
+                          </div>
+                          <div>
+                            <label style={{ display: 'block', fontFamily: cinzel, fontSize: 8, letterSpacing: '0.08em', color: DIM, marginBottom: 4 }}>ADDICTION</label>
+                            <input value={ancestorDraft.addiction} onChange={e => setAncestorDraft(p => ({ ...p, addiction: e.target.value }))} style={inputSty} />
+                          </div>
+                        </div>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+                          <input type="checkbox" checked={ancestorDraft.suicide} onChange={e => setAncestorDraft(p => ({ ...p, suicide: e.target.checked }))} style={{ accentColor: 'var(--gold)', cursor: 'pointer' }} />
+                          <span style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.08em', color: TXT }}>SUICIDE IN HISTORY</span>
+                        </label>
+                      </div>
+                    </div>
+
+                    {/* Research */}
+                    <div style={{ marginBottom: 16 }}>
+                      <div style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.1em', color: DIM, marginBottom: 8 }}>RESEARCH NOTES</div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                        <div>
+                          <label style={{ display: 'block', fontFamily: cinzel, fontSize: 8, letterSpacing: '0.08em', color: DIM, marginBottom: 4 }}>NOTES</label>
+                          <textarea value={ancestorDraft.notes} onChange={e => setAncestorDraft(p => ({ ...p, notes: e.target.value }))} rows={3} style={textareaSty} />
+                        </div>
+                        <div>
+                          <label style={{ display: 'block', fontFamily: cinzel, fontSize: 8, letterSpacing: '0.08em', color: DIM, marginBottom: 4 }}>UNKNOWN FIELDS (comma-separated)</label>
+                          <input value={ancestorDraft.unknown_fields} onChange={e => setAncestorDraft(p => ({ ...p, unknown_fields: e.target.value }))} style={inputSty} />
+                        </div>
+                      </div>
+                    </div>
+
+                    {ancestorSaveError && (
+                      <div style={{ fontFamily: crimson, fontSize: 13, color: RED, marginBottom: 10 }}>{ancestorSaveError}</div>
+                    )}
+
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <button onClick={handleAncestorSubmit} disabled={ancestorSaving} style={{
+                        fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', padding: '8px 18px', borderRadius: 3,
+                        background: ancestorSaving ? 'rgba(201,168,76,0.08)' : 'rgba(201,168,76,0.2)',
+                        border: `1px solid rgba(201,168,76,${ancestorSaving ? '0.2' : '0.5'})`,
+                        color: ancestorSaving ? 'rgba(201,168,76,0.35)' : GOLD,
+                        cursor: ancestorSaving ? 'not-allowed' : 'pointer',
+                      }}>
+                        {ancestorSaving ? 'SAVING...' : (editingAncestorId ? 'UPDATE' : 'ADD')}
+                      </button>
+                      <button onClick={cancelAncestorForm} style={{
+                        fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', padding: '8px 18px', borderRadius: 3,
+                        background: 'transparent', border: `1px solid ${BDR}`, color: DIM, cursor: 'pointer',
+                      }}>
+                        CANCEL
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {ancestorError && (
+                  <div style={{ fontFamily: crimson, fontSize: 14, color: RED, marginBottom: 12 }}>{ancestorError}</div>
+                )}
+
+                {ancestorLoading && (
+                  <div style={{ fontFamily: crimson, fontSize: 14, color: DIM, fontStyle: 'italic', padding: '20px 0', textAlign: 'center' }}>
+                    Loading ancestors...
+                  </div>
+                )}
+
+                {!ancestorLoading && !ancestorError && ancestors.length === 0 && !showAncestorForm && (
+                  <div style={{ fontFamily: crimson, fontSize: 14, color: DIM, fontStyle: 'italic', padding: '24px 0', textAlign: 'center' }}>
+                    No ancestors recorded.{canWrite ? ' Use ADD ANCESTOR to begin.' : ''}
+                  </div>
+                )}
+
+                {!ancestorLoading && ancestors.length > 0 && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+                    {([0, 1, 2, 3, 4, null] as (number | null)[]).map(gen => {
+                      const group = ancestors.filter(a => a.generation === gen)
+                      if (group.length === 0) return null
+                      return (
+                        <div key={String(gen)}>
+                          <div style={{
+                            fontFamily: cinzel, fontSize: 8, letterSpacing: '0.12em', color: DIM,
+                            marginBottom: 8, paddingBottom: 6, borderBottom: `1px solid ${BDR}`,
+                          }}>
+                            {gen !== null ? (GEN_HEADER[gen] ?? `GENERATION ${gen}`) : 'UNKNOWN GENERATION'}
+                          </div>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                            {group.map(a => (
+                              <AncestorRowCard
+                                key={a.id}
+                                ancestor={a}
+                                canWrite={canWrite}
+                                deleting={deletingAncestorId === a.id}
+                                onEdit={() => startEditAncestor(a)}
+                                onDelete={() => handleAncestorDelete(a.id)}
+                              />
+                            ))}
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+
+              </div>
+            </div>
 
             {/* ── BLOODLINE TIMELINE placeholder ─────────────────────── */}
             <PlaceholderCard
@@ -767,6 +1250,109 @@ function PlaceholderCard({ title, phase, description }: {
       <div style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.08em', color: DIM }}>
         COMING IN PHASE {phase}
       </div>
+    </div>
+  )
+}
+
+function AncestorRowCard({
+  ancestor: a,
+  canWrite,
+  deleting,
+  onEdit,
+  onDelete,
+}: {
+  ancestor: AncestorRow
+  canWrite: boolean
+  deleting: boolean
+  onEdit: () => void
+  onDelete: () => void
+}) {
+  const badges: { label: string; color: string }[] = []
+  if (a.occult_involvement) badges.push({ label: 'OCCULT', color: RED })
+  if (a.freemasonry_degree !== null) badges.push({ label: `MASONRY °${a.freemasonry_degree}`, color: GOLD })
+  if (a.suicide) badges.push({ label: 'SUICIDE', color: RED })
+  if (a.abuse) badges.push({ label: 'ABUSE', color: RED })
+  if (a.addiction) badges.push({ label: 'ADDICTION', color: DIM })
+
+  const lifeContext = [
+    a.parent_lineage ? (a.parent_lineage === 'paternal' ? 'Paternal' : 'Maternal') : null,
+    a.birth_country || null,
+    a.birth_year && a.death_year
+      ? `${a.birth_year}–${a.death_year}`
+      : a.birth_year ? `b. ${a.birth_year}`
+      : a.death_year ? `d. ${a.death_year}` : null,
+  ].filter(Boolean).join(' · ')
+
+  return (
+    <div style={{
+      background: SURF2, border: `1px solid ${BDR}`, borderRadius: 4, padding: '12px 16px',
+      display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12,
+    }}>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: lifeContext || a.occupation ? 4 : 0, flexWrap: 'wrap' }}>
+          <span style={{ fontFamily: cinzel, fontSize: 11, fontWeight: 600, color: TXT }}>
+            {a.name || '(unnamed)'}
+          </span>
+          {a.gender && (
+            <span style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.06em', color: DIM }}>
+              {a.gender === 'M' ? 'M' : a.gender === 'F' ? 'F' : '?'}
+            </span>
+          )}
+        </div>
+        {lifeContext && (
+          <div style={{ fontFamily: crimson, fontSize: 12, color: DIM, marginBottom: 2 }}>
+            {lifeContext}
+          </div>
+        )}
+        {a.occupation && (
+          <div style={{ fontFamily: crimson, fontSize: 12, color: DIM, fontStyle: 'italic', marginBottom: badges.length ? 4 : 0 }}>
+            {a.occupation}
+          </div>
+        )}
+        {badges.length > 0 && (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 6 }}>
+            {badges.map(b => (
+              <span key={b.label} style={{
+                fontFamily: cinzel, fontSize: 7, letterSpacing: '0.06em',
+                padding: '2px 7px', borderRadius: 3,
+                background: b.color === RED
+                  ? 'rgba(192,57,43,0.1)'
+                  : b.color === GOLD
+                  ? 'rgba(201,168,76,0.1)'
+                  : 'rgba(107,97,105,0.12)',
+                border: b.color === RED
+                  ? '1px solid rgba(192,57,43,0.3)'
+                  : b.color === GOLD
+                  ? '1px solid rgba(201,168,76,0.25)'
+                  : '1px solid rgba(107,97,105,0.2)',
+                color: b.color,
+              }}>
+                {b.label}
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
+      {canWrite && (
+        <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+          <button onClick={onEdit} style={{
+            fontFamily: cinzel, fontSize: 8, letterSpacing: '0.06em',
+            padding: '5px 10px', borderRadius: 3, cursor: 'pointer',
+            background: 'rgba(201,168,76,0.08)', border: `1px solid rgba(201,168,76,0.25)`, color: GOLD,
+          }}>
+            EDIT
+          </button>
+          <button onClick={onDelete} disabled={deleting} style={{
+            fontFamily: cinzel, fontSize: 8, letterSpacing: '0.06em',
+            padding: '5px 10px', borderRadius: 3,
+            cursor: deleting ? 'not-allowed' : 'pointer',
+            background: 'rgba(192,57,43,0.07)', border: '1px solid rgba(192,57,43,0.25)', color: RED,
+            opacity: deleting ? 0.5 : 1,
+          }}>
+            {deleting ? '...' : 'DEL'}
+          </button>
+        </div>
+      )}
     </div>
   )
 }
