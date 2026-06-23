@@ -13,13 +13,13 @@ function json(data: unknown, status = 200) {
 
 // Embedding columns (embedding, embedding_source_text, embedding_updated_at) are
 // Phase E territory — never touched here.
-// FK columns (cultural_dossier_id, secret_society_id) are intentionally omitted
-// from this handler — linkage polish is deferred to a later phase.
 const TEXT_FIELDS = [
   'aka', 'origin_description', 'how_it_enters', 'manifestations',
   'scripture_refs', 'breaking_prayer',
   'source_book', 'source_author', 'source_page',
 ] as const
+
+const FK_FIELDS = ['cultural_dossier_id', 'secret_society_id'] as const
 
 export default async function handler(req: Request): Promise<Response> {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS })
@@ -33,7 +33,7 @@ export default async function handler(req: Request): Promise<Response> {
   if (req.method === 'GET') {
     const { data, error } = await client
       .from('curses')
-      .select('id, name, aka, source_book, source_author, created_at, updated_at')
+      .select('id, name, aka, cultural_dossier_id, secret_society_id, source_book, source_author, created_at, updated_at')
       .order('name', { ascending: true })
 
     if (error) return json({ error: error.message }, 500)
@@ -73,6 +73,12 @@ export default async function handler(req: Request): Promise<Response> {
     for (const f of TEXT_FIELDS) {
       if (body[f] !== undefined) {
         row[f] = typeof body[f] === 'string' ? (body[f] as string).trim() || null : null
+      }
+    }
+    for (const f of FK_FIELDS) {
+      if (body[f] !== undefined) {
+        const val = typeof body[f] === 'string' ? (body[f] as string).trim() : ''
+        row[f] = val || null
       }
     }
 

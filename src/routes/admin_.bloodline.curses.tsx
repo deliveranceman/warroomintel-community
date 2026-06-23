@@ -23,6 +23,8 @@ type Curse = {
   id: string
   name: string
   aka: string | null
+  cultural_dossier_id: string | null
+  secret_society_id: string | null
   origin_description: string | null
   how_it_enters: string | null
   manifestations: string | null
@@ -38,6 +40,8 @@ type Curse = {
 type Draft = {
   name: string
   aka: string
+  cultural_dossier_id: string
+  secret_society_id: string
   origin_description: string
   how_it_enters: string
   manifestations: string
@@ -48,8 +52,11 @@ type Draft = {
   source_page: string
 }
 
+type LinkItem = { id: string; label: string }
+
 const EMPTY_DRAFT: Draft = {
-  name: '', aka: '', origin_description: '', how_it_enters: '',
+  name: '', aka: '', cultural_dossier_id: '', secret_society_id: '',
+  origin_description: '', how_it_enters: '',
   manifestations: '', scripture_refs: '', breaking_prayer: '',
   source_book: '', source_author: '', source_page: '',
 }
@@ -63,10 +70,17 @@ const inputSty: React.CSSProperties = {
 const textareaSty: React.CSSProperties = {
   ...inputSty, resize: 'vertical' as const, lineHeight: 1.55,
 }
+const selectSty: React.CSSProperties = {
+  ...inputSty, cursor: 'pointer', appearance: 'auto' as const,
+}
 const labelSty: React.CSSProperties = {
   display: 'block', fontFamily: cinzel, fontSize: 9,
   letterSpacing: '0.1em', color: GOLD_DEEP, marginBottom: 5,
   textTransform: 'uppercase' as const,
+}
+const hintSty: React.CSSProperties = {
+  fontFamily: crimson, fontSize: 12, color: MUTED,
+  fontStyle: 'italic', marginTop: 4,
 }
 const sectionHeadSty: React.CSSProperties = {
   fontFamily: cinzel, fontSize: 9, letterSpacing: '0.14em',
@@ -82,6 +96,9 @@ function CursesPage() {
   const [loading, setLoading]        = useState(true)
   const [listError, setListError]    = useState<string | null>(null)
 
+  const [dossiers, setDossiers]      = useState<LinkItem[]>([])
+  const [societies, setSocieties]    = useState<LinkItem[]>([])
+
   const [mode, setMode]              = useState<'list' | 'form'>('list')
   const [editingId, setEditingId]    = useState<string | null>(null)
   const [draft, setDraft]            = useState<Draft>(EMPTY_DRAFT)
@@ -95,16 +112,30 @@ function CursesPage() {
 
   useEffect(() => {
     if (!isAdmin) return
-    loadCurses()
+    loadAll()
   }, [isAdmin])
 
-  async function loadCurses() {
+  async function loadAll() {
+    const token = await getToken()
+    const headers = { Authorization: `Bearer ${token}` }
+    await Promise.all([
+      loadCurses(token),
+      fetch('/api/admin-cultural-dossiers', { headers })
+        .then(r => r.ok ? r.json() : { dossiers: [] })
+        .then(d => setDossiers((d.dossiers ?? []).map((x: any) => ({ id: x.id, label: x.culture_name })))),
+      fetch('/api/admin-secret-societies', { headers })
+        .then(r => r.ok ? r.json() : { societies: [] })
+        .then(d => setSocieties((d.societies ?? []).map((x: any) => ({ id: x.id, label: x.name })))),
+    ])
+  }
+
+  async function loadCurses(token?: string | null) {
     setLoading(true)
     setListError(null)
     try {
-      const token = await getToken()
+      const t = token ?? await getToken()
       const resp = await fetch('/api/admin-curses', {
-        headers: { Authorization: `Bearer ${token}` },
+        headers: { Authorization: `Bearer ${t}` },
       })
       if (!resp.ok) throw new Error(`Status ${resp.status}`)
       const data = await resp.json()
@@ -130,16 +161,18 @@ function CursesPage() {
   function startEdit(c: Curse) {
     setEditingId(c.id)
     setDraft({
-      name:               c.name,
-      aka:                c.aka ?? '',
-      origin_description: c.origin_description ?? '',
-      how_it_enters:      c.how_it_enters ?? '',
-      manifestations:     c.manifestations ?? '',
-      scripture_refs:     c.scripture_refs ?? '',
-      breaking_prayer:    c.breaking_prayer ?? '',
-      source_book:        c.source_book ?? '',
-      source_author:      c.source_author ?? '',
-      source_page:        c.source_page ?? '',
+      name:                c.name,
+      aka:                 c.aka ?? '',
+      cultural_dossier_id: c.cultural_dossier_id ?? '',
+      secret_society_id:   c.secret_society_id ?? '',
+      origin_description:  c.origin_description ?? '',
+      how_it_enters:       c.how_it_enters ?? '',
+      manifestations:      c.manifestations ?? '',
+      scripture_refs:      c.scripture_refs ?? '',
+      breaking_prayer:     c.breaking_prayer ?? '',
+      source_book:         c.source_book ?? '',
+      source_author:       c.source_author ?? '',
+      source_page:         c.source_page ?? '',
     })
     setSaveError(null)
     setMode('form')
@@ -351,6 +384,33 @@ function CursesPage() {
               </div>
             </div>
 
+            {/* LINKAGE */}
+            <div style={{ marginBottom: 22 }}>
+              <div style={sectionHeadSty}>LINKAGE</div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+                <div>
+                  <label style={labelSty}>Cultural Root (optional)</label>
+                  <select value={draft.cultural_dossier_id} onChange={e => set('cultural_dossier_id', e.target.value)} style={selectSty}>
+                    <option value="">None</option>
+                    {dossiers.map(d => <option key={d.id} value={d.id}>{d.label}</option>)}
+                  </select>
+                  {dossiers.length === 0 && (
+                    <p style={hintSty}>No cultural dossiers yet — create one under Cultural Dossiers.</p>
+                  )}
+                </div>
+                <div>
+                  <label style={labelSty}>Originating Society (optional)</label>
+                  <select value={draft.secret_society_id} onChange={e => set('secret_society_id', e.target.value)} style={selectSty}>
+                    <option value="">None</option>
+                    {societies.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
+                  </select>
+                  {societies.length === 0 && (
+                    <p style={hintSty}>No secret societies yet — create one under Secret Societies.</p>
+                  )}
+                </div>
+              </div>
+            </div>
+
             {/* SOURCE */}
             <div style={{ marginBottom: 24 }}>
               <div style={sectionHeadSty}>SOURCE</div>
@@ -439,63 +499,91 @@ function CursesPage() {
               {curses.length} {curses.length === 1 ? 'CURSE' : 'CURSES'}
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {curses.map(c => (
-                <div
-                  key={c.id}
-                  style={{
-                    background: CARD_BG, border: `1px solid ${BORDER}`,
-                    borderRadius: 5, padding: '14px 18px',
-                    display: 'flex', alignItems: 'center',
-                    justifyContent: 'space-between', gap: 12,
-                  }}
-                >
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontFamily: cinzel, fontSize: 13, fontWeight: 600, color: GOLD_DEEP, letterSpacing: '0.04em' }}>
-                      {c.name}
-                      {c.aka && (
-                        <span style={{ fontFamily: crimson, fontSize: 13, fontWeight: 400, color: MUTED, marginLeft: 8 }}>
-                          aka {c.aka}
-                        </span>
-                      )}
-                    </div>
-                    {(c.source_book || c.source_author) && (
-                      <div style={{ fontFamily: crimson, fontSize: 13, color: MUTED, marginTop: 3 }}>
-                        {[c.source_book, c.source_author].filter(Boolean).join(' — ')}
+              {curses.map(c => {
+                const linkedDossier  = c.cultural_dossier_id ? dossiers.find(d => d.id === c.cultural_dossier_id) : null
+                const linkedSociety  = c.secret_society_id   ? societies.find(s => s.id === c.secret_society_id)  : null
+                return (
+                  <div
+                    key={c.id}
+                    style={{
+                      background: CARD_BG, border: `1px solid ${BORDER}`,
+                      borderRadius: 5, padding: '14px 18px',
+                      display: 'flex', alignItems: 'center',
+                      justifyContent: 'space-between', gap: 12,
+                    }}
+                  >
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontFamily: cinzel, fontSize: 13, fontWeight: 600, color: GOLD_DEEP, letterSpacing: '0.04em' }}>
+                        {c.name}
+                        {c.aka && (
+                          <span style={{ fontFamily: crimson, fontSize: 13, fontWeight: 400, color: MUTED, marginLeft: 8 }}>
+                            aka {c.aka}
+                          </span>
+                        )}
                       </div>
-                    )}
-                    <div style={{ fontFamily: crimson, fontSize: 11, color: MUTED, marginTop: 2 }}>
-                      Updated {new Date(c.updated_at).toLocaleDateString()}
+                      {(linkedDossier || linkedSociety) && (
+                        <div style={{ display: 'flex', gap: 6, marginTop: 4, flexWrap: 'wrap' }}>
+                          {linkedDossier && (
+                            <span style={{
+                              fontFamily: cinzel, fontSize: 8, letterSpacing: '0.06em',
+                              padding: '2px 7px', borderRadius: 3,
+                              background: 'rgba(139,105,20,0.1)', border: `1px solid rgba(139,105,20,0.25)`,
+                              color: GOLD,
+                            }}>
+                              {linkedDossier.label}
+                            </span>
+                          )}
+                          {linkedSociety && (
+                            <span style={{
+                              fontFamily: cinzel, fontSize: 8, letterSpacing: '0.06em',
+                              padding: '2px 7px', borderRadius: 3,
+                              background: 'rgba(139,105,20,0.1)', border: `1px solid rgba(139,105,20,0.25)`,
+                              color: GOLD,
+                            }}>
+                              {linkedSociety.label}
+                            </span>
+                          )}
+                        </div>
+                      )}
+                      {(c.source_book || c.source_author) && (
+                        <div style={{ fontFamily: crimson, fontSize: 13, color: MUTED, marginTop: 3 }}>
+                          {[c.source_book, c.source_author].filter(Boolean).join(' — ')}
+                        </div>
+                      )}
+                      <div style={{ fontFamily: crimson, fontSize: 11, color: MUTED, marginTop: 2 }}>
+                        Updated {new Date(c.updated_at).toLocaleDateString()}
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+                      <button
+                        onClick={() => startEdit(c)}
+                        style={{
+                          fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em',
+                          padding: '6px 14px', borderRadius: 3, cursor: 'pointer',
+                          background: 'transparent', border: `1px solid ${GOLD}`, color: GOLD,
+                        }}
+                      >
+                        EDIT
+                      </button>
+                      <button
+                        onClick={() => handleDelete(c.id, c.name)}
+                        disabled={deletingId === c.id}
+                        style={{
+                          fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em',
+                          padding: '6px 14px', borderRadius: 3,
+                          cursor: deletingId === c.id ? 'not-allowed' : 'pointer',
+                          background: 'transparent',
+                          border: '1px solid #FCA5A5',
+                          color: '#991B1B',
+                          opacity: deletingId === c.id ? 0.5 : 1,
+                        }}
+                      >
+                        {deletingId === c.id ? '…' : 'DEL'}
+                      </button>
                     </div>
                   </div>
-                  <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
-                    <button
-                      onClick={() => startEdit(c)}
-                      style={{
-                        fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em',
-                        padding: '6px 14px', borderRadius: 3, cursor: 'pointer',
-                        background: 'transparent', border: `1px solid ${GOLD}`, color: GOLD,
-                      }}
-                    >
-                      EDIT
-                    </button>
-                    <button
-                      onClick={() => handleDelete(c.id, c.name)}
-                      disabled={deletingId === c.id}
-                      style={{
-                        fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em',
-                        padding: '6px 14px', borderRadius: 3,
-                        cursor: deletingId === c.id ? 'not-allowed' : 'pointer',
-                        background: 'transparent',
-                        border: '1px solid #FCA5A5',
-                        color: '#991B1B',
-                        opacity: deletingId === c.id ? 0.5 : 1,
-                      }}
-                    >
-                      {deletingId === c.id ? '…' : 'DEL'}
-                    </button>
-                  </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
           </div>
         )}
