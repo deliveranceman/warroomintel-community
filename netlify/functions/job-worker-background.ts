@@ -10,6 +10,7 @@ function tsEqual(a: string, b: string): boolean {
 import { buildWindows, scanOnce, stageCandidates, WINDOW_SIZE } from './_shared/patristicScan'
 import { enrichSpirit } from './_shared/spiritEnrich'
 import { runResearchDropSpirits } from './_shared/researchDropExtract'
+import { runResearchDropBloodline } from './_shared/researchDropBloodline'
 import { runContentGeneration } from './_shared/contentGenerate'
 import { runDreamInterpretation } from './_shared/dreamInterpret'
 import { runGatewayInvestigation } from './_shared/gatewayInvestigate'
@@ -68,6 +69,8 @@ export default async function handler(req: Request): Promise<Response> {
     await runSpiritEnrich(client, job)
   } else if (job.job_type === 'research_drop_spirits') {
     await runResearchDropSpirits(client, job)
+  } else if (job.job_type === 'research_drop_bloodline') {
+    await runResearchDropBloodline(client, job)
   } else if (job.job_type === 'content_gen') {
     await runContentGeneration(client, job)
   } else if (job.job_type === 'dream_interpretation') {

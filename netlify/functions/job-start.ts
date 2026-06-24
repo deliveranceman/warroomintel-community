@@ -10,7 +10,7 @@ function json(data: unknown, status = 200) {
 function sb() { return createClient(sbUrl!, sbKey!) }
 
 // Allowlist of accepted job types — grows per feature, never accepts arbitrary strings.
-const ALLOWED_JOB_TYPES = new Set(['patristic_scan', 'spirit_enrich', 'research_drop_spirits'])
+const ALLOWED_JOB_TYPES = new Set(['patristic_scan', 'spirit_enrich', 'research_drop_spirits', 'research_drop_bloodline'])
 
 export default async function handler(req: Request): Promise<Response> {
   if (req.method === 'OPTIONS') return new Response('', { status: 204, headers: CORS })
@@ -50,8 +50,8 @@ export default async function handler(req: Request): Promise<Response> {
     }
   }
 
-  // ── research_drop_spirits validation ─────────────────────────────────────
-  if (jobType === 'research_drop_spirits') {
+  // ── research_drop_spirits + research_drop_bloodline validation ──────────
+  if (jobType === 'research_drop_spirits' || jobType === 'research_drop_bloodline') {
     if (!resourceId) return json({ error: 'resourceId required' }, 400)
 
     const { data: resource, error: fetchErr } = await client
@@ -94,6 +94,9 @@ export default async function handler(req: Request): Promise<Response> {
   } else if (jobType === 'spirit_enrich') {
     jobRow.input_params  = { spiritSlug: rawSpiritSlug }
   } else if (jobType === 'research_drop_spirits') {
+    jobRow.resource_id   = resourceId
+    jobRow.input_params  = { resourceId }
+  } else if (jobType === 'research_drop_bloodline') {
     jobRow.resource_id   = resourceId
     jobRow.input_params  = { resourceId }
   }
