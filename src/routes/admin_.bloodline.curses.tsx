@@ -29,6 +29,8 @@ type Curse = {
   how_it_enters: string | null
   manifestations: string | null
   scripture_refs: string | null
+  generational_depth_note: string | null
+  forgiveness_focus: string | null
   breaking_prayer: string | null
   source_book: string | null
   source_author: string | null
@@ -46,6 +48,8 @@ type Draft = {
   how_it_enters: string
   manifestations: string
   scripture_refs: string
+  generational_depth_note: string
+  forgiveness_focus: string
   breaking_prayer: string
   source_book: string
   source_author: string
@@ -57,7 +61,7 @@ type LinkItem = { id: string; label: string }
 const EMPTY_DRAFT: Draft = {
   name: '', aka: '', cultural_dossier_id: '', secret_society_id: '',
   origin_description: '', how_it_enters: '',
-  manifestations: '', scripture_refs: '', breaking_prayer: '',
+  manifestations: '', scripture_refs: '', generational_depth_note: '', forgiveness_focus: '', breaking_prayer: '',
   source_book: '', source_author: '', source_page: '',
 }
 
@@ -167,9 +171,11 @@ function CursesPage() {
       secret_society_id:   c.secret_society_id ?? '',
       origin_description:  c.origin_description ?? '',
       how_it_enters:       c.how_it_enters ?? '',
-      manifestations:      c.manifestations ?? '',
-      scripture_refs:      c.scripture_refs ?? '',
-      breaking_prayer:     c.breaking_prayer ?? '',
+      manifestations:          c.manifestations ?? '',
+      scripture_refs:          c.scripture_refs ?? '',
+      generational_depth_note: c.generational_depth_note ?? '',
+      forgiveness_focus:       c.forgiveness_focus ?? '',
+      breaking_prayer:         c.breaking_prayer ?? '',
       source_book:         c.source_book ?? '',
       source_author:       c.source_author ?? '',
       source_page:         c.source_page ?? '',
@@ -378,9 +384,19 @@ function CursesPage() {
             {/* MINISTRY */}
             <div style={{ marginBottom: 22 }}>
               <div style={sectionHeadSty}>MINISTRY</div>
-              <div>
-                <label style={labelSty}>Breaking Prayer</label>
-                <textarea value={draft.breaking_prayer} onChange={e => set('breaking_prayer', e.target.value)} rows={5} style={textareaSty} />
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                <div>
+                  <label style={labelSty}>Generational Depth Note</label>
+                  <textarea value={draft.generational_depth_note} onChange={e => set('generational_depth_note', e.target.value)} rows={2} style={textareaSty} placeholder="The depth doctrine this curse type carries (e.g. illegitimacy = 10 generations, Deut 23:2). Leave blank if the source states none." />
+                </div>
+                <div>
+                  <label style={labelSty}>Forgiveness Focus</label>
+                  <textarea value={draft.forgiveness_focus} onChange={e => set('forgiveness_focus', e.target.value)} rows={3} style={textareaSty} placeholder="Who must be forgiven / what repented before the breaking prayer takes effect (e.g. forgive the parents who conceived out of wedlock)." />
+                </div>
+                <div>
+                  <label style={labelSty}>Breaking Prayer</label>
+                  <textarea value={draft.breaking_prayer} onChange={e => set('breaking_prayer', e.target.value)} rows={5} style={textareaSty} />
+                </div>
               </div>
             </div>
 

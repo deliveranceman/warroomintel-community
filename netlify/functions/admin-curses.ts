@@ -15,7 +15,7 @@ function json(data: unknown, status = 200) {
 // Phase E territory — never touched here.
 const TEXT_FIELDS = [
   'aka', 'origin_description', 'how_it_enters', 'manifestations',
-  'scripture_refs', 'breaking_prayer',
+  'scripture_refs', 'generational_depth_note', 'forgiveness_focus', 'breaking_prayer',
   'source_book', 'source_author', 'source_page',
 ] as const
 
@@ -33,7 +33,7 @@ export default async function handler(req: Request): Promise<Response> {
   if (req.method === 'GET') {
     const { data, error } = await client
       .from('curses')
-      .select('id, name, aka, cultural_dossier_id, secret_society_id, source_book, source_author, created_at, updated_at')
+      .select('id, name, aka, cultural_dossier_id, secret_society_id, generational_depth_note, forgiveness_focus, source_book, source_author, created_at, updated_at')
       .order('name', { ascending: true })
 
     if (error) return json({ error: error.message }, 500)
