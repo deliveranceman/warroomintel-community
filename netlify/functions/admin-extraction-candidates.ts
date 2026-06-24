@@ -11,7 +11,7 @@ function json(data: unknown, status = 200) {
   })
 }
 
-// Apply the candidate payload to the real typed table. Returns new row id.
+// ── Apply bloodline tables (curses / cultural_dossiers / secret_societies) ──
 // NEVER touches embedding columns. FK linkage fields left null on curses
 // (resolved via the curse edit form post-approval).
 async function applyCandidate(
@@ -33,12 +33,9 @@ async function applyCandidate(
     if (payload.generational_depth_note) row.generational_depth_note = payload.generational_depth_note || null
     if (payload.forgiveness_focus)       row.forgiveness_focus       = payload.forgiveness_focus || null
     if (Array.isArray(payload.tagged_items)) row.tagged_items        = payload.tagged_items
-    // source_book: prefer candidate source_name (the book title), fall back to payload
     row.source_book   = sourceName ?? payload.source_book ?? null
     row.source_author = payload.source_author ?? null
     row.source_page   = payload.source_page   ?? null
-    // cultural_dossier_id / secret_society_id: left null — resolved via curses edit form
-    // suggested_cultural_root / suggested_society: NOT columns; not written here
     const { data, error } = await client.from('curses').insert(row).select('id').single()
     if (error) throw new Error(`curses insert: ${error.message}`)
     return (data as any).id as string
@@ -71,7 +68,215 @@ async function applyCandidate(
   }
 }
 
-const VALID_TABLES = new Set(['curses', 'cultural_dossiers', 'secret_societies'])
+// ── Normalize spiritual_tags ────────────────────────────────────────────────
+// lowercase, underscores→hyphens, trim, dedupe.
+function normalizeTags(tags: string[]): string[] {
+  return [...new Set(
+    tags.map(t => t.toLowerCase().replace(/_/g, '-').trim()).filter(Boolean)
+  )]
+}
+
+// ── Apply conditions candidate ──────────────────────────────────────────────
+// Handles both new conditions and enrichment of existing rows.
+// Throws errors prefixed __CONFLICT__ for 409 cases.
+// Never touches embedding columns.
+interface ConditionsApplyResult {
+  recordId: string
+  mode: 'enrichment' | 'new'
+  conditionKey: string
+  spiritLinksCreated: number
+  spiritLinksUnresolved: string[]
+  regionLinksCreated: number
+  regionLinksUnresolved: string[]
+}
+
+async function applyConditions(
+  client: ReturnType<typeof sb>,
+  payload: Record<string, any>,
+  _reviewedBy: string,
+): Promise<ConditionsApplyResult> {
+  const conditionKey = (payload.condition_key as string || '').trim()
+  if (!conditionKey) throw new Error('condition_key is required')
+
+  const rawTags: string[] = Array.isArray(payload.spiritual_tags) ? payload.spiritual_tags : []
+  const normalizedTags = normalizeTags(rawTags)
+
+  let recordId: string
+  let mode: 'enrichment' | 'new'
+
+  if (payload.is_enrichment === true) {
+    // ── Enrichment path ─────────────────────────────────────────────────────
+    const { data: existing, error: lookupErr } = await client
+      .from('conditions')
+      .select('id, tagged_items')
+      .eq('condition_key', conditionKey)
+      .maybeSingle()
+
+    if (lookupErr) throw new Error(`conditions lookup: ${lookupErr.message}`)
+    if (!existing) {
+      throw new Error(`__CONFLICT__:enrichment target '${conditionKey}' not found — condition may have been deleted or condition_key changed`)
+    }
+
+    // Merge tagged_items: existing + new, dedupe by type+content
+    const existingTagged: any[] = Array.isArray((existing as any).tagged_items) ? (existing as any).tagged_items : []
+    const newTagged: any[] = Array.isArray(payload.tagged_items) ? payload.tagged_items : []
+    const seen = new Set(existingTagged.map((i: any) => `${i.type}::${i.content}`))
+    const mergedTagged = [
+      ...existingTagged,
+      ...newTagged.filter((i: any) => !seen.has(`${i.type}::${i.content}`)),
+    ]
+
+    const updateRow: Record<string, any> = { active: true }
+    if (payload.symptoms !== undefined)          updateRow.symptoms          = payload.symptoms || null
+    if (payload.author_conclusion !== undefined) updateRow.author_conclusion = payload.author_conclusion || null
+    if (normalizedTags.length > 0)               updateRow.spiritual_tags    = normalizedTags
+    if (payload.source_strength !== undefined)   updateRow.source_strength   = payload.source_strength
+    if (payload.source_note !== undefined)        updateRow.source_note       = payload.source_note || null
+    if (payload.enriched_overview)               updateRow.enriched_overview = payload.enriched_overview
+    if (mergedTagged.length > 0)                 updateRow.tagged_items      = mergedTagged
+    // NEVER overwrite system or system_key on enrichment — existing taxonomy is authoritative
+
+    const { error: updateErr } = await client
+      .from('conditions')
+      .update(updateRow)
+      .eq('condition_key', conditionKey)
+
+    if (updateErr) throw new Error(`conditions update: ${updateErr.message}`)
+    recordId = (existing as any).id as string
+    mode = 'enrichment'
+
+  } else {
+    // ── New condition path ───────────────────────────────────────────────────
+    const { data: collision } = await client
+      .from('conditions')
+      .select('id')
+      .eq('condition_key', conditionKey)
+      .maybeSingle()
+
+    if (collision) {
+      throw new Error(`__CONFLICT__:condition_key '${conditionKey}' already exists — the model flagged this as new but the key collides. Review and approve as enrichment, or use a distinct key.`)
+    }
+
+    const insertRow: Record<string, any> = {
+      condition_key:  conditionKey,
+      display_name:   (payload.display_name as string || conditionKey),
+      active:         true,
+      spiritual_tags: normalizedTags,
+    }
+    if (payload.system)            insertRow.system            = payload.system
+    if (payload.system_key)        insertRow.system_key        = payload.system_key
+    if (payload.symptoms)          insertRow.symptoms          = payload.symptoms
+    if (payload.author_conclusion) insertRow.author_conclusion = payload.author_conclusion
+    if (payload.source_strength)   insertRow.source_strength   = payload.source_strength
+    if (payload.source_note)       insertRow.source_note       = payload.source_note
+    if (Array.isArray(payload.tagged_items)) insertRow.tagged_items = payload.tagged_items
+
+    const { data: inserted, error: insertErr } = await client
+      .from('conditions')
+      .insert(insertRow)
+      .select('id')
+      .single()
+
+    if (insertErr) throw new Error(`conditions insert: ${insertErr.message}`)
+    recordId = (inserted as any).id as string
+    mode = 'new'
+  }
+
+  // ── Bridge links (best-effort; each wrapped; never blocks main write) ─────
+  let spiritLinksCreated = 0
+  const spiritLinksUnresolved: string[] = []
+  let regionLinksCreated = 0
+  const regionLinksUnresolved: string[] = []
+
+  const VALID_RELS = new Set(['function_of', 'manifests_as', 'associated'])
+
+  const spiritLinks: any[] = Array.isArray(payload.proposed_spirit_links) ? payload.proposed_spirit_links : []
+  for (const link of spiritLinks) {
+    try {
+      const spiritName = (link.spirit_name as string || '').trim()
+      if (!spiritName) continue
+
+      if (!VALID_RELS.has(link.relationship)) {
+        spiritLinksUnresolved.push(`${spiritName} (invalid relationship: ${link.relationship})`)
+        continue
+      }
+
+      // Exact case-insensitive name match (mirrors spiritWrite.ts pattern)
+      const { data: spirit } = await client
+        .from('spirits')
+        .select('id')
+        .ilike('name', spiritName)
+        .maybeSingle()
+
+      if (!spirit) {
+        spiritLinksUnresolved.push(spiritName)
+        continue
+      }
+
+      const { error: bridgeErr } = await client
+        .from('spirit_conditions')
+        .upsert(
+          {
+            spirit_id:     (spirit as any).id,
+            condition_key: conditionKey,
+            relationship:  link.relationship,
+            notes:         link.note || null,
+          },
+          { onConflict: 'spirit_id,condition_key', ignoreDuplicates: true },
+        )
+
+      if (bridgeErr) spiritLinksUnresolved.push(`${spiritName} (insert error: ${bridgeErr.message})`)
+      else spiritLinksCreated++
+    } catch {
+      spiritLinksUnresolved.push(`${link.spirit_name ?? '?'} (error)`)
+    }
+  }
+
+  const regionLinks: any[] = Array.isArray(payload.proposed_region_links) ? payload.proposed_region_links : []
+  for (const link of regionLinks) {
+    try {
+      const regionLabel = (link.region_label as string || '').trim()
+      if (!regionLabel) continue
+
+      // Try normalized slug as region_key first, then display_name ilike
+      const slugged = regionLabel.toLowerCase().replace(/\s+/g, '_')
+      const { data: byKey } = await client
+        .from('anatomy_regions')
+        .select('region_key')
+        .eq('region_key', slugged)
+        .maybeSingle()
+
+      const { data: byDisplay } = !byKey
+        ? await client.from('anatomy_regions').select('region_key').ilike('display_name', regionLabel).maybeSingle()
+        : { data: null }
+
+      const regionKey = ((byKey ?? byDisplay) as any)?.region_key as string | undefined
+      if (!regionKey) {
+        regionLinksUnresolved.push(regionLabel)
+        continue
+      }
+
+      const strengthMap: Record<string, number> = { high: 3, medium: 2, low: 1 }
+      const relevanceStrength = strengthMap[link.relevance as string] ?? 2
+
+      const { error: rErr } = await client
+        .from('condition_regions')
+        .upsert(
+          { condition_key: conditionKey, region_key: regionKey, relevance_strength: relevanceStrength },
+          { onConflict: 'condition_key,region_key', ignoreDuplicates: true },
+        )
+
+      if (rErr) regionLinksUnresolved.push(`${regionLabel} (insert error: ${rErr.message})`)
+      else regionLinksCreated++
+    } catch {
+      regionLinksUnresolved.push(`${link.region_label ?? '?'} (error)`)
+    }
+  }
+
+  return { recordId, mode, conditionKey, spiritLinksCreated, spiritLinksUnresolved, regionLinksCreated, regionLinksUnresolved }
+}
+
+const VALID_TABLES = new Set(['curses', 'cultural_dossiers', 'secret_societies', 'conditions'])
 
 export default async function handler(req: Request): Promise<Response> {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS })
@@ -96,7 +301,38 @@ export default async function handler(req: Request): Promise<Response> {
 
     const { data, error } = await query
     if (error) return json({ error: error.message }, 500)
-    return json({ candidates: data ?? [] })
+
+    const candidates = (data ?? []) as any[]
+
+    // A1: For conditions enrichment candidates, hydrate with existing conditions row
+    // so the card can show current-vs-proposed comparison.
+    const enrichmentKeys = candidates
+      .filter(c => c.target_table === 'conditions' && (c.payload as any)?.is_enrichment === true)
+      .map(c => ((c.payload as any)?.condition_key as string) || '')
+      .filter(Boolean)
+
+    const existingMap: Record<string, any> = {}
+    if (enrichmentKeys.length > 0) {
+      const { data: existing } = await client
+        .from('conditions')
+        .select('id, condition_key, display_name, system, system_key, symptoms, author_conclusion, spiritual_tags, source_strength, source_note, enriched_overview')
+        .in('condition_key', enrichmentKeys)
+      if (existing) {
+        for (const row of existing as any[]) {
+          existingMap[row.condition_key] = row
+        }
+      }
+    }
+
+    const hydrated = candidates.map(c => {
+      if (c.target_table === 'conditions' && (c.payload as any)?.is_enrichment === true) {
+        const key = (c.payload as any)?.condition_key as string
+        return { ...c, existing_record: existingMap[key] ?? null }
+      }
+      return { ...c, existing_record: null }
+    })
+
+    return json({ candidates: hydrated })
   }
 
   // ── POST — approve or reject ────────────────────────────────────────────────
@@ -109,6 +345,13 @@ export default async function handler(req: Request): Promise<Response> {
     const action = typeof body.action === 'string' ? body.action : ''
     const id     = typeof body.id     === 'string' ? body.id.trim() : ''
     if (!id) return json({ error: 'id required' }, 400)
+
+    // A2: edited_payload — reviewer's cleaned-up version (conditions only; others ignore it)
+    const editedPayload = (
+      body.edited_payload &&
+      typeof body.edited_payload === 'object' &&
+      !Array.isArray(body.edited_payload)
+    ) ? body.edited_payload as Record<string, any> : null
 
     // ── APPROVE ───────────────────────────────────────────────────────────────
     if (action === 'approve') {
@@ -126,6 +369,49 @@ export default async function handler(req: Request): Promise<Response> {
         return json({ error: `unsupported target_table: ${targetTable}` }, 400)
       }
 
+      // ── Conditions branch ──────────────────────────────────────────────────
+      if (targetTable === 'conditions') {
+        // Use edited_payload (reviewer's version) if present; fall back to stored payload
+        const effectivePayload = editedPayload ?? ((candidate as any).payload as Record<string, any>)
+        if (!effectivePayload || typeof effectivePayload !== 'object' || Array.isArray(effectivePayload)) {
+          return json({ error: 'invalid payload' }, 400)
+        }
+
+        let result: ConditionsApplyResult
+        try {
+          result = await applyConditions(client, effectivePayload, auth.userId)
+        } catch (err: any) {
+          const msg = String(err.message ?? err)
+          if (msg.startsWith('__CONFLICT__:')) {
+            return json({ error: msg.slice('__CONFLICT__:'.length) }, 409)
+          }
+          return json({ error: msg }, 500)
+        }
+
+        const { error: stampErr } = await client
+          .from('extraction_candidates')
+          .update({
+            status:            'approved',
+            applied_record_id: result.recordId,
+            reviewed_at:       new Date().toISOString(),
+            reviewed_by:       auth.userId,
+          })
+          .eq('id', id)
+
+        if (stampErr) return json({ error: stampErr.message }, 500)
+
+        return json({
+          applied:                 true,
+          mode:                    result.mode,
+          condition_key:           result.conditionKey,
+          spirit_links_created:    result.spiritLinksCreated,
+          spirit_links_unresolved: result.spiritLinksUnresolved,
+          region_links_created:    result.regionLinksCreated,
+          region_links_unresolved: result.regionLinksUnresolved,
+        })
+      }
+
+      // ── Bloodline tables (curses / cultural_dossiers / secret_societies) ───
       let appliedRecordId: string
       try {
         appliedRecordId = await applyCandidate(
