@@ -61,6 +61,7 @@ import { Route as ApiClerkWebhookRouteImport } from './routes/api.clerk-webhook'
 import { Route as ApiAssessmentBoardRouteImport } from './routes/api.assessment-board'
 import { Route as ApiAdminUploadRouteImport } from './routes/api.admin-upload'
 import { Route as ApiAdminAuthRouteImport } from './routes/api.admin-auth'
+import { Route as AdminExtractionReviewRouteImport } from './routes/admin_.extraction-review'
 import { Route as AdminDashboardRouteImport } from './routes/admin_.dashboard'
 import { Route as AdminBloodlineRouteImport } from './routes/admin_.bloodline'
 import { Route as AdminLoginRouteImport } from './routes/admin.login'
@@ -337,6 +338,11 @@ const ApiAdminAuthRoute = ApiAdminAuthRouteImport.update({
   path: '/api/admin-auth',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminExtractionReviewRoute = AdminExtractionReviewRouteImport.update({
+  id: '/admin_/extraction-review',
+  path: '/admin/extraction-review',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AdminDashboardRoute = AdminDashboardRouteImport.update({
   id: '/admin_/dashboard',
   path: '/admin/dashboard',
@@ -432,6 +438,7 @@ export interface FileRoutesByFullPath {
   '/admin/login': typeof AdminLoginRoute
   '/admin/bloodline': typeof AdminBloodlineRouteWithChildren
   '/admin/dashboard': typeof AdminDashboardRoute
+  '/admin/extraction-review': typeof AdminExtractionReviewRoute
   '/api/admin-auth': typeof ApiAdminAuthRoute
   '/api/admin-upload': typeof ApiAdminUploadRoute
   '/api/assessment-board': typeof ApiAssessmentBoardRoute
@@ -498,6 +505,7 @@ export interface FileRoutesByTo {
   '/admin/login': typeof AdminLoginRoute
   '/admin/bloodline': typeof AdminBloodlineRouteWithChildren
   '/admin/dashboard': typeof AdminDashboardRoute
+  '/admin/extraction-review': typeof AdminExtractionReviewRoute
   '/api/admin-auth': typeof ApiAdminAuthRoute
   '/api/admin-upload': typeof ApiAdminUploadRoute
   '/api/assessment-board': typeof ApiAssessmentBoardRoute
@@ -566,6 +574,7 @@ export interface FileRoutesById {
   '/admin/login': typeof AdminLoginRoute
   '/admin_/bloodline': typeof AdminBloodlineRouteWithChildren
   '/admin_/dashboard': typeof AdminDashboardRoute
+  '/admin_/extraction-review': typeof AdminExtractionReviewRoute
   '/api/admin-auth': typeof ApiAdminAuthRoute
   '/api/admin-upload': typeof ApiAdminUploadRoute
   '/api/assessment-board': typeof ApiAssessmentBoardRoute
@@ -635,6 +644,7 @@ export interface FileRouteTypes {
     | '/admin/login'
     | '/admin/bloodline'
     | '/admin/dashboard'
+    | '/admin/extraction-review'
     | '/api/admin-auth'
     | '/api/admin-upload'
     | '/api/assessment-board'
@@ -701,6 +711,7 @@ export interface FileRouteTypes {
     | '/admin/login'
     | '/admin/bloodline'
     | '/admin/dashboard'
+    | '/admin/extraction-review'
     | '/api/admin-auth'
     | '/api/admin-upload'
     | '/api/assessment-board'
@@ -768,6 +779,7 @@ export interface FileRouteTypes {
     | '/admin/login'
     | '/admin_/bloodline'
     | '/admin_/dashboard'
+    | '/admin_/extraction-review'
     | '/api/admin-auth'
     | '/api/admin-upload'
     | '/api/assessment-board'
@@ -834,6 +846,7 @@ export interface RootRouteChildren {
   TermsRoute: typeof TermsRoute
   AdminBloodlineRoute: typeof AdminBloodlineRouteWithChildren
   AdminDashboardRoute: typeof AdminDashboardRoute
+  AdminExtractionReviewRoute: typeof AdminExtractionReviewRoute
   ApiAdminAuthRoute: typeof ApiAdminAuthRoute
   ApiAdminUploadRoute: typeof ApiAdminUploadRoute
   ApiAssessmentBoardRoute: typeof ApiAssessmentBoardRoute
@@ -1241,6 +1254,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiAdminAuthRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin_/extraction-review': {
+      id: '/admin_/extraction-review'
+      path: '/admin/extraction-review'
+      fullPath: '/admin/extraction-review'
+      preLoaderRoute: typeof AdminExtractionReviewRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/admin_/dashboard': {
       id: '/admin_/dashboard'
       path: '/admin/dashboard'
@@ -1386,6 +1406,7 @@ const rootRouteChildren: RootRouteChildren = {
   TermsRoute: TermsRoute,
   AdminBloodlineRoute: AdminBloodlineRouteWithChildren,
   AdminDashboardRoute: AdminDashboardRoute,
+  AdminExtractionReviewRoute: AdminExtractionReviewRoute,
   ApiAdminAuthRoute: ApiAdminAuthRoute,
   ApiAdminUploadRoute: ApiAdminUploadRoute,
   ApiAssessmentBoardRoute: ApiAssessmentBoardRoute,

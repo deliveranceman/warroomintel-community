@@ -79,6 +79,8 @@ const NAV_TREE: NavGroup[] = [
         href: '/admin/bloodline/secret-societies', isSlugRoute: true },
       { key: 'curses', label: 'Curses',
         href: '/admin/bloodline/curses', isSlugRoute: true },
+      { key: 'extraction-review', label: 'Extraction Review',
+        href: '/admin/extraction-review', isSlugRoute: true },
       // Future items: All Profiles oversight
     ],
   },
