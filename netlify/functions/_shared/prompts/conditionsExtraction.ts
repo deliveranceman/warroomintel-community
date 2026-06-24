@@ -22,6 +22,9 @@ export interface ProposedRegionLink {
   region_label: string          // human anatomy label, text hint only
   relevance: 'high' | 'medium' | 'low'
   note?: string
+  inferred: boolean             // false = source named it; true = discerned from manifestation
+  placement_confidence?: 'high' | 'medium' | 'low'  // required when inferred=true
+  reasoning?: string            // required when inferred=true — WHY SOL places it here
 }
 
 export interface ConditionCandidate {
@@ -116,11 +119,27 @@ export const CONDITIONS_SECTION_RULES = `\
    database row ID. relationship MUST be exactly one of:
    function_of | manifests_as | associated. Any other value is forbidden.
 
-8. **Body-region links only when anatomy is explicit.**
-   Most spiritual-roots-of-disease teaching is systemic (blood sugar, hormones,
-   nervous system). Emit a proposed_region_links entry ONLY when the source
-   names a specific anatomical location (adrenal glands, hippocampus, thyroid).
-   Sparse or empty is correct — do not pad with generic regions.
+8. **Body-region links — three-state model.**
+   proposed_region_links supports three states:
+
+   - **Literal** (source names anatomy): emit with inferred=false. Example: the
+     source mentions "adrenal glands" directly →
+     {region_label: "Adrenal glands", relevance: "high", inferred: false}.
+   - **Manifestation-discerned** (source does NOT name anatomy, but the
+     condition's manifestation clearly seats in a body region per the author's
+     framework): emit with inferred=true, a placement_confidence, and a
+     one-sentence reasoning naming the manifestation that justifies the seat.
+     Examples: fear/performance/mental striving → region_label "Brain / mind"
+     (inferred=true); exhaustion/blood-sugar/adrenal fatigue → "Adrenal /
+     endocrine" (inferred=true); grief/rejection → "Heart / chest"
+     (inferred=true). Keep region_label a human label; do NOT invent a
+     region_key. DISCIPLINE: inferred must always be true for discerned
+     placements — never present a discerned seat as if the source named it.
+     The reviewer approves every inferred placement; SOL's role is faithful
+     discernment with reasoning shown, not silent placement.
+   - **Nothing discernible**: leave proposed_region_links empty for that
+     candidate. Blanks over fabrication still holds. Do NOT pad with
+     low-confidence guesses just to fill the body map.
 
 9. **tagged_items type discipline.**
    Every granular item must carry exactly one type from:
@@ -183,7 +202,10 @@ Return ONLY valid JSON. No prose before or after. No markdown fences. Schema:
         {
           "region_label": "<anatomy label>",
           "relevance": "high|medium|low",
-          "note": "<optional>"
+          "note": "<optional>",
+          "inferred": false,
+          "placement_confidence": "<high|medium|low — required when inferred=true>",
+          "reasoning": "<one-sentence WHY — required when inferred=true>"
         }
       ]
     }
@@ -201,6 +223,10 @@ Notes on field requirements:
   must always be present as arrays (empty arrays permitted).
 - is_enrichment must be present and boolean on every candidate.
 - source_strength must be an integer 1-5.
+- inferred is required on every proposed_region_links entry (true or false).
+  When inferred=true, placement_confidence and reasoning are REQUIRED.
+  When inferred=false (source named the anatomy), placement_confidence and
+  reasoning may be omitted.
 - All other fields are optional; omit rather than emit null or empty string.
 - extraction_completeness is scored against a "comprehensive" bar: all named
   conditions have full spiritual root + physiological thread + at least one

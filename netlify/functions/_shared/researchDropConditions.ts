@@ -132,15 +132,24 @@ export async function runResearchDropConditions(client: any, job: any): Promise<
     // ── Step 8: Stage candidates ─────────────────────────────────────────────
     await client.from('ai_jobs').update({ stage: 'staging' }).eq('id', jobId)
 
-    const candidates   = Array.isArray(parsed.candidates) ? parsed.candidates : []
-    let inserted       = 0
-    let skipped        = 0
-    let enrichCount    = 0
+    const candidates      = Array.isArray(parsed.candidates) ? parsed.candidates : []
+    let inserted          = 0
+    let skipped           = 0
+    let enrichCount       = 0
+    let regionLinksParked = 0
 
     for (const c of candidates) {
+      // Partition region links: literal stays with the conditions candidate;
+      // inferred links are removed and parked separately for human placement.
+      const allRegionLinks: any[] = Array.isArray(c.proposed_region_links) ? c.proposed_region_links : []
+      const literalLinks   = allRegionLinks.filter((l: any) => l.inferred !== true)
+      const inferredLinks  = allRegionLinks.filter((l: any) => l.inferred === true)
+
+      // Stage conditions candidate first (with only literal region links)
+      const condPayload = { ...c, proposed_region_links: literalLinks }
       const { error: insErr } = await client.from('extraction_candidates').insert({
         target_table: 'conditions',
-        payload:      c,
+        payload:      condPayload,
         source_id:    resourceId,
         source_name:  sourceName ?? null,
         job_id:       jobId,
@@ -154,6 +163,33 @@ export async function runResearchDropConditions(client: any, job: any): Promise<
       } else {
         inserted++
         if (c.is_enrichment === true) enrichCount++
+
+        // Stage each inferred region link as its own extraction_candidates row
+        for (const link of inferredLinks) {
+          const { error: linkErr } = await client.from('extraction_candidates').insert({
+            target_table: 'condition_region_links',
+            payload: {
+              condition_key:          c.condition_key,
+              condition_display_name: c.display_name,
+              region_label:           link.region_label,
+              placement_confidence:   link.placement_confidence,
+              reasoning:              link.reasoning,
+              relevance:              link.relevance,
+              source_excerpt:         link.source_excerpt,
+            },
+            source_id:   resourceId,
+            source_name: sourceName ?? null,
+            job_id:      jobId,
+            confidence:  link.placement_confidence ?? 'medium',
+            status:      'pending',
+          })
+
+          if (linkErr) {
+            console.error(`[research-drop-conditions] region link insert error:`, linkErr.message)
+          } else {
+            regionLinksParked++
+          }
+        }
       }
     }
 
@@ -164,15 +200,16 @@ export async function runResearchDropConditions(client: any, job: any): Promise<
       progress:     100,
       completed_at: new Date().toISOString(),
       result_json:  {
-        candidate_count:  inserted,
-        by_target:        { conditions: inserted },
-        enrichment_count: enrichCount,
+        candidate_count:     inserted,
+        by_target:           { conditions: inserted, condition_region_links: regionLinksParked },
+        enrichment_count:    enrichCount,
+        region_links_parked: regionLinksParked,
         skipped,
-        completeness:     parsed._meta?.extraction_completeness ?? null,
+        completeness:        parsed._meta?.extraction_completeness ?? null,
       },
     }).eq('id', jobId)
 
-    console.log(`[research-drop-conditions] ${jobId} complete: ${inserted} candidates staged (${enrichCount} enrichments), ${skipped} skipped`)
+    console.log(`[research-drop-conditions] ${jobId} complete: ${inserted} candidates staged (${enrichCount} enrichments), ${regionLinksParked} region links parked, ${skipped} skipped`)
 
   } catch (err: any) {
     const errMsg = (err?.message || String(err)).slice(0, 2000)
