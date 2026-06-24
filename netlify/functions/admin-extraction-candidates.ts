@@ -276,7 +276,7 @@ async function applyConditions(
   return { recordId, mode, conditionKey, spiritLinksCreated, spiritLinksUnresolved, regionLinksCreated, regionLinksUnresolved }
 }
 
-const VALID_TABLES = new Set(['curses', 'cultural_dossiers', 'secret_societies', 'conditions'])
+const VALID_TABLES = new Set(['curses', 'cultural_dossiers', 'secret_societies', 'conditions', 'condition_region_links'])
 
 export default async function handler(req: Request): Promise<Response> {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS })
@@ -288,13 +288,14 @@ export default async function handler(req: Request): Promise<Response> {
 
   // ── GET — list pending candidates ──────────────────────────────────────────
   if (req.method === 'GET') {
-    const url         = new URL(req.url)
-    const targetTable = url.searchParams.get('target_table')
+    const url          = new URL(req.url)
+    const targetTable  = url.searchParams.get('target_table')
+    const statusFilter = url.searchParams.get('status') || 'pending'
 
     let query = client
       .from('extraction_candidates')
       .select('id, target_table, confidence, status, source_name, source_id, payload, created_at')
-      .eq('status', 'pending')
+      .eq('status', statusFilter)
       .order('created_at', { ascending: false })
 
     if (targetTable) query = (query as any).eq('target_table', targetTable)
@@ -304,8 +305,7 @@ export default async function handler(req: Request): Promise<Response> {
 
     const candidates = (data ?? []) as any[]
 
-    // A1: For conditions enrichment candidates, hydrate with existing conditions row
-    // so the card can show current-vs-proposed comparison.
+    // Hydrate conditions enrichment candidates with existing row for current-vs-proposed UI
     const enrichmentKeys = candidates
       .filter(c => c.target_table === 'conditions' && (c.payload as any)?.is_enrichment === true)
       .map(c => ((c.payload as any)?.condition_key as string) || '')
@@ -332,7 +332,18 @@ export default async function handler(req: Request): Promise<Response> {
       return { ...c, existing_record: null }
     })
 
-    return json({ candidates: hydrated })
+    // A1: Fetch anatomy_regions once when condition_region_links candidates are present
+    const hasRegionLinks = candidates.some(c => c.target_table === 'condition_region_links')
+    let anatomyRegions: any[] = []
+    if (hasRegionLinks) {
+      const { data: arData } = await client
+        .from('anatomy_regions')
+        .select('region_key, display_name, category, body_side, view')
+        .order('sort_order', { ascending: true })
+      anatomyRegions = (arData ?? []) as any[]
+    }
+
+    return json({ candidates: hydrated, ...(hasRegionLinks ? { anatomy_regions: anatomyRegions } : {}) })
   }
 
   // ── POST — approve or reject ────────────────────────────────────────────────
@@ -362,11 +373,82 @@ export default async function handler(req: Request): Promise<Response> {
         .single()
 
       if (loadErr || !candidate) return json({ error: 'candidate not found' }, 404)
-      if ((candidate as any).status !== 'pending') return json({ error: 'not_pending' }, 409)
 
       const targetTable = (candidate as any).target_table as string
       if (!VALID_TABLES.has(targetTable)) {
         return json({ error: `unsupported target_table: ${targetTable}` }, 400)
+      }
+
+      // condition_region_links allows rebind from needs_region (held) bin
+      const currentStatus = (candidate as any).status as string
+      const allowedStatuses = targetTable === 'condition_region_links'
+        ? new Set(['pending', 'needs_region'])
+        : new Set(['pending'])
+      if (!allowedStatuses.has(currentStatus)) return json({ error: 'not_pending' }, 409)
+
+      // ── condition_region_links branch ─────────────────────────────────────
+      if (targetTable === 'condition_region_links') {
+        const regionKey = typeof body.region_key === 'string' ? body.region_key.trim() : ''
+        if (!regionKey) return json({ error: 'region_key required' }, 400)
+
+        // Validate region_key exists in anatomy_regions
+        const { data: regionExists } = await client
+          .from('anatomy_regions')
+          .select('region_key')
+          .eq('region_key', regionKey)
+          .maybeSingle()
+        if (!regionExists) return json({ error: 'region_key not in anatomy_regions' }, 400)
+
+        const crlPayload = (candidate as any).payload as Record<string, any>
+        const conditionKey = (crlPayload.condition_key as string || '').trim()
+        if (!conditionKey) return json({ error: 'payload.condition_key missing' }, 400)
+
+        // Derive relevance_strength from explicit body value or placement_confidence
+        let relevanceStrength: number
+        if (typeof body.relevance_strength === 'number') {
+          relevanceStrength = Math.min(5, Math.max(1, Math.round(body.relevance_strength as number)))
+        } else {
+          const strengthMap: Record<string, number> = { high: 3, medium: 2, low: 1 }
+          relevanceStrength = strengthMap[crlPayload.placement_confidence as string] ?? 2
+        }
+
+        // Check if already linked (to report already_existed; then insert only if not)
+        const { data: existingRow } = await client
+          .from('condition_regions')
+          .select('condition_key')
+          .eq('condition_key', conditionKey)
+          .eq('region_key', regionKey)
+          .maybeSingle()
+        const alreadyExisted = !!existingRow
+
+        if (!alreadyExisted) {
+          const { error: insertErr } = await client
+            .from('condition_regions')
+            .insert({ condition_key: conditionKey, region_key: regionKey, relevance_strength: relevanceStrength })
+          if (insertErr) return json({ error: `condition_regions insert: ${insertErr.message}` }, 500)
+        }
+
+        // Stamp candidate — applied_record_id left NULL (condition_regions has no surrogate id)
+        const { error: crlStampErr } = await client
+          .from('extraction_candidates')
+          .update({
+            status:      'approved',
+            reviewed_at: new Date().toISOString(),
+            reviewed_by: auth.userId,
+            ai_notes:    `bound to ${regionKey}`,
+          })
+          .eq('id', id)
+
+        if (crlStampErr) return json({ error: crlStampErr.message }, 500)
+
+        return json({
+          applied:            true,
+          mode:               'bound',
+          condition_key:      conditionKey,
+          region_key:         regionKey,
+          relevance_strength: relevanceStrength,
+          already_existed:    alreadyExisted,
+        })
       }
 
       // ── Conditions branch ──────────────────────────────────────────────────
@@ -435,6 +517,33 @@ export default async function handler(req: Request): Promise<Response> {
 
       if (stampErr) return json({ error: stampErr.message }, 500)
       return json({ ok: true, applied_record_id: appliedRecordId })
+    }
+
+    // ── NEEDS_REGION ──────────────────────────────────────────────────────────
+    if (action === 'needs_region') {
+      const { data: nrCandidate, error: nrErr } = await client
+        .from('extraction_candidates')
+        .select('id, status')
+        .eq('id', id)
+        .single()
+
+      if (nrErr || !nrCandidate) return json({ error: 'candidate not found' }, 404)
+
+      const suggestedLabel = typeof body.suggested_region_label === 'string'
+        ? body.suggested_region_label.trim() : ''
+
+      const { error: holdErr } = await client
+        .from('extraction_candidates')
+        .update({
+          status:      'needs_region',
+          reviewed_at: new Date().toISOString(),
+          reviewed_by: auth.userId,
+          ai_notes:    suggestedLabel ? `flagged needs new region: ${suggestedLabel}` : 'flagged needs new region',
+        })
+        .eq('id', id)
+
+      if (holdErr) return json({ error: holdErr.message }, 500)
+      return json({ held: true })
     }
 
     // ── REJECT ────────────────────────────────────────────────────────────────

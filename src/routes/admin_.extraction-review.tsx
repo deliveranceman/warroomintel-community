@@ -75,6 +75,14 @@ type ConditionDraft = {
   proposed_region_links: RegionLinkDraft[]
 }
 
+type AnatomyRegion = {
+  region_key: string
+  display_name: string
+  category: string
+  body_side: string | null
+  view: string | null
+}
+
 function seedDraft(p: Record<string, any>): ConditionDraft {
   const rawTags: string[] = Array.isArray(p.spiritual_tags) ? p.spiritual_tags : []
   return {
@@ -132,10 +140,11 @@ const ITEM_TYPE_ORDER = ['doctrine', 'manifestation', 'testimony', 'prayer', 'te
 const COND_ITEM_TYPE_ORDER = ['spiritual_root', 'physiological', 'symptom', 'teaching', 'scripture', 'prayer', 'testimony']
 
 function tableLabel(t: string): string {
-  if (t === 'curses')             return 'Curses'
-  if (t === 'cultural_dossiers')  return 'Cultural Roots'
-  if (t === 'secret_societies')   return 'Societies'
-  if (t === 'conditions')         return 'Conditions'
+  if (t === 'curses')                 return 'Curses'
+  if (t === 'cultural_dossiers')      return 'Cultural Roots'
+  if (t === 'secret_societies')       return 'Societies'
+  if (t === 'conditions')             return 'Conditions'
+  if (t === 'condition_region_links') return 'Region Placements'
   return t
 }
 
@@ -689,6 +698,147 @@ function ConditionCard({ c, onApprove, onReject }: {
   )
 }
 
+// ── RegionLinkCard — inferred body-map placement picker ──────────────────────
+
+function RegionLinkCard({ c, anatomyRegions, onBind, onNeedsRegion, onReject }: {
+  c: Candidate
+  anatomyRegions: AnatomyRegion[]
+  onBind: (regionKey: string, relevanceStrength: number) => void
+  onNeedsRegion: () => void
+  onReject: () => void
+}) {
+  const p      = c.payload
+  const isHeld = c.status === 'needs_region'
+
+  // All hooks at top
+  const [selectedRegion, setSelectedRegion] = useState(() => {
+    const label = ((p.region_label as string) || '').toLowerCase().trim()
+    if (!label || anatomyRegions.length === 0) return ''
+    const found = anatomyRegions.find(r => {
+      const dk = r.display_name.toLowerCase()
+      const rk = r.region_key.toLowerCase()
+      return dk.includes(label) || label.includes(dk) || rk.includes(label) || label.includes(rk)
+    })
+    return found?.region_key ?? ''
+  })
+  const [relevanceStrength, setRelevanceStrength] = useState(() => {
+    const pc = (p.placement_confidence as string) || 'medium'
+    return pc === 'high' ? 3 : pc === 'low' ? 1 : 2
+  })
+
+  const grouped: Record<string, AnatomyRegion[]> = {}
+  for (const r of anatomyRegions) {
+    const cat = r.category || 'Other'
+    if (!grouped[cat]) grouped[cat] = []
+    grouped[cat].push(r)
+  }
+  const groupKeys = Object.keys(grouped).sort()
+
+  const pcBadge = confidenceColor((p.placement_confidence as string) || 'medium')
+
+  return (
+    <div style={{ background: CARD_BG, border: `1px solid ${BORDER}`, borderRadius: 6, padding: '20px 22px' }}>
+
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, marginBottom: 16 }}>
+        <div>
+          {isHeld && (
+            <div style={{
+              fontFamily: cinzel, fontSize: 9, letterSpacing: '0.12em', color: '#854D0E',
+              background: 'rgba(234,179,8,0.1)', border: '1px solid rgba(234,179,8,0.35)',
+              borderRadius: 4, padding: '4px 10px', display: 'inline-block', marginBottom: 8,
+            }}>
+              HELD — NEEDS NEW REGION
+            </div>
+          )}
+          <div style={{ fontFamily: cinzel, fontSize: 15, fontWeight: 600, color: GOLD_DEEP, letterSpacing: '0.04em' }}>
+            {(p.condition_display_name as string) || (p.condition_key as string) || '(unknown)'}
+          </div>
+          {c.source_name && <div style={{ fontFamily: crimson, fontSize: 12, color: MUTED, marginTop: 2 }}>From: {c.source_name}</div>}
+        </div>
+        <div style={{ display: 'flex', gap: 6, flexShrink: 0, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+          <span style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.08em', padding: '3px 8px', borderRadius: 3, background: pcBadge.bg, border: `1px solid ${pcBadge.border}`, color: pcBadge.color }}>
+            {(p.placement_confidence as string) ?? 'medium'}
+          </span>
+          <span style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.08em', padding: '3px 8px', borderRadius: 3, background: 'rgba(139,105,20,0.08)', border: `1px solid rgba(139,105,20,0.2)`, color: GOLD }}>
+            region placement
+          </span>
+        </div>
+      </div>
+
+      {/* SOL's suggested region label */}
+      <div style={fieldSty}>
+        <span style={labelSty}>SOL Suggested Region</span>
+        <div style={{ ...valueSty, fontFamily: 'monospace', fontSize: 13 }}>{(p.region_label as string) || '—'}</div>
+      </div>
+
+      {/* Discernment reasoning */}
+      {p.reasoning && (
+        <div style={{ marginBottom: 14, background: '#F5F2EA', border: `1px solid ${BORDER}`, borderRadius: 4, padding: '8px 12px' }}>
+          <span style={{ ...labelSty, marginBottom: 4 }}>Discernment Reasoning</span>
+          <div style={{ fontFamily: crimson, fontSize: 14, color: MUTED, fontStyle: 'italic', lineHeight: 1.55 }}>{p.reasoning as string}</div>
+        </div>
+      )}
+      {p.source_excerpt && (
+        <div style={{ marginBottom: 14 }}>
+          <span style={labelSty}>Source Excerpt</span>
+          <div style={{ fontFamily: crimson, fontSize: 13, color: MUTED, fontStyle: 'italic', lineHeight: 1.5 }}>&ldquo;{p.source_excerpt as string}&rdquo;</div>
+        </div>
+      )}
+
+      {/* Region picker (grouped by category) */}
+      <div style={{ marginBottom: 14 }}>
+        <label style={labelSty}>Bind to Region (from anatomy_regions)</label>
+        <select value={selectedRegion} onChange={e => setSelectedRegion(e.target.value)} style={selectSty}>
+          <option value="">— select a region —</option>
+          {groupKeys.map(cat => (
+            <optgroup key={cat} label={cat}>
+              {grouped[cat].map(r => (
+                <option key={r.region_key} value={r.region_key}>{r.display_name}</option>
+              ))}
+            </optgroup>
+          ))}
+        </select>
+      </div>
+
+      {/* Relevance */}
+      <div style={{ marginBottom: 16 }}>
+        <label style={labelSty}>Relevance Strength</label>
+        <select value={relevanceStrength} onChange={e => setRelevanceStrength(Number(e.target.value))} style={{ ...selectSty, width: 'auto' }}>
+          <option value={1}>1 — Low</option>
+          <option value={2}>2 — Medium</option>
+          <option value={3}>3 — High</option>
+        </select>
+      </div>
+
+      {/* Actions */}
+      <div style={{ display: 'flex', gap: 8, paddingTop: 14, borderTop: `1px solid ${BORDER}` }}>
+        <button
+          onClick={() => onBind(selectedRegion, relevanceStrength)}
+          disabled={!selectedRegion}
+          style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.1em', padding: '7px 18px', borderRadius: 3, cursor: selectedRegion ? 'pointer' : 'not-allowed', opacity: selectedRegion ? 1 : 0.5, background: GOLD_DEEP, border: `1px solid ${GOLD_DEEP}`, color: '#FFFFFF' }}
+        >
+          BIND TO REGION
+        </button>
+        {!isHeld && (
+          <button
+            onClick={onNeedsRegion}
+            style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.1em', padding: '7px 18px', borderRadius: 3, cursor: 'pointer', background: 'transparent', border: `1px solid rgba(234,179,8,0.5)`, color: '#854D0E' }}
+          >
+            NEEDS NEW REGION
+          </button>
+        )}
+        <button
+          onClick={onReject}
+          style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.1em', padding: '7px 18px', borderRadius: 3, cursor: 'pointer', background: 'transparent', border: '1px solid #FCA5A5', color: '#991B1B' }}
+        >
+          REJECT
+        </button>
+      </div>
+    </div>
+  )
+}
+
 // ── Main page ────────────────────────────────────────────────────────────────
 
 function ExtractionReviewPage() {
@@ -696,12 +846,14 @@ function ExtractionReviewPage() {
   const { getToken } = useAuth()
 
   // All hooks before any conditional return
-  const [candidates, setCandidates] = useState<Candidate[]>([])
-  const [loading, setLoading]       = useState(true)
-  const [listError, setListError]   = useState<string | null>(null)
-  const [activeFilter, setActive]   = useState<string | null>(null)
-  const [toast, setToast]           = useState<string | null>(null)
-  const [acting, setActing]         = useState<string | null>(null)
+  const [candidates, setCandidates]       = useState<Candidate[]>([])
+  const [anatomyRegions, setAnatomyRegions] = useState<AnatomyRegion[]>([])
+  const [loading, setLoading]             = useState(true)
+  const [listError, setListError]         = useState<string | null>(null)
+  const [activeFilter, setActive]         = useState<string | null>(null)
+  const [showNeedsRegion, setShowNeedsRegion] = useState(false)
+  const [toast, setToast]                 = useState<string | null>(null)
+  const [acting, setActing]               = useState<string | null>(null)
 
   const tier    = (user?.publicMetadata as any)?.tier as string | undefined
   const role    = (user?.publicMetadata as any)?.role as string | undefined
@@ -718,17 +870,20 @@ function ExtractionReviewPage() {
     return () => clearTimeout(t)
   }, [toast])
 
-  async function loadCandidates() {
+  async function loadCandidates(status = 'pending') {
     setLoading(true)
     setListError(null)
+    setActive(null)
     try {
       const token = await getToken()
-      const resp = await fetch('/api/admin-extraction-candidates', {
+      const qs    = status !== 'pending' ? `?status=${encodeURIComponent(status)}` : ''
+      const resp  = await fetch(`/api/admin-extraction-candidates${qs}`, {
         headers: { Authorization: `Bearer ${token}` },
       })
       if (!resp.ok) throw new Error(`Status ${resp.status}`)
       const data = await resp.json()
       setCandidates(data.candidates ?? [])
+      if (Array.isArray(data.anatomy_regions)) setAnatomyRegions(data.anatomy_regions)
     } catch (err: any) {
       setListError(String(err?.message ?? err))
     } finally {
@@ -811,6 +966,58 @@ function ExtractionReviewPage() {
     }
   }
 
+  async function handleBindRegion(c: Candidate, regionKey: string, relevanceStrength: number) {
+    setActing(c.id)
+    try {
+      const token = await getToken()
+      const resp = await fetch('/api/admin-extraction-candidates', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ action: 'approve', id: c.id, region_key: regionKey, relevance_strength: relevanceStrength }),
+      })
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({}))
+        setToast(`Error: ${(err as any).error ?? 'bind failed'}`)
+        return
+      }
+      const result = await resp.json()
+      setCandidates(prev => prev.filter(x => x.id !== c.id))
+      const ck = result.condition_key as string
+      const rk = result.region_key as string
+      const rs = result.relevance_strength as number
+      setToast(result.already_existed
+        ? `Already linked: ${ck} → ${rk}`
+        : `Bound ${ck} → ${rk} (relevance ${rs})`)
+    } catch (err: any) {
+      setToast(`Error: ${String(err?.message ?? err)}`)
+    } finally {
+      setActing(null)
+    }
+  }
+
+  async function handleNeedsRegion(c: Candidate) {
+    setActing(c.id)
+    try {
+      const token = await getToken()
+      const resp = await fetch('/api/admin-extraction-candidates', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ action: 'needs_region', id: c.id }),
+      })
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({}))
+        setToast(`Error: ${(err as any).error ?? 'hold failed'}`)
+        return
+      }
+      setCandidates(prev => prev.filter(x => x.id !== c.id))
+      setToast('Held for new region')
+    } catch (err: any) {
+      setToast(`Error: ${String(err?.message ?? err)}`)
+    } finally {
+      setActing(null)
+    }
+  }
+
   const distinctTables = Array.from(new Set(candidates.map(c => c.target_table))).sort()
   const visible = activeFilter ? candidates.filter(c => c.target_table === activeFilter) : candidates
 
@@ -870,26 +1077,44 @@ function ExtractionReviewPage() {
           </div>
         )}
 
-        {/* Pills */}
-        {!loading && candidates.length > 0 && (
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 24 }}>
-            <button
-              onClick={() => setActive(null)}
-              style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.1em', padding: '6px 14px', borderRadius: 20, cursor: 'pointer', background: activeFilter === null ? GOLD_DEEP : 'transparent', border: `1px solid ${activeFilter === null ? GOLD_DEEP : BORDER}`, color: activeFilter === null ? '#FFFFFF' : MUTED }}
-            >
-              All ({candidates.length})
-            </button>
-            {distinctTables.map(t => {
-              const count = candidates.filter(c => c.target_table === t).length
-              const active = activeFilter === t
-              return (
-                <button key={t} onClick={() => setActive(t)}
-                  style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.1em', padding: '6px 14px', borderRadius: 20, cursor: 'pointer', background: active ? GOLD_DEEP : 'transparent', border: `1px solid ${active ? GOLD_DEEP : BORDER}`, color: active ? '#FFFFFF' : MUTED }}
+        {/* Pills + needs-region bin toggle */}
+        {!loading && (candidates.length > 0 || showNeedsRegion) && (
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 8, alignItems: 'center' }}>
+            {candidates.length > 0 && (
+              <>
+                <button
+                  onClick={() => setActive(null)}
+                  style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.1em', padding: '6px 14px', borderRadius: 20, cursor: 'pointer', background: activeFilter === null ? GOLD_DEEP : 'transparent', border: `1px solid ${activeFilter === null ? GOLD_DEEP : BORDER}`, color: activeFilter === null ? '#FFFFFF' : MUTED }}
                 >
-                  {tableLabel(t)} ({count})
+                  All ({candidates.length})
                 </button>
-              )
-            })}
+                {distinctTables.map(t => {
+                  const count = candidates.filter(c => c.target_table === t).length
+                  const active = activeFilter === t
+                  return (
+                    <button key={t} onClick={() => setActive(t)}
+                      style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.1em', padding: '6px 14px', borderRadius: 20, cursor: 'pointer', background: active ? GOLD_DEEP : 'transparent', border: `1px solid ${active ? GOLD_DEEP : BORDER}`, color: active ? '#FFFFFF' : MUTED }}
+                    >
+                      {tableLabel(t)} ({count})
+                    </button>
+                  )
+                })}
+              </>
+            )}
+          </div>
+        )}
+        {!loading && (
+          <div style={{ marginBottom: 24 }}>
+            <button
+              onClick={() => {
+                const next = !showNeedsRegion
+                setShowNeedsRegion(next)
+                loadCandidates(next ? 'needs_region' : 'pending')
+              }}
+              style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.1em', padding: '5px 12px', borderRadius: 20, cursor: 'pointer', background: showNeedsRegion ? 'rgba(234,179,8,0.15)' : 'transparent', border: `1px solid ${showNeedsRegion ? 'rgba(234,179,8,0.5)' : BORDER}`, color: showNeedsRegion ? '#854D0E' : MUTED }}
+            >
+              {showNeedsRegion ? '▾ Needs-Region Bin' : '▸ Show Needs-Region Bin'}
+            </button>
           </div>
         )}
 
@@ -928,6 +1153,18 @@ function ExtractionReviewPage() {
                     key={c.id}
                     c={c}
                     onApprove={(editedPayload) => handleApprove(c, editedPayload)}
+                    onReject={() => handleReject(c)}
+                  />
+                )
+              }
+              if (c.target_table === 'condition_region_links') {
+                return (
+                  <RegionLinkCard
+                    key={c.id}
+                    c={c}
+                    anatomyRegions={anatomyRegions}
+                    onBind={(rk, rs) => handleBindRegion(c, rk, rs)}
+                    onNeedsRegion={() => handleNeedsRegion(c)}
                     onReject={() => handleReject(c)}
                   />
                 )
