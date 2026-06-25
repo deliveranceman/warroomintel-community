@@ -13245,6 +13245,291 @@ function SpiritCandidatesManager({ getToken, isDark, allSpirits }: { getToken: a
   )
 }
 
+// ─── JOBS VIEW ───────────────────────────────────────────────────────────────
+function JobsView({ getToken, isDark }: { getToken: any; isDark: boolean }) {
+  const surf = isDark ? SURF2 : '#FFFFFF'
+  const bdr  = isDark ? BDR   : 'rgba(139,105,20,0.25)'
+  const txt  = isDark ? TXT   : '#2D2924'
+  const dim  = isDark ? DIM   : '#6B5520'
+  const gold = isDark ? G     : '#604408'
+
+  const [jobs,       setJobs]       = useState<any[]>([])
+  const [summary,    setSummary]    = useState<{ running:number; queued:number; complete:number; failed:number; partial:number; total:number } | null>(null)
+  const [loading,    setLoading]    = useState(true)
+  const [error,      setError]      = useState<string | null>(null)
+  const [expandedId, setExpandedId] = useState<string | null>(null)
+  const [statusF,    setStatusF]    = useState('')
+  const [typeF,      setTypeF]      = useState('')
+  const autoRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  // All hooks above — safe to use effects below
+  useEffect(() => { load() }, [statusF, typeF])
+
+  // Auto-refresh every 15 s while any job is running; stop when none are
+  useEffect(() => {
+    if (autoRef.current) { clearInterval(autoRef.current); autoRef.current = null }
+    const hasRunning = jobs.some(j => j.status === 'running' || j.status === 'queued')
+    if (!hasRunning) return
+    autoRef.current = setInterval(() => load(), 15000)
+    return () => { if (autoRef.current) clearInterval(autoRef.current) }
+  }, [jobs])
+
+  useEffect(() => () => { if (autoRef.current) clearInterval(autoRef.current) }, [])
+
+  async function load() {
+    setLoading(true); setError(null)
+    try {
+      const token = await getToken()
+      const params = new URLSearchParams()
+      if (statusF) params.set('status', statusF)
+      if (typeF)   params.set('job_type', typeF)
+      const res = await fetch(`/api/admin-jobs-list${params.toString() ? '?' + params : ''}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      const d = await res.json()
+      if (!res.ok) { setError(d.error || 'Failed to load jobs'); return }
+      setJobs(d.jobs || [])
+      setSummary(d.summary || null)
+    } catch (e: any) {
+      setError(e.message || 'Network error')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  function fmtCost(v: any) {
+    if (v == null || v === '') return '—'
+    const n = Number(v)
+    return isNaN(n) ? '—' : `$${n.toFixed(4)}`
+  }
+
+  function fmtTokens(v: any) {
+    if (v == null) return '—'
+    const n = Number(v)
+    return isNaN(n) ? '—' : n.toLocaleString()
+  }
+
+  function fmtAge(iso: string | null) {
+    if (!iso) return '—'
+    const ms = Date.now() - new Date(iso).getTime()
+    const m  = Math.floor(ms / 60000)
+    if (m < 1)    return 'just now'
+    if (m < 60)   return `${m}m ago`
+    const h = Math.floor(m / 60)
+    if (h < 24)   return `${h}h ago`
+    return `${Math.floor(h / 24)}d ago`
+  }
+
+  function statusColor(s: string) {
+    if (s === 'running')  return '#f59e0b'
+    if (s === 'complete') return '#4ade80'
+    if (s === 'failed')   return '#f87171'
+    if (s === 'partial')  return '#a78bfa'
+    return dim // queued
+  }
+
+  const runningJobs = jobs.filter(j => j.status === 'running' || j.status === 'queued')
+  const otherJobs   = jobs.filter(j => j.status !== 'running' && j.status !== 'queued')
+
+  return (
+    <div style={{ color: txt, fontFamily: crimson }}>
+      {/* ── Header ──────────────────────────────────────────────────────── */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20, gap: 12, flexWrap: 'wrap' as const }}>
+        <div>
+          <div style={{ fontFamily: cinzel, fontSize: 16, color: gold, letterSpacing: '0.08em', marginBottom: 4 }}>AI JOBS</div>
+          {summary && (
+            <div style={{ fontFamily: cinzel, fontSize: 9, color: dim, letterSpacing: '0.1em', display: 'flex', gap: 14, flexWrap: 'wrap' as const }}>
+              {summary.running  > 0 && <span style={{ color: '#f59e0b' }}>● {summary.running} RUNNING</span>}
+              {summary.queued   > 0 && <span style={{ color: dim }}>○ {summary.queued} QUEUED</span>}
+              {summary.complete > 0 && <span style={{ color: '#4ade80' }}>✓ {summary.complete} COMPLETE</span>}
+              {summary.failed   > 0 && <span style={{ color: '#f87171' }}>✕ {summary.failed} FAILED</span>}
+              {summary.partial  > 0 && <span style={{ color: '#a78bfa' }}>◑ {summary.partial} PARTIAL</span>}
+              <span>{summary.total} TOTAL</span>
+            </div>
+          )}
+        </div>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' as const }}>
+          <select value={statusF} onChange={e => setStatusF(e.target.value)}
+            style={{ background: isDark ? 'rgba(255,255,255,0.04)' : '#fff', border: `1px solid ${bdr}`, borderRadius: 4, padding: '5px 8px', color: txt, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.06em', outline: 'none' }}>
+            <option value=''>All statuses</option>
+            <option value='running'>Running</option>
+            <option value='queued'>Queued</option>
+            <option value='complete'>Complete</option>
+            <option value='failed'>Failed</option>
+            <option value='partial'>Partial</option>
+          </select>
+          <select value={typeF} onChange={e => setTypeF(e.target.value)}
+            style={{ background: isDark ? 'rgba(255,255,255,0.04)' : '#fff', border: `1px solid ${bdr}`, borderRadius: 4, padding: '5px 8px', color: txt, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.06em', outline: 'none' }}>
+            <option value=''>All types</option>
+            <option value='research_drop_spirits'>research_drop_spirits</option>
+            <option value='research_drop_conditions'>research_drop_conditions</option>
+            <option value='research_drop_bloodline'>research_drop_bloodline</option>
+            <option value='layer2_extraction'>layer2_extraction</option>
+          </select>
+          <button onClick={() => load()} disabled={loading}
+            style={{ background: 'transparent', border: `1px solid ${bdr}`, borderRadius: 4, padding: '5px 14px', color: gold, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: loading ? 'wait' : 'pointer', opacity: loading ? 0.6 : 1 }}>
+            {loading ? '…' : '↺ Refresh'}
+          </button>
+        </div>
+      </div>
+
+      {error && (
+        <div style={{ background: 'rgba(248,113,113,0.1)', border: '1px solid rgba(248,113,113,0.3)', borderRadius: 6, padding: '10px 14px', marginBottom: 16, fontFamily: crimson, fontSize: 13, color: '#f87171' }}>
+          {error}
+        </div>
+      )}
+
+      {/* ── Active jobs ─────────────────────────────────────────────────── */}
+      {runningJobs.length > 0 && (
+        <div style={{ marginBottom: 20 }}>
+          <div style={{ fontFamily: cinzel, fontSize: 9, color: '#f59e0b', letterSpacing: '0.12em', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: '#f59e0b', animation: 'bm-pulse 1.4s ease-in-out infinite' }} />
+            ACTIVE JOBS
+          </div>
+          <JobList jobs={runningJobs} expandedId={expandedId} setExpandedId={setExpandedId} surf={surf} bdr={bdr} txt={txt} dim={dim} statusColor={statusColor} fmtCost={fmtCost} fmtTokens={fmtTokens} fmtAge={fmtAge} />
+        </div>
+      )}
+
+      {/* ── All other jobs ──────────────────────────────────────────────── */}
+      {otherJobs.length > 0 && (
+        <div>
+          {runningJobs.length > 0 && (
+            <div style={{ fontFamily: cinzel, fontSize: 9, color: dim, letterSpacing: '0.12em', marginBottom: 10 }}>RECENT JOBS</div>
+          )}
+          <JobList jobs={otherJobs} expandedId={expandedId} setExpandedId={setExpandedId} surf={surf} bdr={bdr} txt={txt} dim={dim} statusColor={statusColor} fmtCost={fmtCost} fmtTokens={fmtTokens} fmtAge={fmtAge} />
+        </div>
+      )}
+
+      {/* ── Empty state ─────────────────────────────────────────────────── */}
+      {!loading && jobs.length === 0 && (
+        <div style={{ background: surf, border: `1px solid ${bdr}`, borderRadius: 8, padding: '32px 24px', textAlign: 'center' as const }}>
+          <div style={{ fontFamily: cinzel, fontSize: 12, color: dim, letterSpacing: '0.1em', marginBottom: 8 }}>NO JOBS FOUND</div>
+          <div style={{ fontFamily: crimson, fontSize: 13, color: dim }}>
+            {statusF || typeF ? 'No jobs match the current filter.' : 'No AI jobs have been run yet.'}
+          </div>
+        </div>
+      )}
+
+      {loading && jobs.length === 0 && (
+        <div style={{ fontFamily: cinzel, fontSize: 10, color: dim, letterSpacing: '0.1em', padding: '24px 0' }}>LOADING…</div>
+      )}
+    </div>
+  )
+}
+
+function JobList({ jobs, expandedId, setExpandedId, surf, bdr, txt, dim, statusColor, fmtCost, fmtTokens, fmtAge }: {
+  jobs: any[]; expandedId: string | null; setExpandedId: (id: string | null) => void
+  surf: string; bdr: string; txt: string; dim: string
+  statusColor: (s: string) => string
+  fmtCost: (v: any) => string; fmtTokens: (v: any) => string; fmtAge: (s: string | null) => string
+}) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 6 }}>
+      {jobs.map(job => {
+        const sc = statusColor(job.status)
+        const isOpen = expandedId === job.id
+        return (
+          <div key={job.id} style={{ background: surf, border: `1px solid ${isOpen ? sc : bdr}`, borderRadius: 8, overflow: 'hidden' }}>
+            {/* ── Row ── */}
+            <button
+              onClick={() => setExpandedId(isOpen ? null : job.id)}
+              style={{ width: '100%', display: 'grid', gridTemplateColumns: '110px 1fr minmax(80px,140px) 60px 70px 64px 28px', gap: 10, alignItems: 'center', padding: '10px 14px', background: 'transparent', border: 'none', cursor: 'pointer', textAlign: 'left' as const, color: txt }}
+            >
+              {/* status badge */}
+              <span style={{ fontFamily: "'Cinzel',serif", fontSize: 9, letterSpacing: '0.08em', color: sc, background: `${sc}18`, border: `1px solid ${sc}40`, borderRadius: 4, padding: '2px 7px', display: 'inline-block', textTransform: 'uppercase' as const }}>
+                {job.status === 'running' && <span style={{ marginRight: 4 }}>●</span>}{job.status}
+              </span>
+              {/* job type + resource */}
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontFamily: "'Cinzel',serif", fontSize: 10, color: txt, letterSpacing: '0.04em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{job.job_type}</div>
+                {job.resource_title && (
+                  <div style={{ fontFamily: "'Crimson Pro',serif", fontSize: 11, color: dim, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{job.resource_title}</div>
+                )}
+              </div>
+              {/* stage */}
+              <div style={{ fontFamily: "'Crimson Pro',serif", fontSize: 11, color: dim, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{job.stage || '—'}</div>
+              {/* progress */}
+              <div style={{ fontFamily: "'Cinzel',serif", fontSize: 10, color: job.status === 'running' ? sc : dim, textAlign: 'right' as const }}>
+                {job.progress != null ? `${job.progress}%` : '—'}
+              </div>
+              {/* cost */}
+              <div style={{ fontFamily: "'Cinzel',serif", fontSize: 9, color: dim, textAlign: 'right' as const }}>{fmtCost(job.cost_estimate)}</div>
+              {/* age */}
+              <div style={{ fontFamily: "'Crimson Pro',serif", fontSize: 11, color: dim, textAlign: 'right' as const }}>{fmtAge(job.created_at)}</div>
+              {/* chevron */}
+              <span style={{ color: dim, fontSize: 10, transform: isOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s', display: 'inline-block' }}>▾</span>
+            </button>
+
+            {/* ── Error preview (failed only, collapsed) ── */}
+            {!isOpen && job.status === 'failed' && job.error_message && (
+              <div style={{ padding: '0 14px 10px', fontFamily: "'Crimson Pro',serif", fontSize: 11, color: '#f87171', fontStyle: 'italic' as const }}>
+                {job.error_message.slice(0, 120)}{job.error_message.length > 120 ? '…' : ''}
+              </div>
+            )}
+
+            {/* ── Expanded detail ── */}
+            {isOpen && (
+              <div style={{ borderTop: `1px solid ${bdr}`, padding: '14px 14px 16px', display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '10px 20px' }}>
+                {/* Timestamps */}
+                <div>
+                  <div style={{ fontFamily: "'Cinzel',serif", fontSize: 8, color: dim, letterSpacing: '0.1em', marginBottom: 4 }}>TIMESTAMPS</div>
+                  <div style={{ fontFamily: "'Crimson Pro',serif", fontSize: 12, color: txt }}>Created: {job.created_at ? new Date(job.created_at).toLocaleString() : '—'}</div>
+                  <div style={{ fontFamily: "'Crimson Pro',serif", fontSize: 12, color: txt }}>Started: {job.started_at ? new Date(job.started_at).toLocaleString() : '—'}</div>
+                  <div style={{ fontFamily: "'Crimson Pro',serif", fontSize: 12, color: txt }}>Completed: {job.completed_at ? new Date(job.completed_at).toLocaleString() : '—'}</div>
+                </div>
+                {/* Cost + tokens */}
+                <div>
+                  <div style={{ fontFamily: "'Cinzel',serif", fontSize: 8, color: dim, letterSpacing: '0.1em', marginBottom: 4 }}>USAGE</div>
+                  <div style={{ fontFamily: "'Crimson Pro',serif", fontSize: 12, color: txt }}>Cost: {fmtCost(job.cost_estimate)}</div>
+                  <div style={{ fontFamily: "'Crimson Pro',serif", fontSize: 12, color: txt }}>Tokens: {fmtTokens(job.tokens_used)}</div>
+                </div>
+                {/* Input */}
+                {job.input_summary && (
+                  <div>
+                    <div style={{ fontFamily: "'Cinzel',serif", fontSize: 8, color: dim, letterSpacing: '0.1em', marginBottom: 4 }}>INPUT</div>
+                    {job.input_summary.resourceId && <div style={{ fontFamily: "'Crimson Pro',serif", fontSize: 12, color: txt }}>Resource: <span style={{ color: dim }}>{job.input_summary.resourceId}</span></div>}
+                    {job.input_summary.sourceType  && <div style={{ fontFamily: "'Crimson Pro',serif", fontSize: 12, color: txt }}>Source type: {job.input_summary.sourceType}</div>}
+                    {job.input_summary.lane        && <div style={{ fontFamily: "'Crimson Pro',serif", fontSize: 12, color: txt }}>Lane: {job.input_summary.lane}</div>}
+                  </div>
+                )}
+                {/* Result summary */}
+                {job.result_summary && (
+                  <div>
+                    <div style={{ fontFamily: "'Cinzel',serif", fontSize: 8, color: dim, letterSpacing: '0.1em', marginBottom: 4 }}>RESULT</div>
+                    {job.result_summary.candidate_count   != null && <div style={{ fontFamily: "'Crimson Pro',serif", fontSize: 12, color: txt }}>Candidates: {job.result_summary.candidate_count}</div>}
+                    {job.result_summary.mentionsFound      != null && <div style={{ fontFamily: "'Crimson Pro',serif", fontSize: 12, color: txt }}>Mentions found: {job.result_summary.mentionsFound}</div>}
+                    {job.result_summary.enrichSuggestions  != null && <div style={{ fontFamily: "'Crimson Pro',serif", fontSize: 12, color: txt }}>Enrich suggestions: {job.result_summary.enrichSuggestions}</div>}
+                    {job.result_summary.newCandidates      != null && <div style={{ fontFamily: "'Crimson Pro',serif", fontSize: 12, color: txt }}>New candidates: {job.result_summary.newCandidates}</div>}
+                    {job.result_summary.windows_processed  != null && <div style={{ fontFamily: "'Crimson Pro',serif", fontSize: 12, color: txt }}>Windows: {job.result_summary.windows_processed}</div>}
+                    {job.result_summary._cursor            != null && <div style={{ fontFamily: "'Crimson Pro',serif", fontSize: 12, color: txt }}>Cursor: {job.result_summary._cursor}</div>}
+                    {job.result_summary.by_target && (
+                      <div style={{ fontFamily: "'Crimson Pro',serif", fontSize: 11, color: dim, marginTop: 2 }}>
+                        {Object.entries(job.result_summary.by_target).map(([k, v]) => `${k}: ${v}`).join(' · ')}
+                      </div>
+                    )}
+                  </div>
+                )}
+                {/* Error */}
+                {job.error_message && (
+                  <div style={{ gridColumn: '1 / -1' }}>
+                    <div style={{ fontFamily: "'Cinzel',serif", fontSize: 8, color: '#f87171', letterSpacing: '0.1em', marginBottom: 4 }}>ERROR</div>
+                    <div style={{ fontFamily: "'Crimson Pro',serif", fontSize: 12, color: '#f87171', fontStyle: 'italic' as const, wordBreak: 'break-word' as const }}>{job.error_message}</div>
+                  </div>
+                )}
+                {/* Job ID */}
+                <div style={{ gridColumn: '1 / -1' }}>
+                  <div style={{ fontFamily: "'Cinzel',serif", fontSize: 8, color: dim, letterSpacing: '0.1em', marginBottom: 2 }}>JOB ID</div>
+                  <div style={{ fontFamily: 'monospace', fontSize: 11, color: dim }}>{job.id}</div>
+                </div>
+              </div>
+            )}
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
 function AdminPage() {
   const { user, isLoaded } = useUser()
   const { getToken }       = useAuth()
@@ -13343,6 +13628,7 @@ function AdminPage() {
     { label: 'INTEL ARCHIVE', items: [
       { key: 'research-drop',      label: '▲ Research Drop'        },
       { key: 'run-extraction',     label: 'Run Extraction'          },
+      { key: 'jobs',              label: '⚡ AI Jobs'               },
       { key: 'intel',              label: 'Intel Archive'           },
       { key: 'spirit-candidates',  label: 'Spirit Candidates'       },
       { key: 'enrichment',         label: 'Enrichment Suggestions'  },
@@ -13556,6 +13842,7 @@ function AdminPage() {
             {tab === 'sol-research'     && <SolResearchView getToken={getToken} isDark={isDark} />}
             {tab === 'research-drop'   && <ResearchDropPage getToken={getToken} isDark={isDark} />}
             {tab === 'run-extraction'  && <RunExtractionPanel getToken={getToken} isDark={isDark} />}
+            {tab === 'jobs'            && <JobsView getToken={getToken} isDark={isDark} />}
             {tab === 'members'           && (
               <div style={{ padding: '32px 0', textAlign: 'center' as const, color: adDim, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.12em' }}>
                 MEMBERS — COMING SOON
