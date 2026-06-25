@@ -30,6 +30,7 @@ type Candidate = {
   payload: Record<string, any>
   created_at: string
   existing_record?: Record<string, any> | null
+  parent_condition_exists?: boolean
 }
 
 type TaggedItem = {
@@ -811,12 +812,21 @@ function RegionLinkCard({ c, anatomyRegions, onBind, onNeedsRegion, onReject }: 
         </select>
       </div>
 
+      {/* Parent-condition guard note — shown when the parent condition has not yet been approved */}
+      {c.parent_condition_exists === false && (
+        <div style={{ marginBottom: 12, background: 'rgba(234,179,8,0.08)', border: '1px solid rgba(234,179,8,0.4)', borderRadius: 4, padding: '8px 12px' }}>
+          <span style={{ fontFamily: crimson, fontSize: 13, color: '#854D0E', lineHeight: 1.5 }}>
+            Approve the condition &ldquo;{(c.payload?.condition_display_name as string) || (c.payload?.condition_key as string) || 'unknown'}&rdquo; first — then you can place it on the body map.
+          </span>
+        </div>
+      )}
+
       {/* Actions */}
       <div style={{ display: 'flex', gap: 8, paddingTop: 14, borderTop: `1px solid ${BORDER}` }}>
         <button
           onClick={() => onBind(selectedRegion, relevanceStrength)}
-          disabled={!selectedRegion}
-          style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.1em', padding: '7px 18px', borderRadius: 3, cursor: selectedRegion ? 'pointer' : 'not-allowed', opacity: selectedRegion ? 1 : 0.5, background: GOLD_DEEP, border: `1px solid ${GOLD_DEEP}`, color: '#FFFFFF' }}
+          disabled={!selectedRegion || c.parent_condition_exists === false}
+          style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.1em', padding: '7px 18px', borderRadius: 3, cursor: (selectedRegion && c.parent_condition_exists !== false) ? 'pointer' : 'not-allowed', opacity: (selectedRegion && c.parent_condition_exists !== false) ? 1 : 0.5, background: GOLD_DEEP, border: `1px solid ${GOLD_DEEP}`, color: '#FFFFFF' }}
         >
           BIND TO REGION
         </button>
@@ -977,7 +987,11 @@ function ExtractionReviewPage() {
       })
       if (!resp.ok) {
         const err = await resp.json().catch(() => ({}))
-        setToast(`Error: ${(err as any).error ?? 'bind failed'}`)
+        if ((err as any).error === 'parent_condition_not_approved') {
+          setToast(`Cannot bind: ${(err as any).message ?? 'approve the parent condition first'}`)
+        } else {
+          setToast(`Error: ${(err as any).error ?? 'bind failed'}`)
+        }
         return
       }
       const result = await resp.json()

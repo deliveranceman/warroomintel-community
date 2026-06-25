@@ -343,7 +343,34 @@ export default async function handler(req: Request): Promise<Response> {
       anatomyRegions = (arData ?? []) as any[]
     }
 
-    return json({ candidates: hydrated, ...(hasRegionLinks ? { anatomy_regions: anatomyRegions } : {}) })
+    // Part B: compute parent_condition_exists for each condition_region_links candidate.
+    // One bulk query for all distinct condition_keys — avoids per-card round trips in the UI.
+    const existingCondKeys = new Set<string>()
+    if (hasRegionLinks) {
+      const rlKeys = [...new Set(
+        hydrated
+          .filter(c => c.target_table === 'condition_region_links')
+          .map(c => ((c.payload as any)?.condition_key as string) || '')
+          .filter(Boolean)
+      )]
+      if (rlKeys.length > 0) {
+        const { data: existingConds } = await client
+          .from('conditions')
+          .select('condition_key')
+          .in('condition_key', rlKeys)
+        for (const row of (existingConds ?? []) as any[]) existingCondKeys.add(row.condition_key as string)
+      }
+    }
+
+    const hydratedFinal = hydrated.map(c => {
+      if (c.target_table === 'condition_region_links') {
+        const ck = ((c.payload as any)?.condition_key as string) || ''
+        return { ...c, parent_condition_exists: ck ? existingCondKeys.has(ck) : false }
+      }
+      return c
+    })
+
+    return json({ candidates: hydratedFinal, ...(hasRegionLinks ? { anatomy_regions: anatomyRegions } : {}) })
   }
 
   // ── POST — approve or reject ────────────────────────────────────────────────
@@ -410,6 +437,23 @@ export default async function handler(req: Request): Promise<Response> {
         } else {
           const strengthMap: Record<string, number> = { high: 3, medium: 2, low: 1 }
           relevanceStrength = strengthMap[crlPayload.placement_confidence as string] ?? 2
+        }
+
+        // Guard: parent condition must exist before binding — condition_regions.condition_key
+        // is a FK to conditions.condition_key (ON DELETE CASCADE). Without this check a bind
+        // for an un-approved condition throws a raw FK violation to the caller.
+        const { data: parentCondition } = await client
+          .from('conditions')
+          .select('condition_key')
+          .eq('condition_key', conditionKey)
+          .maybeSingle()
+
+        if (!parentCondition) {
+          return json({
+            error:         'parent_condition_not_approved',
+            message:       `Approve the condition "${conditionKey}" before placing it on the body map.`,
+            condition_key: conditionKey,
+          }, 409)
         }
 
         // Check if already linked (to report already_existed; then insert only if not)
