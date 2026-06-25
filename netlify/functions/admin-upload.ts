@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 import { requireAdmin2 } from './_shared/access'
 import { slugifyTitle } from './_shared/slugify'
+import { findDuplicateResource } from './_shared/resourceDedup'
 
 const { url: supabaseUrl, serviceRoleKey: supabaseServiceKey, bucket: supabaseBucket } = JSON.parse(process.env.SUPABASE || '{}')
 
@@ -149,19 +150,20 @@ Respond with valid JSON only.`
 
   const supabase  = createClient(SUPABASE_URL, SUPABASE_KEY)
 
-  // Duplicate filename check
-  const { data: existingFiles } = await supabase
-    .from('resources')
-    .select('id, title, filename')
-    .ilike('file_path', `%${file.name.replace(/[^a-zA-Z0-9._-]/g, '_')}%`)
-    .neq('topic', 'ministry-library')
-    .limit(1)
-  if (existingFiles && existingFiles.length > 0) {
+  // Shared dedup — scoped to Arsenal rows only
+  const dedup = await findDuplicateResource(supabase, {
+    filename:    file.name,
+    fileSize:    file.size,
+    scopeColumn: 'source_type',
+    scopeValue:  'arsenal',
+  })
+  if (dedup.duplicate) {
     return new Response(JSON.stringify({
-      error: 'duplicate',
-      message: 'A file with this filename already exists',
-      existingId: existingFiles[0].id,
-      existingTitle: existingFiles[0].title,
+      error:         'duplicate',
+      message:       `A file with this name already exists in the Arsenal`,
+      existingId:    dedup.existingId,
+      existingTitle: dedup.existingTitle,
+      matchedOn:     dedup.matchedOn,
     }), { status: 409, headers: { 'Content-Type': 'application/json' } })
   }
 

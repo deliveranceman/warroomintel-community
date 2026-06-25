@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 import { createRequire } from 'module'
 import { requireAdmin2, CORS as HEADERS } from './_shared/access'
+import { findDuplicateResource } from './_shared/resourceDedup'
 
 const { url: supabaseUrl, serviceRoleKey: supabaseServiceKey } = JSON.parse(process.env.SUPABASE || '{}')
 const require = createRequire(import.meta.url)
@@ -109,7 +110,7 @@ export default async function handler(req: Request) {
     return Response.json({ error: 'Invalid JSON body' }, { status: 400 })
   }
 
-  const { title, author, notes, spirit_tags, filename, file_size, file_path, ai_generated, sourceType } = body
+  const { title, author, notes, spirit_tags, filename, file_size, file_path, ai_generated, sourceType, fileHash } = body
   const source_type: string = sourceType === 'intelligence' ? 'intelligence' : 'christian'
 
   console.log('[LIBRARY-UPLOAD] Request received', { userId, filename, file_size, file_path })
@@ -123,22 +124,22 @@ export default async function handler(req: Request) {
 
   const sb = makeSupabase()
 
-  // Duplicate filename check before inserting
-  if (resolvedFilename) {
-    const { data: existing } = await sb
-      .from('resources')
-      .select('id, title, filename')
-      .eq('topic', 'ministry-library')
-      .ilike('filename', resolvedFilename)
-      .limit(1)
-    if (existing && existing.length > 0) {
-      return Response.json({
-        error: 'duplicate',
-        message: 'A file with this filename already exists',
-        existingId: existing[0].id,
-        existingTitle: existing[0].title,
-      }, { status: 409 })
-    }
+  // ── Belt-and-suspenders dedup (fast, before download/extract/insert) ────────
+  const dedup = await findDuplicateResource(sb, {
+    filename:    resolvedFilename,
+    fileHash:    typeof fileHash === 'string' ? fileHash : null,
+    fileSize:    typeof file_size === 'number' ? file_size : null,
+    scopeColumn: 'topic',
+    scopeValue:  'ministry-library',
+  })
+  if (dedup.duplicate) {
+    return Response.json({
+      error:         'duplicate',
+      message:       `Already in library: "${dedup.existingTitle}"`,
+      existingId:    dedup.existingId,
+      existingTitle: dedup.existingTitle,
+      matchedOn:     dedup.matchedOn,
+    }, { status: 409 })
   }
 
   console.log('[LIBRARY-UPLOAD] Writing to Supabase resources table...', { title: title.trim(), fileType, file_path })
@@ -146,18 +147,19 @@ export default async function handler(req: Request) {
   const { data: row, error } = await sb
     .from('resources')
     .insert({
-      title: title.trim(),
-      author: author?.trim() || 'Unknown',
-      notes: notes?.trim() || '',
-      filename: resolvedFilename,
-      file_size: file_size || 0,
+      title:        title.trim(),
+      author:       author?.trim() || 'Unknown',
+      notes:        notes?.trim() || '',
+      filename:     resolvedFilename,
+      file_size:    file_size || 0,
       file_path,
-      file_type: fileType,
-      topic: 'ministry-library',
-      user_id: userId,
+      file_type:    fileType,
+      file_hash:    typeof fileHash === 'string' && fileHash ? fileHash : null,
+      topic:        'ministry-library',
+      user_id:      userId,
       ai_generated: Boolean(ai_generated),
-      active: true,
-      spirit_tags: Array.isArray(spirit_tags) ? spirit_tags : [],
+      active:       true,
+      spirit_tags:  Array.isArray(spirit_tags) ? spirit_tags : [],
       source_type,
     })
     .select()

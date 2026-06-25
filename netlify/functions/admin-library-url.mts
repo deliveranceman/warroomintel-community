@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import { requireAdmin2 } from './_shared/access'
+import { findDuplicateResource } from './_shared/resourceDedup'
 
 const { url: supabaseUrl, serviceRoleKey: supabaseServiceKey } = JSON.parse(process.env.SUPABASE || '{}')
 
@@ -30,13 +31,31 @@ export default async function handler(req: Request) {
   if (auth instanceof Response) return auth
   const { userId } = auth
 
-  const { filename, contentType } = await req.json()
+  const { filename, contentType, fileSize, fileHash } = await req.json()
   if (!filename) return Response.json({ error: 'filename required' }, { status: 400 })
+
+  // ── Fast dedup before any binary transfer ──────────────────────────────────
+  const sb = makeSupabase()
+  const dedup = await findDuplicateResource(sb, {
+    filename,
+    fileHash:  fileHash  || null,
+    fileSize:  typeof fileSize === 'number' ? fileSize : null,
+    scopeColumn: 'topic',
+    scopeValue:  'ministry-library',
+  })
+  if (dedup.duplicate) {
+    return Response.json({
+      error: 'duplicate',
+      message: `Already in library: "${dedup.existingTitle}"`,
+      existingId:    dedup.existingId,
+      existingTitle: dedup.existingTitle,
+      matchedOn:     dedup.matchedOn,
+    }, { status: 409 })
+  }
 
   const safe = filename.replace(/[^a-zA-Z0-9._-]/g, '_')
   const filePath = `${userId}/${Date.now()}-${safe}`
 
-  const sb = makeSupabase()
   const { data, error } = await sb.storage.from(BUCKET).createSignedUploadUrl(filePath)
 
   if (error || !data) {

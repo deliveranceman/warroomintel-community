@@ -6050,8 +6050,9 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
   type StagedFile = {
     id: string; file: File; title: string; author: string; notes: string
     spirit_tags: string[]; sourceType: 'christian' | 'intelligence'
-    status: 'pending' | 'analyzing' | 'uploading' | 'done' | 'error'
+    status: 'pending' | 'analyzing' | 'uploading' | 'done' | 'error' | 'duplicate'
     errorMsg?: string; aiGenerated: boolean
+    duplicateMatch?: { id: string; title: string; matchedOn?: string }
   }
   const [stagedFiles, setStagedFiles] = useState<StagedFile[]>([])
   const [duplicateWarnings, setDuplicateWarnings] = useState<{file: File, match: any}[]>([])
@@ -6092,7 +6093,7 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
   // Auto-clear staged files 3s after all reach done/error, then refresh book list
   useEffect(() => {
     if (stagedFiles.length === 0) return
-    const allFinished = stagedFiles.every(f => f.status === 'done' || f.status === 'error')
+    const allFinished = stagedFiles.every(f => f.status === 'done' || f.status === 'error' || f.status === 'duplicate')
     if (!allFinished) return
     const t = setTimeout(() => {
       setStagedFiles([])
@@ -6240,7 +6241,7 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
     }
   }
 
-  function updateStaged(id: string, patch: Partial<{ title: string; author: string; notes: string; spirit_tags: string[]; sourceType: 'christian' | 'intelligence'; status: StagedFile['status']; errorMsg: string; aiGenerated: boolean }>) {
+  function updateStaged(id: string, patch: Partial<StagedFile>) {
     setStagedFiles(prev => prev.map(f => f.id === id ? { ...f, ...patch } : f))
   }
 
@@ -6321,7 +6322,16 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
     setUploadingAll(true)
     for (const sf of pending) {
       console.log('[handleUploadAll] starting upload:', sf.file.name, 'type:', sf.file.type, 'size:', sf.file.size)
-      // Step 1 — signed URL
+
+      // Compute SHA-256 hash client-side for strong dedup (runs fast in-browser, <200ms for 25MB)
+      let fileHash: string | null = null
+      try {
+        const buf = await sf.file.arrayBuffer()
+        const hashBuf = await crypto.subtle.digest('SHA-256', buf)
+        fileHash = Array.from(new Uint8Array(hashBuf)).map(b => b.toString(16).padStart(2, '0')).join('')
+      } catch { /* non-fatal — dedup falls back to filename/size */ }
+
+      // Step 1 — signed URL (dedup check fires here, before any binary transfer)
       updateStaged(sf.id, { status: 'uploading' })
       let signedUrl = '', filePath = ''
       try {
@@ -6329,10 +6339,23 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
         const urlRes = await fetch('/api/admin-library-url', {
           method: 'POST',
           headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ filename: sf.file.name, contentType: sf.file.type || 'application/octet-stream' }),
+          body: JSON.stringify({
+            filename: sf.file.name,
+            contentType: sf.file.type || 'application/octet-stream',
+            fileSize: sf.file.size,
+            fileHash,
+          }),
         })
         console.log('[PDF-upload] response:', urlRes.status)
         const urlData = await urlRes.json()
+        if (urlRes.status === 409) {
+          updateStaged(sf.id, {
+            status: 'duplicate',
+            duplicateMatch: { id: urlData.existingId, title: urlData.existingTitle, matchedOn: urlData.matchedOn },
+            errorMsg: `Already in library: "${urlData.existingTitle || sf.file.name}"${urlData.matchedOn ? ` (matched on ${urlData.matchedOn})` : ''}`,
+          })
+          continue
+        }
         if (!urlRes.ok) {
           console.error('[handleUploadAll] signed URL error:', urlData.error, 'for', sf.file.name)
           const msg = urlData.error || 'Failed to get upload URL'
@@ -6390,12 +6413,17 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
             file_path: filePath,
             ai_generated: sf.aiGenerated,
             file_type: fileExt(sf.file.name) || 'txt',
+            fileHash,
           }),
         })
         console.log('[PDF-upload] response:', saveRes.status)
         const saveData = await saveRes.json()
         if (saveRes.status === 409) {
-          updateStaged(sf.id, { status: 'error', errorMsg: `Duplicate: "${saveData.existingTitle || 'file already exists'}"` })
+          updateStaged(sf.id, {
+            status: 'duplicate',
+            duplicateMatch: { id: saveData.existingId, title: saveData.existingTitle, matchedOn: saveData.matchedOn },
+            errorMsg: `Already in library: "${saveData.existingTitle || sf.file.name}"${saveData.matchedOn ? ` (matched on ${saveData.matchedOn})` : ''}`,
+          })
           continue
         }
         if (!saveData.success) {
@@ -7444,33 +7472,62 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
             <div style={{ marginBottom: 16 }}>
               <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 8, marginBottom: 12 }}>
                 {pdfStaged.map(sf => (
-                  <div key={sf.id} style={{ background: LSURF, border: `1px solid ${sf.status === 'error' ? 'rgba(248,113,113,0.4)' : sf.status === 'done' ? 'rgba(34,197,94,0.3)' : LBDR}`, borderRadius: 8, padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 12 }}>
-                    <span style={{ fontSize: 18, flexShrink: 0 }}>📄</span>
-                    <div style={{ flex: 1, minWidth: 0, display: 'flex', gap: 8 }}>
-                      <input
-                        value={sf.title}
-                        onChange={e => updateStaged(sf.id, { title: e.target.value })}
-                        style={{ ...inp, fontSize: 12, padding: '5px 10px', flex: 2 }}
-                        placeholder="Title"
-                        disabled={sf.status !== 'pending'}
-                      />
-                      <input
-                        value={sf.author}
-                        onChange={e => updateStaged(sf.id, { author: e.target.value })}
-                        style={{ ...inp, fontSize: 12, padding: '5px 10px', flex: 1 }}
-                        placeholder="Author"
-                        disabled={sf.status !== 'pending'}
-                      />
+                  <div key={sf.id} style={{ background: LSURF, border: `1px solid ${sf.status === 'duplicate' ? 'rgba(245,158,11,0.45)' : sf.status === 'error' ? 'rgba(248,113,113,0.4)' : sf.status === 'done' ? 'rgba(34,197,94,0.3)' : LBDR}`, borderRadius: 8, padding: '10px 14px', display: 'flex', flexDirection: 'column' as const, gap: 8 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                      <span style={{ fontSize: 18, flexShrink: 0 }}>📄</span>
+                      <div style={{ flex: 1, minWidth: 0, display: 'flex', gap: 8 }}>
+                        <input
+                          value={sf.title}
+                          onChange={e => updateStaged(sf.id, { title: e.target.value })}
+                          style={{ ...inp, fontSize: 12, padding: '5px 10px', flex: 2 }}
+                          placeholder="Title"
+                          disabled={sf.status !== 'pending'}
+                        />
+                        <input
+                          value={sf.author}
+                          onChange={e => updateStaged(sf.id, { author: e.target.value })}
+                          style={{ ...inp, fontSize: 12, padding: '5px 10px', flex: 1 }}
+                          placeholder="Author"
+                          disabled={sf.status !== 'pending'}
+                        />
+                      </div>
+                      <div style={{ flexShrink: 0, minWidth: 80, textAlign: 'right' as const }}>
+                        {sf.status === 'done' && <span style={{ color: '#22c55e', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.06em' }}>✓ DONE</span>}
+                        {sf.status === 'uploading' && <span style={{ color: LG, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.06em' }}>Uploading…</span>}
+                        {sf.status === 'duplicate' && <span style={{ color: '#f59e0b', fontFamily: cinzel, fontSize: 9, letterSpacing: '0.06em' }}>⚠ DUPLICATE</span>}
+                        {sf.status === 'error' && <span style={{ color: '#f87171', fontFamily: crimson, fontSize: 11 }} title={sf.errorMsg}>✕ {sf.errorMsg?.slice(0, 30)}</span>}
+                        {sf.status === 'pending' && (
+                          <button onClick={() => setStagedFiles(prev => prev.filter(f => f.id !== sf.id))}
+                            style={{ background: 'none', border: 'none', color: LMUT, cursor: 'pointer', fontSize: 16, lineHeight: 1, padding: 0 }}>✕</button>
+                        )}
+                      </div>
                     </div>
-                    <div style={{ flexShrink: 0, minWidth: 80, textAlign: 'right' as const }}>
-                      {sf.status === 'done' && <span style={{ color: '#22c55e', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.06em' }}>✓ DONE</span>}
-                      {sf.status === 'uploading' && <span style={{ color: LG, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.06em' }}>Uploading…</span>}
-                      {sf.status === 'error' && <span style={{ color: '#f87171', fontFamily: crimson, fontSize: 11 }} title={sf.errorMsg}>✕ {sf.errorMsg?.slice(0, 30)}</span>}
-                      {sf.status === 'pending' && (
-                        <button onClick={() => setStagedFiles(prev => prev.filter(f => f.id !== sf.id))}
-                          style={{ background: 'none', border: 'none', color: LMUT, cursor: 'pointer', fontSize: 16, lineHeight: 1, padding: 0 }}>✕</button>
-                      )}
-                    </div>
+                    {sf.status === 'duplicate' && (
+                      <div style={{ paddingLeft: 30 }}>
+                        <div style={{ fontFamily: crimson, fontSize: 12, color: '#f59e0b', fontStyle: 'italic' as const, marginBottom: 6 }}>
+                          Already in library{sf.duplicateMatch?.title ? `: "${sf.duplicateMatch.title}"` : ''}{sf.duplicateMatch?.matchedOn ? ` — matched on ${sf.duplicateMatch.matchedOn}` : ''} — skipped
+                        </div>
+                        <div style={{ display: 'flex', gap: 6 }}>
+                          <button
+                            onClick={() => updateStaged(sf.id, { status: 'pending', duplicateMatch: undefined, errorMsg: undefined })}
+                            style={{ background: 'rgba(201,168,76,0.12)', border: `1px solid rgba(201,168,76,0.4)`, borderRadius: 4, padding: '3px 10px', fontFamily: cinzel, fontSize: 9, color: LG, cursor: 'pointer', letterSpacing: '0.06em' }}>
+                            ↑ Upload Anyway
+                          </button>
+                          <button
+                            onClick={() => setStagedFiles(prev => prev.filter(f => f.id !== sf.id))}
+                            style={{ background: 'transparent', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 4, padding: '3px 10px', fontFamily: cinzel, fontSize: 9, color: LMUT, cursor: 'pointer', letterSpacing: '0.06em' }}>
+                            Dismiss
+                          </button>
+                          {sf.duplicateMatch?.id && (
+                            <button
+                              onClick={() => { setHighlightedBookId(sf.duplicateMatch!.id!); setTimeout(() => setHighlightedBookId(null), 3000) }}
+                              style={{ background: 'transparent', border: '1px solid rgba(201,168,76,0.2)', borderRadius: 4, padding: '3px 10px', fontFamily: cinzel, fontSize: 9, color: 'rgba(201,168,76,0.6)', cursor: 'pointer', letterSpacing: '0.06em' }}>
+                              → View Existing
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
