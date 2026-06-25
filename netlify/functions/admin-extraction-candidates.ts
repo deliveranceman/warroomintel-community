@@ -76,6 +76,55 @@ function normalizeTags(tags: string[]): string[] {
   )]
 }
 
+// ── Spirit-name resolver ────────────────────────────────────────────────────
+// Three-step match: (a) exact ilike name, (b) prefix-normalized name,
+// (c) aka-token exact match. Single-match guard at every step.
+type SpiritRow = { id: string; name: string; aka: string | null }
+
+function normSpiritName(s: string): string {
+  return s.toLowerCase().trim()
+    .replace(/^(spirit of|demon of|the)\s+/i, '')
+    .replace(/[^a-z0-9\s]/g, '').trim()
+}
+
+function resolveSpiritId(
+  spirits: SpiritRow[],
+  rawName: string,
+): { spiritId: string } | { unresolved: true; reason: 'ambiguous' | 'not_found' } {
+  const trimmed = rawName.trim()
+  if (!trimmed) return { unresolved: true, reason: 'not_found' }
+
+  // Step (a): exact case-insensitive name match
+  const exactMatches = spirits.filter(s => s.name.toLowerCase() === trimmed.toLowerCase())
+  const exactIds = [...new Set(exactMatches.map(s => s.id))]
+  if (exactIds.length === 1) return { spiritId: exactIds[0] }
+  if (exactIds.length > 1)   return { unresolved: true, reason: 'ambiguous' }
+
+  // Step (b): prefix-normalized name match
+  const normQuery = normSpiritName(trimmed)
+  if (normQuery) {
+    const normMatches = spirits.filter(s => normSpiritName(s.name) === normQuery)
+    const normIds = [...new Set(normMatches.map(s => s.id))]
+    if (normIds.length === 1) return { spiritId: normIds[0] }
+    if (normIds.length > 1)   return { unresolved: true, reason: 'ambiguous' }
+  }
+
+  // Step (c): aka-token exact match (token = lowercased, prefix-stripped word)
+  const queryToken = normSpiritName(trimmed)
+  if (queryToken) {
+    const akaMatches = spirits.filter(s => {
+      if (!s.aka) return false
+      const tokens = s.aka.split(/[,;|\/\n]+/).map(t => normSpiritName(t)).filter(Boolean)
+      return tokens.includes(queryToken)
+    })
+    const akaIds = [...new Set(akaMatches.map(s => s.id))]
+    if (akaIds.length === 1) return { spiritId: akaIds[0] }
+    if (akaIds.length > 1)   return { unresolved: true, reason: 'ambiguous' }
+  }
+
+  return { unresolved: true, reason: 'not_found' }
+}
+
 // ── Apply conditions candidate ──────────────────────────────────────────────
 // Handles both new conditions and enrichment of existing rows.
 // Throws errors prefixed __CONFLICT__ for 409 cases.
@@ -190,6 +239,10 @@ async function applyConditions(
 
   const VALID_RELS = new Set(['function_of', 'manifests_as', 'associated'])
 
+  // Fetch all spirits once for resolver (id, name, aka)
+  const { data: allSpirits } = await client.from('spirits').select('id, name, aka')
+  const spiritRoster: SpiritRow[] = (allSpirits ?? []) as SpiritRow[]
+
   const spiritLinks: any[] = Array.isArray(payload.proposed_spirit_links) ? payload.proposed_spirit_links : []
   for (const link of spiritLinks) {
     try {
@@ -201,15 +254,13 @@ async function applyConditions(
         continue
       }
 
-      // Exact case-insensitive name match (mirrors spiritWrite.ts pattern)
-      const { data: spirit } = await client
-        .from('spirits')
-        .select('id')
-        .ilike('name', spiritName)
-        .maybeSingle()
-
-      if (!spirit) {
-        spiritLinksUnresolved.push(spiritName)
+      const resolved = resolveSpiritId(spiritRoster, spiritName)
+      if ('unresolved' in resolved) {
+        spiritLinksUnresolved.push(
+          resolved.reason === 'ambiguous'
+            ? `${spiritName} (ambiguous — multiple spirits match)`
+            : spiritName,
+        )
         continue
       }
 
@@ -217,7 +268,7 @@ async function applyConditions(
         .from('spirit_conditions')
         .upsert(
           {
-            spirit_id:     (spirit as any).id,
+            spirit_id:     resolved.spiritId,
             condition_key: conditionKey,
             relationship:  link.relationship,
             notes:         link.note || null,
