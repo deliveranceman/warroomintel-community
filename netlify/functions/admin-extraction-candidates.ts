@@ -11,17 +11,70 @@ function json(data: unknown, status = 200) {
   })
 }
 
+// ── Normalizer for bloodline match-existing lookup ─────────────────────────
+// Repeat-strips common leading prefixes, collapses internal whitespace.
+// ONLY used for match — never stored.
+function normName(s: string): string {
+  let n = s.toLowerCase().trim()
+  let prev: string
+  do {
+    prev = n
+    n = n.replace(/^(the |curse of |spirit of |demon of )/, '')
+  } while (n !== prev)
+  return n.replace(/\s+/g, ' ').trim()
+}
+
 // ── Apply bloodline tables (curses / cultural_dossiers / secret_societies) ──
 // NEVER touches embedding columns. FK linkage fields left null on curses
 // (resolved via the curse edit form post-approval).
+// Returns { id, enriched }. Throws __CONFLICT__:<message> for 409 cases.
 async function applyCandidate(
   client: ReturnType<typeof sb>,
   targetTable: string,
   payload: Record<string, any>,
   sourceName: string | null,
-): Promise<string> {
+): Promise<{ id: string; enriched: boolean }> {
 
   if (targetTable === 'curses') {
+    const candNorm = normName((payload.name as string) || '')
+
+    const { data: existingRows } = await client
+      .from('curses')
+      .select('id, name, aka, origin_description, how_it_enters, manifestations, scripture_refs, breaking_prayer, generational_depth_note, forgiveness_focus, tagged_items, source_book, source_author, source_page')
+    const matches = (existingRows ?? []).filter(
+      (r: any) => candNorm !== '' && normName(r.name || '') === candNorm
+    )
+
+    if (matches.length > 1) {
+      throw new Error(`__CONFLICT__:Multiple existing curses match "${payload.name}" — review and merge manually.`)
+    }
+
+    if (matches.length === 1) {
+      const ex = matches[0] as any
+      const existingTagged: any[] = Array.isArray(ex.tagged_items) ? ex.tagged_items : []
+      const newTagged: any[] = Array.isArray(payload.tagged_items) ? payload.tagged_items : []
+      const seen = new Set(existingTagged.map((i: any) => `${i.type}::${i.content}`))
+      const mergedTagged = [
+        ...existingTagged,
+        ...newTagged.filter((i: any) => !seen.has(`${i.type}::${i.content}`)),
+      ]
+      const updateRow: Record<string, any> = {}
+      for (const f of ['aka', 'origin_description', 'how_it_enters', 'manifestations', 'scripture_refs', 'breaking_prayer', 'generational_depth_note', 'forgiveness_focus']) {
+        if (!ex[f] && payload[f]) updateRow[f] = payload[f]
+      }
+      const sourceBook = sourceName ?? payload.source_book ?? null
+      if (!ex.source_book && sourceBook)        updateRow.source_book   = sourceBook
+      if (!ex.source_author && payload.source_author) updateRow.source_author = payload.source_author
+      if (!ex.source_page   && payload.source_page)   updateRow.source_page   = payload.source_page
+      if (mergedTagged.length > existingTagged.length) updateRow.tagged_items = mergedTagged
+      if (Object.keys(updateRow).length > 0) {
+        const { error: updErr } = await client.from('curses').update(updateRow).eq('id', ex.id)
+        if (updErr) throw new Error(`curses enrich update: ${updErr.message}`)
+      }
+      return { id: ex.id as string, enriched: true }
+    }
+
+    // Zero matches → insert new
     const row: Record<string, any> = {}
     if (payload.name)                    row.name                    = payload.name
     if (payload.aka)                     row.aka                     = payload.aka || null
@@ -36,32 +89,96 @@ async function applyCandidate(
     row.source_book   = sourceName ?? payload.source_book ?? null
     row.source_author = payload.source_author ?? null
     row.source_page   = payload.source_page   ?? null
-    const { data, error } = await client.from('curses').insert(row).select('id').single()
-    if (error) throw new Error(`curses insert: ${error.message}`)
-    return (data as any).id as string
+    const { data: inserted, error: insertErr } = await client.from('curses').insert(row).select('id').single()
+    if (insertErr) {
+      if ((insertErr as any).code === '23505') {
+        throw new Error(`__CONFLICT__:A curse named "${payload.name}" already exists.`)
+      }
+      throw new Error(`curses insert: ${insertErr.message}`)
+    }
+    return { id: (inserted as any).id as string, enriched: false }
 
   } else if (targetTable === 'cultural_dossiers') {
+    const candNorm = normName((payload.culture_name as string) || '')
+
+    const { data: existingRows } = await client
+      .from('cultural_dossiers')
+      .select('id, culture_name, description, historical_practices, religious_influences, folk_magic, secret_societies, pagan_practices, known_oaths, known_rituals, source_book, source_author, source_page')
+    const matches = (existingRows ?? []).filter(
+      (r: any) => candNorm !== '' && normName(r.culture_name || '') === candNorm
+    )
+
+    if (matches.length > 1) {
+      throw new Error(`__CONFLICT__:Multiple existing cultural dossiers match "${payload.culture_name}" — review and merge manually.`)
+    }
+
+    if (matches.length === 1) {
+      const ex = matches[0] as any
+      const updateRow: Record<string, any> = {}
+      for (const f of ['description', 'historical_practices', 'religious_influences', 'folk_magic', 'secret_societies', 'pagan_practices', 'known_oaths', 'known_rituals', 'source_book', 'source_author', 'source_page']) {
+        if (!ex[f] && payload[f]) updateRow[f] = payload[f]
+      }
+      if (Object.keys(updateRow).length > 0) {
+        const { error: updErr } = await client.from('cultural_dossiers').update(updateRow).eq('id', ex.id)
+        if (updErr) throw new Error(`cultural_dossiers enrich update: ${updErr.message}`)
+      }
+      return { id: ex.id as string, enriched: true }
+    }
+
+    // Zero matches → insert new
     const row: Record<string, any> = {}
-    const FIELDS = [
-      'culture_name', 'description', 'historical_practices', 'religious_influences',
-      'folk_magic', 'secret_societies', 'pagan_practices', 'known_oaths', 'known_rituals',
-      'source_book', 'source_author', 'source_page',
-    ]
-    for (const f of FIELDS) row[f] = payload[f] ?? null
-    const { data, error } = await client.from('cultural_dossiers').insert(row).select('id').single()
-    if (error) throw new Error(`cultural_dossiers insert: ${error.message}`)
-    return (data as any).id as string
+    for (const f of ['culture_name', 'description', 'historical_practices', 'religious_influences', 'folk_magic', 'secret_societies', 'pagan_practices', 'known_oaths', 'known_rituals', 'source_book', 'source_author', 'source_page']) {
+      row[f] = payload[f] ?? null
+    }
+    const { data: inserted, error: insertErr } = await client.from('cultural_dossiers').insert(row).select('id').single()
+    if (insertErr) {
+      if ((insertErr as any).code === '23505') {
+        throw new Error(`__CONFLICT__:A cultural dossier named "${payload.culture_name}" already exists.`)
+      }
+      throw new Error(`cultural_dossiers insert: ${insertErr.message}`)
+    }
+    return { id: (inserted as any).id as string, enriched: false }
 
   } else if (targetTable === 'secret_societies') {
+    const candNorm = normName((payload.name as string) || '')
+
+    const { data: existingRows } = await client
+      .from('secret_societies')
+      .select('id, name, history, known_oaths, known_symbols, known_degrees, scriptures, ministry_considerations, source_book, source_author, source_page')
+    const matches = (existingRows ?? []).filter(
+      (r: any) => candNorm !== '' && normName(r.name || '') === candNorm
+    )
+
+    if (matches.length > 1) {
+      throw new Error(`__CONFLICT__:Multiple existing secret societies match "${payload.name}" — review and merge manually.`)
+    }
+
+    if (matches.length === 1) {
+      const ex = matches[0] as any
+      const updateRow: Record<string, any> = {}
+      for (const f of ['history', 'known_oaths', 'known_symbols', 'known_degrees', 'scriptures', 'ministry_considerations', 'source_book', 'source_author', 'source_page']) {
+        if (!ex[f] && payload[f]) updateRow[f] = payload[f]
+      }
+      if (Object.keys(updateRow).length > 0) {
+        const { error: updErr } = await client.from('secret_societies').update(updateRow).eq('id', ex.id)
+        if (updErr) throw new Error(`secret_societies enrich update: ${updErr.message}`)
+      }
+      return { id: ex.id as string, enriched: true }
+    }
+
+    // Zero matches → insert new
     const row: Record<string, any> = {}
-    const FIELDS = [
-      'name', 'history', 'known_oaths', 'known_symbols', 'known_degrees',
-      'scriptures', 'ministry_considerations', 'source_book', 'source_author', 'source_page',
-    ]
-    for (const f of FIELDS) row[f] = payload[f] ?? null
-    const { data, error } = await client.from('secret_societies').insert(row).select('id').single()
-    if (error) throw new Error(`secret_societies insert: ${error.message}`)
-    return (data as any).id as string
+    for (const f of ['name', 'history', 'known_oaths', 'known_symbols', 'known_degrees', 'scriptures', 'ministry_considerations', 'source_book', 'source_author', 'source_page']) {
+      row[f] = payload[f] ?? null
+    }
+    const { data: inserted, error: insertErr } = await client.from('secret_societies').insert(row).select('id').single()
+    if (insertErr) {
+      if ((insertErr as any).code === '23505') {
+        throw new Error(`__CONFLICT__:A secret society named "${payload.name}" already exists.`)
+      }
+      throw new Error(`secret_societies insert: ${insertErr.message}`)
+    }
+    return { id: (inserted as any).id as string, enriched: false }
 
   } else {
     throw new Error(`unsupported target_table: ${targetTable}`)
@@ -589,29 +706,33 @@ export default async function handler(req: Request): Promise<Response> {
       }
 
       // ── Bloodline tables (curses / cultural_dossiers / secret_societies) ───
-      let appliedRecordId: string
+      let applyResult: { id: string; enriched: boolean }
       try {
-        appliedRecordId = await applyCandidate(
+        applyResult = await applyCandidate(
           client, targetTable,
           (candidate as any).payload as Record<string, any>,
           (candidate as any).source_name as string | null,
         )
       } catch (err: any) {
-        return json({ error: err.message }, 500)
+        const msg = String(err.message ?? err)
+        if (msg.startsWith('__CONFLICT__:')) {
+          return json({ error: msg.slice('__CONFLICT__:'.length) }, 409)
+        }
+        return json({ error: msg }, 500)
       }
 
       const { error: stampErr } = await client
         .from('extraction_candidates')
         .update({
           status:            'approved',
-          applied_record_id: appliedRecordId,
+          applied_record_id: applyResult.id,
           reviewed_at:       new Date().toISOString(),
           reviewed_by:       auth.userId,
         })
         .eq('id', id)
 
       if (stampErr) return json({ error: stampErr.message }, 500)
-      return json({ ok: true, applied_record_id: appliedRecordId })
+      return json({ ok: true, applied_record_id: applyResult.id, enriched: applyResult.enriched })
     }
 
     // ── NEEDS_REGION ──────────────────────────────────────────────────────────
