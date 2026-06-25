@@ -7850,6 +7850,7 @@ function BodyMapView({ isMobile, setSidebarOpen, setActiveSection, getToken, isA
   const [regions,       setRegions]       = useState<AtlasRegion[]>([])
   const [atlasLoading,  setAtlasLoading]  = useState(true)
   const [atlasError,    setAtlasError]    = useState<string | null>(null)
+  const [systemicConditions, setSystemicConditions] = useState<any[]>([])
 
   const [activeFigure,  setActiveFigure]  = useState(0)
   const [selectedKey,   setSelectedKey]   = useState<string | null>(null)
@@ -7907,6 +7908,7 @@ function BodyMapView({ isMobile, setSidebarOpen, setActiveSection, getToken, isA
         if (!res.ok) { setAtlasError(d.error || 'Failed to load the body map.'); return }
         setSystems(d.systems || [])
         setRegions(d.regions || [])
+        setSystemicConditions(d.systemic_conditions || [])
       } catch { if (!cancelled) setAtlasError('Failed to load the body map.') }
       finally { if (!cancelled) setAtlasLoading(false) }
     })()
@@ -8112,6 +8114,35 @@ function BodyMapView({ isMobile, setSidebarOpen, setActiveSection, getToken, isA
     <div style={{ fontFamily: cinzel, fontSize: 9, color: '#6a5f4f', letterSpacing: '0.14em', marginBottom: 8 }}>{txt}</div>
   )
 
+  const systemicPanel = (
+    <div style={{ padding: '20px 20px 24px' }}>
+      {sectionLabel('SYSTEMIC / WHOLE-BODY CONDITIONS')}
+      {systemicConditions.length === 0
+        ? pendingSlot('No systemic conditions on file yet.')
+        : systemicConditions.map((sc: any) => (
+          <div key={sc.condition_key} style={{ background: 'rgba(201,168,76,0.05)', border: '1px solid rgba(201,168,76,0.15)', borderRadius: 6, padding: '12px 14px', marginBottom: 10 }}>
+            <div style={{ fontFamily: cinzel, fontSize: 11, color: GC, letterSpacing: '0.08em', marginBottom: 4 }}>{sc.display_name}</div>
+            {sc.system && (
+              <span style={{ display: 'inline-block', fontFamily: cinzel, fontSize: 8, color: '#8B7355', background: 'rgba(139,115,85,0.12)', border: '1px solid rgba(139,115,85,0.3)', borderRadius: 8, padding: '1px 8px', marginBottom: sc.spiritual_tags?.length ? 6 : 0 }}>
+                {sc.system}
+              </span>
+            )}
+            {sc.spiritual_tags?.length > 0 && (
+              <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 4, marginBottom: sc.author_conclusion ? 8 : 0 }}>
+                {sc.spiritual_tags.map((t: string) => (
+                  <span key={t} style={{ fontFamily: cinzel, fontSize: 8, color: '#7a6f5a', background: 'rgba(122,111,90,0.12)', border: '1px solid rgba(122,111,90,0.25)', borderRadius: 8, padding: '1px 8px' }}>{t}</span>
+                ))}
+              </div>
+            )}
+            {sc.author_conclusion && (
+              <div style={{ fontFamily: crimson, fontSize: 13, color: '#9a8c74', fontStyle: 'italic', lineHeight: 1.55, marginTop: 6 }}>{sc.author_conclusion}</div>
+            )}
+          </div>
+        ))
+      }
+    </div>
+  )
+
   const railContent = (
     <>
       <div style={{ padding: '14px 16px 10px', borderBottom: '1px solid #1e1a0e', flexShrink: 0 }}>
@@ -8158,10 +8189,10 @@ function BodyMapView({ isMobile, setSidebarOpen, setActiveSection, getToken, isA
 
   const dossierContent = (() => {
     if (!selectedKey) return (
-      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '40px 28px', textAlign: 'center' as const }}>
-        <div>
-          <div style={{ fontSize: 30, color: GC, opacity: 0.5, marginBottom: 14 }}>✦</div>
-          <div style={{ fontFamily: crimson, fontSize: 15, color: '#5a4f3a', fontStyle: 'italic', lineHeight: 1.6 }}>
+      <div style={{ flex: 1, overflowY: 'auto', WebkitOverflowScrolling: 'touch' as any }}>
+        {systemicPanel}
+        <div style={{ padding: '0 20px 24px', textAlign: 'center' as const }}>
+          <div style={{ fontFamily: crimson, fontSize: 13, color: '#4a3f2f', fontStyle: 'italic', lineHeight: 1.6 }}>
             Select a region on the figure or the Index of Structures to open its dossier.
           </div>
         </div>
@@ -8551,6 +8582,11 @@ function BodyMapView({ isMobile, setSidebarOpen, setActiveSection, getToken, isA
               })()}
             </div>
           </div>
+          {isMobile && (
+            <div style={{ width: '100%', paddingBottom: 'calc(16px + env(safe-area-inset-bottom))' }}>
+              {systemicPanel}
+            </div>
+          )}
         </div>
 
         {/* Right dossier (desktop) */}

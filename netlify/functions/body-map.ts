@@ -283,11 +283,12 @@ export default async function handler(req: Request) {
   }
 
   // GET ?action=atlas — systems + regions (joined with systems + correlation counts)
-  const [{ data: systems }, { data: regions }, { data: corrCounts }, { data: condCounts }] = await Promise.all([
+  const [{ data: systems }, { data: regions }, { data: corrCounts }, { data: condCounts }, { data: systemicRows }] = await Promise.all([
     client.from('body_systems').select('*'),
     client.from('anatomy_regions').select('*, region_systems(system_key)').eq('active', true).order('sort_order', { ascending: true }),
     client.from('spirit_regions').select('region_key'),
     client.from('condition_regions').select('region_key'),
+    client.from('conditions').select('id, condition_key, display_name, system, symptoms, author_conclusion, spiritual_tags').eq('system_key', 'systemic').eq('active', true).order('display_name'),
   ])
 
   const countByRegion: Record<string, number> = {}
@@ -304,7 +305,7 @@ export default async function handler(req: Request) {
     region_systems: undefined,
   }))
 
-  return json({ systems: systems || [], regions: shapedRegions })
+  return json({ systems: systems || [], regions: shapedRegions, systemic_conditions: systemicRows || [] })
 }
 
 export const config = { path: '/api/body-map' }
