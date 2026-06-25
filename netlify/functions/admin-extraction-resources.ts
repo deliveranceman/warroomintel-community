@@ -47,7 +47,52 @@ export default async function handler(req: Request): Promise<Response> {
       text_len:    ((r.extracted_text as string) || '').length,
     }))
 
-  return json({ resources })
+  // ── Coverage — one batch query for all returned resource IDs ────────────────
+  type LaneStatus = 'complete' | 'running' | 'failed' | 'none'
+  const coverage: Record<string, { spirits: LaneStatus; conditions: LaneStatus; bloodline: LaneStatus }> = {}
+  const resourceIds = resources.map(r => r.id)
+
+  if (resourceIds.length > 0) {
+    const { data: jobRows } = await client
+      .from('ai_jobs')
+      .select('resource_id, job_type, status')
+      .in('job_type', ['research_drop_spirits', 'research_drop_conditions', 'research_drop_bloodline'])
+      .in('resource_id', resourceIds)
+
+    const acc: Record<string, Record<string, Set<string>>> = {}
+    for (const row of (jobRows || [])) {
+      const rid  = (row as any).resource_id as string
+      const jt   = (row as any).job_type    as string
+      const stat = (row as any).status      as string
+      const lane = jt === 'research_drop_spirits'    ? 'spirits'
+                 : jt === 'research_drop_conditions' ? 'conditions'
+                 : jt === 'research_drop_bloodline'  ? 'bloodline'
+                 : null
+      if (!lane || !rid) continue
+      if (!acc[rid])       acc[rid] = {}
+      if (!acc[rid][lane]) acc[rid][lane] = new Set<string>()
+      acc[rid][lane].add(stat)
+    }
+
+    const statusOf = (statuses: Set<string> | undefined): LaneStatus => {
+      if (!statuses || statuses.size === 0)                   return 'none'
+      if (statuses.has('complete'))                           return 'complete'
+      if (statuses.has('running') || statuses.has('queued'))  return 'running'
+      if (statuses.has('failed')  || statuses.has('partial')) return 'failed'
+      return 'none'
+    }
+
+    for (const rid of resourceIds) {
+      const lanes = acc[rid] || {}
+      coverage[rid] = {
+        spirits:    statusOf(lanes['spirits']),
+        conditions: statusOf(lanes['conditions']),
+        bloodline:  statusOf(lanes['bloodline']),
+      }
+    }
+  }
+
+  return json({ resources, coverage })
 }
 
 export const config = { path: '/api/admin-extraction-resources' }

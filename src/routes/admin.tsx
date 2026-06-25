@@ -17397,6 +17397,60 @@ function ResearchDropPage({ getToken, isDark }: { getToken: any; isDark: boolean
   )
 }
 
+// ─── LaneChips — extraction coverage display ────────────────────────────────
+
+type LaneCoverageMap = Record<string, { spirits: string; conditions: string; bloodline: string }>
+
+function LaneChips({ cov, isDark: dark }: { cov: { spirits: string; conditions: string; bloodline: string }; isDark: boolean }) {
+  const CHIPS = [
+    { key: 'spirits',    label: 'Spirits'    },
+    { key: 'conditions', label: 'Conditions' },
+    { key: 'bloodline',  label: 'Bloodline'  },
+  ] as const
+
+  function chipSty(status: string): React.CSSProperties {
+    if (status === 'complete') return {
+      fontSize: 10, padding: '1px 6px', borderRadius: 3,
+      background: 'rgba(74,222,128,0.08)', border: '1px solid rgba(74,222,128,0.3)',
+      color: dark ? '#4ade80' : '#166534',
+    }
+    if (status === 'running') return {
+      fontSize: 10, padding: '1px 6px', borderRadius: 3,
+      background: 'rgba(251,191,36,0.1)', border: '1px solid rgba(251,191,36,0.4)',
+      color: dark ? '#fbbf24' : '#92400e',
+    }
+    if (status === 'failed') return {
+      fontSize: 10, padding: '1px 6px', borderRadius: 3,
+      background: 'rgba(248,113,113,0.08)', border: '1px solid rgba(248,113,113,0.3)',
+      color: dark ? '#f87171' : '#991b1b',
+    }
+    return {
+      fontSize: 10, padding: '1px 6px', borderRadius: 3,
+      background: 'transparent', border: '1px solid rgba(107,114,128,0.2)',
+      color: dark ? 'rgba(255,255,255,0.25)' : 'rgba(0,0,0,0.3)',
+    }
+  }
+
+  function glyph(s: string) { return s === 'complete' ? '✓' : s === 'running' ? '●' : s === 'failed' ? '✕' : '—' }
+
+  return (
+    <div style={{ display: 'flex', gap: 4, marginTop: 5, alignItems: 'center', flexWrap: 'wrap' as const }}>
+      {CHIPS.map(({ key, label }) => {
+        const status = cov[key]
+        return (
+          <span
+            key={key}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 2, fontFamily: cinzel, letterSpacing: '0.04em', ...chipSty(status) }}
+            title={status === 'failed' ? 'Last attempt failed — never completed' : undefined}
+          >
+            {glyph(status)} {label}
+          </span>
+        )
+      })}
+    </div>
+  )
+}
+
 // ─── RunExtractionPanel ───────────────────────────────────────────────────────
 
 function RunExtractionPanel({ getToken, isDark }: { getToken: any; isDark: boolean }) {
@@ -17424,6 +17478,7 @@ function RunExtractionPanel({ getToken, isDark }: { getToken: any; isDark: boole
   const [jobResult,    setJobResult]    = useState<any>(null)
   const [jobError,     setJobError]     = useState('')
   const [fireError,    setFireError]    = useState('')
+  const [coverage,     setCoverage]     = useState<LaneCoverageMap>({})
 
   useEffect(() => {
     return () => { if (pollRef.current) clearInterval(pollRef.current) }
@@ -17446,6 +17501,7 @@ function RunExtractionPanel({ getToken, isDark }: { getToken: any; isDark: boole
       }
       const d = await res.json()
       setResources((d as any).resources || [])
+      setCoverage((d as any).coverage   || {})
     } catch (e: any) {
       setResError(e.message || 'Network error')
     } finally {
@@ -17568,32 +17624,39 @@ function RunExtractionPanel({ getToken, isDark }: { getToken: any; isDark: boole
               </div>
             ) : (
               <div style={{ maxHeight: 280, overflowY: 'auto' as const, border: `1px solid ${bdr}`, borderRadius: 3 }}>
-                {filtered.map((r: any) => (
-                  <button
-                    key={r.id}
-                    onClick={() => !isRunning && setSelectedId(r.id)}
-                    style={{
-                      display: 'block', width: '100%', textAlign: 'left' as const,
-                      padding: '10px 14px',
-                      background: selectedId === r.id ? (isDark ? 'rgba(201,168,76,0.12)' : 'rgba(139,105,20,0.08)') : 'transparent',
-                      border: 'none', borderBottom: `1px solid ${bdr}`,
-                      cursor: isRunning ? 'default' : 'pointer',
-                    }}
-                  >
-                    <div style={{ fontFamily: crimson, fontSize: 14, color: selectedId === r.id ? gold : txt }}>{r.title}</div>
-                    <div style={{ display: 'flex', gap: 8, marginTop: 2, flexWrap: 'wrap' as const, alignItems: 'center' }}>
-                      {r.author && <span style={{ fontFamily: crimson, fontSize: 12, color: dim }}>{r.author}</span>}
-                      {(r.source_type || r.topic) && (
-                        <span style={{ fontFamily: cinzel, fontSize: 8, color: gold, background: isDark ? 'rgba(201,168,76,0.08)' : 'rgba(139,105,20,0.06)', border: `1px solid ${bdr}`, borderRadius: 10, padding: '1px 7px', letterSpacing: '0.06em' }}>
-                          {r.source_type || r.topic}
-                        </span>
-                      )}
-                      {r.text_len > 0 && (
-                        <span style={{ fontFamily: crimson, fontSize: 11, color: dim }}>{(r.text_len as number).toLocaleString()} chars</span>
-                      )}
-                    </div>
-                  </button>
-                ))}
+                {filtered.map((r: any) => {
+                  const cov = coverage[r.id] || { spirits: 'none', conditions: 'none', bloodline: 'none' }
+                  const neverCompleted = (cov.spirits === 'failed' || cov.conditions === 'failed' || cov.bloodline === 'failed')
+                    && cov.spirits !== 'complete' && cov.conditions !== 'complete' && cov.bloodline !== 'complete'
+                  return (
+                    <button
+                      key={r.id}
+                      onClick={() => !isRunning && setSelectedId(r.id)}
+                      style={{
+                        display: 'block', width: '100%', textAlign: 'left' as const,
+                        padding: '10px 14px',
+                        background: selectedId === r.id ? (isDark ? 'rgba(201,168,76,0.12)' : 'rgba(139,105,20,0.08)') : 'transparent',
+                        border: 'none', borderBottom: `1px solid ${bdr}`,
+                        borderLeft: neverCompleted ? '3px solid rgba(248,113,113,0.45)' : '3px solid transparent',
+                        cursor: isRunning ? 'default' : 'pointer',
+                      }}
+                    >
+                      <div style={{ fontFamily: crimson, fontSize: 14, color: selectedId === r.id ? gold : txt }}>{r.title}</div>
+                      <div style={{ display: 'flex', gap: 8, marginTop: 2, flexWrap: 'wrap' as const, alignItems: 'center' }}>
+                        {r.author && <span style={{ fontFamily: crimson, fontSize: 12, color: dim }}>{r.author}</span>}
+                        {(r.source_type || r.topic) && (
+                          <span style={{ fontFamily: cinzel, fontSize: 8, color: gold, background: isDark ? 'rgba(201,168,76,0.08)' : 'rgba(139,105,20,0.06)', border: `1px solid ${bdr}`, borderRadius: 10, padding: '1px 7px', letterSpacing: '0.06em' }}>
+                            {r.source_type || r.topic}
+                          </span>
+                        )}
+                        {r.text_len > 0 && (
+                          <span style={{ fontFamily: crimson, fontSize: 11, color: dim }}>{(r.text_len as number).toLocaleString()} chars</span>
+                        )}
+                      </div>
+                      <LaneChips cov={cov} isDark={isDark} />
+                    </button>
+                  )
+                })}
               </div>
             )}
           </>
