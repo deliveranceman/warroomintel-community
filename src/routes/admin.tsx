@@ -13285,6 +13285,7 @@ function AdminPage() {
     ]},
     { label: 'INTEL ARCHIVE', items: [
       { key: 'research-drop',      label: '▲ Research Drop'        },
+      { key: 'run-extraction',     label: 'Run Extraction'          },
       { key: 'intel',              label: 'Intel Archive'           },
       { key: 'spirit-candidates',  label: 'Spirit Candidates'       },
       { key: 'enrichment',         label: 'Enrichment Suggestions'  },
@@ -13497,6 +13498,7 @@ function AdminPage() {
             {tab === 'test-sol'          && <TestSOLPanel getToken={getToken} isDark={isDark} />}
             {tab === 'sol-research'     && <SolResearchView getToken={getToken} isDark={isDark} />}
             {tab === 'research-drop'   && <ResearchDropPage getToken={getToken} isDark={isDark} />}
+            {tab === 'run-extraction'  && <RunExtractionPanel getToken={getToken} isDark={isDark} />}
             {tab === 'members'           && (
               <div style={{ padding: '32px 0', textAlign: 'center' as const, color: adDim, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.12em' }}>
                 MEMBERS — COMING SOON
@@ -17045,6 +17047,315 @@ function ResearchDropPage({ getToken, isDark }: { getToken: any; isDark: boolean
               UPLOAD ANOTHER
             </button>
           </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ─── RunExtractionPanel ───────────────────────────────────────────────────────
+
+function RunExtractionPanel({ getToken, isDark }: { getToken: any; isDark: boolean }) {
+  const surf = isDark ? SURF2 : '#FFFFFF'
+  const bdr  = isDark ? BDR   : 'rgba(139,105,20,0.25)'
+  const txt  = isDark ? TXT   : '#2D2924'
+  const dim  = isDark ? DIM   : '#6B5520'
+  const gold = isDark ? G     : '#604408'
+  const inp  = isDark ? 'rgba(201,168,76,0.06)' : '#F5F2EE'
+
+  type Phase = 'idle' | 'running' | 'complete' | 'failed'
+
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  const [resources,    setResources]    = useState<any[]>([])
+  const [resLoading,   setResLoading]   = useState(true)
+  const [resError,     setResError]     = useState('')
+  const [search,       setSearch]       = useState('')
+  const [selectedId,   setSelectedId]   = useState('')
+  const [lane,         setLane]         = useState('')
+  const [phase,        setPhase]        = useState<Phase>('idle')
+  const [jobId,        setJobId]        = useState('')
+  const [jobStage,     setJobStage]     = useState('')
+  const [jobProgress,  setJobProgress]  = useState(0)
+  const [jobResult,    setJobResult]    = useState<any>(null)
+  const [jobError,     setJobError]     = useState('')
+  const [fireError,    setFireError]    = useState('')
+
+  useEffect(() => {
+    return () => { if (pollRef.current) clearInterval(pollRef.current) }
+  }, [])
+
+  useEffect(() => { loadResources() }, [])
+
+  async function loadResources() {
+    setResLoading(true)
+    setResError('')
+    try {
+      const token = await getToken()
+      const res = await fetch('/api/admin-extraction-resources', {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}))
+        setResError((d as any).error || 'Failed to load resources')
+        return
+      }
+      const d = await res.json()
+      setResources((d as any).resources || [])
+    } catch (e: any) {
+      setResError(e.message || 'Network error')
+    } finally {
+      setResLoading(false)
+    }
+  }
+
+  function stopPoll() {
+    if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null }
+  }
+
+  async function fireJob() {
+    if (!selectedId || !lane) return
+    setFireError('')
+    setJobId(''); setJobStage('queued'); setJobProgress(0)
+    setJobResult(null); setJobError('')
+    setPhase('running')
+
+    try {
+      const token = await getToken()
+      const res = await fetch('/api/job-start', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body:    JSON.stringify({ jobType: lane, resourceId: selectedId }),
+      })
+      const d = await res.json()
+      if (!res.ok) {
+        setFireError((d as any).error || 'Failed to start job')
+        setPhase('idle')
+        return
+      }
+      const jid = (d as any).jobId as string
+      setJobId(jid)
+
+      stopPoll()
+      pollRef.current = setInterval(async () => {
+        try {
+          const pt = await getToken()
+          const pr = await fetch(`/api/job-status?jobId=${jid}`, { headers: { Authorization: `Bearer ${pt}` } })
+          if (!pr.ok) return
+          const pd = await pr.json()
+          setJobStage((pd as any).stage    || '')
+          setJobProgress((pd as any).progress ?? 0)
+          if ((pd as any).status === 'complete') {
+            stopPoll()
+            setJobResult((pd as any).result_json || {})
+            setPhase('complete')
+          } else if ((pd as any).status === 'failed') {
+            stopPoll()
+            setJobError((pd as any).error_message || 'Job failed')
+            setPhase('failed')
+          }
+        } catch { /* poll errors are non-fatal */ }
+      }, 3000)
+    } catch (e: any) {
+      setFireError(e.message || 'Network error')
+      setPhase('idle')
+    }
+  }
+
+  function reset() {
+    stopPoll()
+    setPhase('idle')
+    setJobId(''); setJobStage(''); setJobProgress(0)
+    setJobResult(null); setJobError(''); setFireError('')
+  }
+
+  const LANES = [
+    { value: 'research_drop_spirits',    label: 'Spirits',            desc: 'Extract spirit mentions into Spirit Candidates' },
+    { value: 'research_drop_conditions', label: 'Conditions',         desc: 'Extract spiritual roots of disease into Conditions' },
+    { value: 'research_drop_bloodline',  label: 'Bloodline / Curses', desc: 'Extract generational curses into Bloodline Candidates' },
+  ]
+
+  const STAGE_LABELS: Record<string, string> = {
+    queued:     'Queued',
+    running:    'Running',
+    extracting: 'Extracting',
+    parsing:    'Parsing',
+    staging:    'Staging candidates',
+    finalized:  'Finalizing',
+  }
+
+  const filtered = search.trim()
+    ? resources.filter((r: any) =>
+        r.title?.toLowerCase().includes(search.toLowerCase()) ||
+        r.author?.toLowerCase().includes(search.toLowerCase()))
+    : resources
+
+  const selectedResource = resources.find((r: any) => r.id === selectedId)
+  const isRunning = phase === 'running'
+  const canFire   = !!selectedId && !!lane && !isRunning
+
+  return (
+    <div style={{ paddingBottom: 48 }}>
+      <div style={{ marginBottom: 24 }}>
+        <div style={{ fontFamily: cinzel, fontSize: 11, letterSpacing: '0.14em', color: gold, marginBottom: 4 }}>INTEL ARCHIVE</div>
+        <div style={{ fontFamily: cinzel, fontSize: 20, color: txt, letterSpacing: '0.04em' }}>Run Extraction</div>
+        <div style={{ fontFamily: crimson, fontSize: 14, color: dim, marginTop: 6 }}>
+          Pick an indexed Library resource and a lane, then fire an extraction job. Results stage as candidates for human review.
+        </div>
+      </div>
+
+      {/* Step 1: resource picker */}
+      <div style={{ background: surf, border: `1px solid ${bdr}`, borderRadius: 4, padding: '20px 24px', marginBottom: 16 }}>
+        <div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.12em', color: gold, marginBottom: 12 }}>1. SELECT RESOURCE</div>
+        {resLoading && <div style={{ fontFamily: crimson, fontSize: 13, color: dim }}>Loading resources...</div>}
+        {resError   && <div style={{ fontFamily: crimson, fontSize: 13, color: '#f87171', marginBottom: 8 }}>{resError}</div>}
+        {!resLoading && !resError && (
+          <>
+            <input
+              type="text"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Search by title or author..."
+              style={{ width: '100%', background: inp, border: `1px solid ${bdr}`, borderRadius: 3, padding: '7px 10px', color: txt, fontFamily: crimson, fontSize: 14, outline: 'none', boxSizing: 'border-box' as const, marginBottom: 10 }}
+            />
+            {filtered.length === 0 ? (
+              <div style={{ fontFamily: crimson, fontSize: 13, color: dim, fontStyle: 'italic', padding: '8px 0' }}>
+                {resources.length === 0 ? 'No indexed resources found.' : 'No resources match the search.'}
+              </div>
+            ) : (
+              <div style={{ maxHeight: 280, overflowY: 'auto' as const, border: `1px solid ${bdr}`, borderRadius: 3 }}>
+                {filtered.map((r: any) => (
+                  <button
+                    key={r.id}
+                    onClick={() => !isRunning && setSelectedId(r.id)}
+                    style={{
+                      display: 'block', width: '100%', textAlign: 'left' as const,
+                      padding: '10px 14px',
+                      background: selectedId === r.id ? (isDark ? 'rgba(201,168,76,0.12)' : 'rgba(139,105,20,0.08)') : 'transparent',
+                      border: 'none', borderBottom: `1px solid ${bdr}`,
+                      cursor: isRunning ? 'default' : 'pointer',
+                    }}
+                  >
+                    <div style={{ fontFamily: crimson, fontSize: 14, color: selectedId === r.id ? gold : txt }}>{r.title}</div>
+                    <div style={{ display: 'flex', gap: 8, marginTop: 2, flexWrap: 'wrap' as const, alignItems: 'center' }}>
+                      {r.author && <span style={{ fontFamily: crimson, fontSize: 12, color: dim }}>{r.author}</span>}
+                      {(r.source_type || r.topic) && (
+                        <span style={{ fontFamily: cinzel, fontSize: 8, color: gold, background: isDark ? 'rgba(201,168,76,0.08)' : 'rgba(139,105,20,0.06)', border: `1px solid ${bdr}`, borderRadius: 10, padding: '1px 7px', letterSpacing: '0.06em' }}>
+                          {r.source_type || r.topic}
+                        </span>
+                      )}
+                      {r.text_len > 0 && (
+                        <span style={{ fontFamily: crimson, fontSize: 11, color: dim }}>{(r.text_len as number).toLocaleString()} chars</span>
+                      )}
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+          </>
+        )}
+      </div>
+
+      {/* Step 2: lane selector */}
+      <div style={{ background: surf, border: `1px solid ${bdr}`, borderRadius: 4, padding: '20px 24px', marginBottom: 16 }}>
+        <div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.12em', color: gold, marginBottom: 12 }}>2. SELECT EXTRACTION LANE</div>
+        <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 10 }}>
+          {LANES.map(l => (
+            <label key={l.value} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, cursor: isRunning ? 'default' : 'pointer', opacity: isRunning ? 0.6 : 1 }}>
+              <input
+                type="radio"
+                name="re-lane"
+                value={l.value}
+                checked={lane === l.value}
+                onChange={() => !isRunning && setLane(l.value)}
+                style={{ marginTop: 3, flexShrink: 0, accentColor: gold }}
+              />
+              <div>
+                <div style={{ fontFamily: cinzel, fontSize: 11, color: lane === l.value ? gold : txt, letterSpacing: '0.04em' }}>{l.label}</div>
+                <div style={{ fontFamily: crimson, fontSize: 13, color: dim }}>{l.desc}</div>
+              </div>
+            </label>
+          ))}
+        </div>
+      </div>
+
+      {/* Fire button */}
+      <div style={{ marginBottom: 20 }}>
+        <button
+          onClick={fireJob}
+          disabled={!canFire}
+          style={{
+            padding: '11px 28px',
+            background: canFire ? gold : 'transparent',
+            border: `1px solid ${gold}`,
+            borderRadius: 3,
+            color: canFire ? (isDark ? '#0D0B14' : '#fff') : gold,
+            fontFamily: cinzel, fontSize: 10, letterSpacing: '0.12em',
+            cursor: canFire ? 'pointer' : 'not-allowed',
+            opacity: canFire ? 1 : 0.45,
+          }}
+        >
+          {isRunning ? 'RUNNING...' : 'RUN EXTRACTION'}
+        </button>
+        {fireError && <div style={{ fontFamily: crimson, fontSize: 13, color: '#f87171', marginTop: 8 }}>{fireError}</div>}
+        {selectedResource && lane && phase === 'idle' && (
+          <div style={{ fontFamily: crimson, fontSize: 12, color: dim, marginTop: 6 }}>
+            {(selectedResource as any).title} | {LANES.find(l => l.value === lane)?.label}
+          </div>
+        )}
+      </div>
+
+      {/* Running state */}
+      {isRunning && (
+        <div style={{ background: surf, border: `1px solid ${bdr}`, borderRadius: 4, padding: '20px 24px', marginBottom: 16 }}>
+          <div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.12em', color: gold, marginBottom: 10 }}>
+            {STAGE_LABELS[jobStage] || jobStage || 'Working...'}
+          </div>
+          <div style={{ background: isDark ? 'rgba(201,168,76,0.1)' : 'rgba(139,105,20,0.1)', borderRadius: 2, height: 4, marginBottom: 8, overflow: 'hidden' }}>
+            <div style={{ height: '100%', background: gold, width: `${jobProgress}%`, transition: 'width 0.4s ease', borderRadius: 2 }} />
+          </div>
+          <div style={{ fontFamily: crimson, fontSize: 12, color: dim }}>{jobProgress}% complete</div>
+          {jobId && <div style={{ fontFamily: crimson, fontSize: 11, color: dim, marginTop: 4 }}>Job ID: {jobId}</div>}
+        </div>
+      )}
+
+      {/* Complete */}
+      {phase === 'complete' && jobResult && (
+        <div style={{ background: surf, border: '1px solid rgba(74,222,128,0.25)', borderRadius: 4, padding: '20px 24px', marginBottom: 16 }}>
+          <div style={{ fontFamily: cinzel, fontSize: 10, letterSpacing: '0.12em', color: '#4ade80', marginBottom: 14 }}>EXTRACTION COMPLETE</div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 10, marginBottom: 16 }}>
+            {[
+              { label: 'Candidates',   value: (jobResult as any).candidate_count      ?? 0 },
+              { label: 'Enrichments',  value: (jobResult as any).enrichment_count     ?? 0 },
+              { label: 'Region Links', value: (jobResult as any).region_links_parked  ?? 0 },
+              { label: 'Skipped',      value: (jobResult as any).skipped              ?? 0 },
+            ].map(s => (
+              <div key={s.label} style={{ background: 'rgba(74,222,128,0.04)', border: '1px solid rgba(74,222,128,0.15)', borderRadius: 3, padding: '8px 12px' }}>
+                <div style={{ fontFamily: cinzel, fontSize: 8, color: dim, letterSpacing: '0.1em', marginBottom: 3 }}>{s.label.toUpperCase()}</div>
+                <div style={{ fontFamily: crimson, fontSize: 20, color: txt, fontWeight: 600 }}>{s.value}</div>
+              </div>
+            ))}
+          </div>
+          <div style={{ fontFamily: crimson, fontSize: 13, color: dim, marginBottom: 12 }}>
+            Review staged candidates at{' '}
+            <a href="/admin/extraction-review" style={{ color: gold, textDecoration: 'underline' }}>Extraction Review</a>.
+          </div>
+          {jobId && <div style={{ fontFamily: crimson, fontSize: 11, color: dim, marginBottom: 12 }}>Job ID: {jobId}</div>}
+          <button onClick={reset} style={{ padding: '8px 18px', background: 'transparent', border: `1px solid ${bdr}`, borderRadius: 3, color: dim, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.1em', cursor: 'pointer' }}>
+            RUN ANOTHER
+          </button>
+        </div>
+      )}
+
+      {/* Failed */}
+      {phase === 'failed' && (
+        <div style={{ background: surf, border: '1px solid rgba(248,113,113,0.3)', borderRadius: 4, padding: '20px 24px', marginBottom: 16 }}>
+          <div style={{ fontFamily: cinzel, fontSize: 10, letterSpacing: '0.12em', color: '#f87171', marginBottom: 8 }}>JOB FAILED</div>
+          <div style={{ fontFamily: crimson, fontSize: 13, color: '#f87171', marginBottom: 16 }}>{jobError}</div>
+          {jobId && <div style={{ fontFamily: crimson, fontSize: 11, color: dim, marginBottom: 12 }}>Job ID: {jobId}</div>}
+          <button onClick={reset} style={{ padding: '8px 18px', background: 'transparent', border: `1px solid ${bdr}`, borderRadius: 3, color: dim, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.1em', cursor: 'pointer' }}>
+            TRY AGAIN
+          </button>
         </div>
       )}
     </div>
