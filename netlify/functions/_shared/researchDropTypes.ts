@@ -33,6 +33,23 @@ export interface ResearchDropResultJson {
   sourceType:        string | null
 }
 
+// Conditions chunk-loop checkpoint — mirrors ResearchDropCheckpoint for the
+// windowed conditions extraction worker. No _chunks_embedded (conditions does
+// not produce library_chunks). _windows_failed is a count (not a string array)
+// since per-window error strings are logged immediately and do not need to
+// persist across resumptions.
+export interface ConditionsDropCheckpoint {
+  _cursor:              number    // index of next window to process (0 = not started)
+  _partial_candidates:  any[]     // merged ConditionCandidate map values accumulated so far
+  _total_input_tokens:  number
+  _total_output_tokens: number
+  _total_cost_usd:      number
+  _windows_failed:      number    // cumulative count of skipped/errored windows
+  _windows_total:       number
+  _staging_cursor:      number    // index of next candidate to stage (0 = scanning not yet done)
+  _is_resumption:       boolean
+}
+
 // Budget constants. BUDGET_MS is the wall-clock limit per worker invocation.
 // Leave 2 min of buffer before Netlify's 15-min background function ceiling.
 export const BUDGET_MS        = 13 * 60 * 1000   // 13 minutes

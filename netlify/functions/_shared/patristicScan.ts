@@ -27,17 +27,22 @@ export const GENERIC_BLOCKLIST = new Set<string>([
 ].map(normalizeName))
 
 // Build overlapping scan windows for full mode.
+// windowSize and overlapSize default to the spirits constants so all existing
+// callers (researchDropExtract.ts) remain byte-for-byte behaviorally unchanged.
+// Pass explicit values (e.g. 16000/800) for larger-context extraction modes.
 export function buildWindows(
   fullText: string,
   maxWindows: number = MAX_WINDOWS,
+  windowSize: number = WINDOW_SIZE,
+  overlapSize: number = WINDOW_OVERLAP,
 ): { windows: string[]; truncated: boolean } {
   const windows: string[] = []
   let truncated = false
   let start = 0
   while (start < fullText.length) {
     if (windows.length >= maxWindows) { truncated = true; break }
-    windows.push(fullText.substring(start, start + WINDOW_SIZE))
-    start += WINDOW_SIZE - WINDOW_OVERLAP
+    windows.push(fullText.substring(start, start + windowSize))
+    start += windowSize - overlapSize
   }
   return { windows, truncated }
 }
