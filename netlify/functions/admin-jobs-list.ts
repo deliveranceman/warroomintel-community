@@ -26,7 +26,7 @@ export default async function handler(req: Request): Promise<Response> {
   // ── Fetch jobs with inline LEFT JOIN on resources for title ──────────────
   let query = client
     .from('ai_jobs')
-    .select('id, job_type, status, progress, stage, cost_estimate, tokens_used, error_message, created_at, started_at, completed_at, resource_id, input_params, result_json, resources(title)')
+    .select('id, job_type, status, progress, stage, cost_estimate, tokens_used, error_message, created_at, started_at, completed_at, resource_id, input_params, result_json, resources!ai_jobs_resource_id_fkey(title)')
     .order('created_at', { ascending: false })
     .limit(limit)
 
