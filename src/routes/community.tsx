@@ -7857,7 +7857,7 @@ function BodyMapView({ isMobile, setSidebarOpen, setActiveSection, getToken, isA
   const [sheetOpen,     setSheetOpen]     = useState(false)
   const [indexOpen,     setIndexOpen]     = useState(false)
 
-  const [dossier,       setDossier]       = useState<{ region: any; correlations: any[]; scriptures: any[]; conditions: any[] } | null>(null)
+  const [dossier,       setDossier]       = useState<{ region: any; correlations: any[]; scriptures: any[]; conditions: any[]; spirits_to_look_for: any[] } | null>(null)
   const [dossierLoading, setDossierLoading] = useState(false)
 
   const [solAnalysis,   setSolAnalysis]   = useState<string | null>(null)
@@ -8172,6 +8172,7 @@ function BodyMapView({ isMobile, setSidebarOpen, setActiveSection, getToken, isA
     const correlations = dossier?.correlations || []
     const scriptures = dossier?.scriptures || []
     const conditions = dossier?.conditions || []
+    const spiritsToLookFor = dossier?.spirits_to_look_for || []
     const regionSystems: string[] = region?.systems || activeRegion?.systems || []
 
     return (
@@ -8287,6 +8288,41 @@ function BodyMapView({ isMobile, setSidebarOpen, setActiveSection, getToken, isA
                   </div>
                 ) : pendingSlot('No conditions associated with this region yet.')}
               </div>
+
+              {/* Spirits to Look For */}
+              {spiritsToLookFor.length > 0 && (
+                <div style={{ marginBottom: 20 }}>
+                  {sectionLabel('SPIRITS TO LOOK FOR')}
+                  <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 6 }}>
+                    {spiritsToLookFor.map((s: any, i: number) => (
+                      <div key={i} style={{ background: 'rgba(201,168,76,0.04)', border: '1px solid rgba(201,168,76,0.18)', borderRadius: 6, padding: '9px 13px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' as const }}>
+                          <span style={{ fontFamily: cinzel, fontSize: 12, color: GC, letterSpacing: '0.05em' }}>{s.spirit_name}</span>
+                          {s.via === 'region' && s.strength != null && (
+                            <span style={{ fontFamily: crimson, fontSize: 11, color: '#5a4f3a', background: 'rgba(139,115,85,0.12)', border: '1px solid rgba(139,115,85,0.25)', borderRadius: 10, padding: '1px 8px' }}>
+                              strength {s.strength}
+                            </span>
+                          )}
+                          {s.via === 'condition' && (
+                            <span style={{ fontFamily: crimson, fontSize: 11, color: '#5a4f3a', fontStyle: 'italic' }}>via condition</span>
+                          )}
+                        </div>
+                        {s.via === 'condition' && s.via_condition_name && (
+                          <div style={{ fontFamily: crimson, fontSize: 12.5, color: '#7a6e58', marginTop: 3 }}>
+                            {s.via_condition_name}
+                            {s.relationship && <span style={{ color: '#4a3f2f' }}> — {s.relationship.replace(/_/g, ' ')}</span>}
+                          </div>
+                        )}
+                        {s.also_via_condition && s.also_via_condition.length > 0 && (
+                          <div style={{ fontFamily: crimson, fontSize: 12, color: '#5a4f3a', marginTop: 3, fontStyle: 'italic' }}>
+                            also via: {s.also_via_condition.join(', ')}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* Scriptures */}
               <div style={{ marginBottom: 20 }}>

@@ -204,6 +204,72 @@ export default async function handler(req: Request) {
         (b.relevance_strength || 0) - (a.relevance_strength || 0) ||
         (b.source_strength || 0) - (a.source_strength || 0))
 
+    // Collect condition_keys for the spirit traversal
+    const conditionKeys = (condRows || [])
+      .map((cr: any) => cr.conditions?.condition_key)
+      .filter(Boolean) as string[]
+
+    // Follow-up query: spirit_conditions for the region's seated conditions
+    let condSpiritRows: any[] = []
+    if (conditionKeys.length > 0) {
+      const { data: csRows } = await client
+        .from('spirit_conditions')
+        .select('condition_key, spirit_id, relationship, spirit:spirits!spirit_id(id, name)')
+        .in('condition_key', conditionKeys)
+      condSpiritRows = (csRows || []) as any[]
+    }
+
+    // condition_key -> display_name lookup for UI context
+    const condDisplayMap: Record<string, string> = {}
+    for (const cr of (condRows || [])) {
+      const c = (cr as any).conditions
+      if (c?.condition_key) condDisplayMap[c.condition_key] = c.display_name || c.condition_key
+    }
+
+    // Build spirits_to_look_for: dedupe by spirit_id, prefer via='region'
+    const spiritLookupMap = new Map<string, any>()
+
+    // Phase 1: direct spirit_regions correlations
+    for (const c of correlations) {
+      const spiritId = (c.spirit_id || c.spirit?.id) as string | undefined
+      if (!spiritId || !c.spirit_name) continue
+      spiritLookupMap.set(spiritId, {
+        spirit_id:         spiritId,
+        spirit_name:       c.spirit_name,
+        via:               'region',
+        strength:          c.correlation_strength ?? undefined,
+        also_via_condition: [] as string[],
+      })
+    }
+
+    // Phase 2: condition -> spirit_conditions -> spirits
+    for (const row of condSpiritRows) {
+      const spiritId   = row.spirit_id as string | undefined
+      const spiritName = (row.spirit as any)?.name as string | undefined
+      if (!spiritId || !spiritName) continue
+      const condKey  = row.condition_key as string
+      const condName = condDisplayMap[condKey] || condKey
+
+      if (spiritLookupMap.has(spiritId)) {
+        const existing = spiritLookupMap.get(spiritId)!
+        if (!existing.also_via_condition.includes(condName)) {
+          existing.also_via_condition.push(condName)
+        }
+      } else {
+        spiritLookupMap.set(spiritId, {
+          spirit_id:         spiritId,
+          spirit_name:       spiritName,
+          via:               'condition',
+          via_condition_key:  condKey,
+          via_condition_name: condName,
+          relationship:       (row.relationship as string) || undefined,
+          also_via_condition: [] as string[],
+        })
+      }
+    }
+
+    const spirits_to_look_for = Array.from(spiritLookupMap.values())
+
     return json({
       region: {
         ...region,
@@ -212,6 +278,7 @@ export default async function handler(req: Request) {
       correlations,
       scriptures,
       conditions,
+      spirits_to_look_for,
     })
   }
 
