@@ -849,6 +849,64 @@ function RegionLinkCard({ c, anatomyRegions, onBind, onNeedsRegion, onReject }: 
   )
 }
 
+// ── Candidate display helpers ────────────────────────────────────────────────
+
+function candidateDisplayName(c: Candidate): string {
+  const p = c.payload
+  if (c.target_table === 'cultural_dossiers')      return (p.culture_name as string)          || '(unnamed)'
+  if (c.target_table === 'condition_region_links') return (p.condition_display_name as string) || (p.condition_key as string) || '(unnamed)'
+  if (c.target_table === 'conditions')             return (p.display_name as string)           || (p.condition_key as string) || '(unnamed)'
+  return (p.name as string) || '(unnamed)'
+}
+
+// ── CollapsedRow — one-line summary with expand chevron ─────────────────────
+
+function CollapsedRow({ c, isExpanded, onToggle }: {
+  c: Candidate
+  isExpanded: boolean
+  onToggle: () => void
+}) {
+  const p = c.payload
+  const conf = confidenceColor(c.confidence)
+  const isEnrichment = p.is_enrichment === true
+  const taggedCount = c.target_table === 'curses' && Array.isArray(p.tagged_items) ? (p.tagged_items as any[]).length : 0
+  return (
+    <div
+      onClick={onToggle}
+      style={{
+        display: 'flex', alignItems: 'center', gap: 10, padding: '9px 14px',
+        background: CARD_BG, border: `1px solid ${BORDER}`, borderRadius: 4,
+        cursor: 'pointer', userSelect: 'none' as const,
+      }}
+    >
+      <span style={{ fontFamily: cinzel, fontSize: 13, fontWeight: 600, color: GOLD_DEEP, flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+        {candidateDisplayName(c)}
+      </span>
+      <div style={{ display: 'flex', gap: 5, flexShrink: 0, alignItems: 'center' }}>
+        <span style={{ fontFamily: cinzel, fontSize: 7, letterSpacing: '0.08em', padding: '2px 7px', borderRadius: 3, background: 'rgba(139,105,20,0.08)', border: `1px solid rgba(139,105,20,0.2)`, color: GOLD, whiteSpace: 'nowrap' as const }}>
+          {tableLabel(c.target_table)}
+        </span>
+        <span style={{ fontFamily: cinzel, fontSize: 7, letterSpacing: '0.08em', padding: '2px 7px', borderRadius: 3, background: conf.bg, border: `1px solid ${conf.border}`, color: conf.color }}>
+          {c.confidence}
+        </span>
+        {isEnrichment && (
+          <span style={{ fontFamily: cinzel, fontSize: 7, letterSpacing: '0.06em', padding: '2px 7px', borderRadius: 3, background: 'rgba(34,197,94,0.08)', border: '1px solid rgba(34,197,94,0.25)', color: '#166534' }}>
+            ENRICH
+          </span>
+        )}
+        {taggedCount > 0 && (
+          <span style={{ fontFamily: cinzel, fontSize: 7, letterSpacing: '0.06em', padding: '2px 7px', borderRadius: 3, background: 'rgba(107,114,128,0.08)', border: '1px solid rgba(107,114,128,0.2)', color: '#374151' }}>
+            {taggedCount} items
+          </span>
+        )}
+      </div>
+      <span style={{ fontFamily: cinzel, fontSize: 12, color: MUTED, flexShrink: 0, minWidth: 14, textAlign: 'center' as const }}>
+        {isExpanded ? '▾' : '›'}
+      </span>
+    </div>
+  )
+}
+
 // ── Main page ────────────────────────────────────────────────────────────────
 
 function ExtractionReviewPage() {
@@ -864,6 +922,10 @@ function ExtractionReviewPage() {
   const [showNeedsRegion, setShowNeedsRegion] = useState(false)
   const [toast, setToast]                 = useState<string | null>(null)
   const [acting, setActing]               = useState<string | null>(null)
+  const [expandedCards, setExpandedCards] = useState<Record<string, boolean>>({})
+  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({})
+  const [confFilter, setConfFilter]       = useState<'all'|'high'|'medium'|'low'>('all')
+  const [typeFilter, setTypeFilter]       = useState<'all'|'new'|'enrichment'>('all')
 
   const tier    = (user?.publicMetadata as any)?.tier as string | undefined
   const role    = (user?.publicMetadata as any)?.role as string | undefined
@@ -884,6 +946,8 @@ function ExtractionReviewPage() {
     setLoading(true)
     setListError(null)
     setActive(null)
+    setExpandedCards({})
+    setExpandedGroups({})
     try {
       const token = await getToken()
       const qs    = status !== 'pending' ? `?status=${encodeURIComponent(status)}` : ''
@@ -940,7 +1004,7 @@ function ExtractionReviewPage() {
         if (unresolved.length > 0) msg += ` — ${unresolved.length} unresolved: ${unresolved.slice(0, 2).join(', ')}`
         setToast(msg)
       } else {
-        setToast(`Approved — written to ${label}`)
+        setToast(result.enriched ? `Enriched: ${name}` : `Created: ${name} (${label})`)
       }
     } catch (err: any) {
       setToast(`Error: ${String(err?.message ?? err)}`)
@@ -1032,8 +1096,51 @@ function ExtractionReviewPage() {
     }
   }
 
+  function toggleCard(id: string) {
+    setExpandedCards(prev => ({ ...prev, [id]: !prev[id] }))
+  }
+
+  function toggleGroup(key: string) {
+    setExpandedGroups(prev => ({ ...prev, [key]: !(prev[key] ?? true) }))
+  }
+
+  function renderCandidateCard(c: Candidate) {
+    if (c.target_table === 'curses') {
+      return <CurseCard c={c} onApprove={() => handleApprove(c)} onReject={() => handleReject(c)} />
+    }
+    if (c.target_table === 'cultural_dossiers') {
+      return <DossierCard c={c} onApprove={() => handleApprove(c)} onReject={() => handleReject(c)} />
+    }
+    if (c.target_table === 'secret_societies') {
+      return <SocietyCard c={c} onApprove={() => handleApprove(c)} onReject={() => handleReject(c)} />
+    }
+    if (c.target_table === 'conditions') {
+      return <ConditionCard c={c} onApprove={(editedPayload) => handleApprove(c, editedPayload)} onReject={() => handleReject(c)} />
+    }
+    if (c.target_table === 'condition_region_links') {
+      return <RegionLinkCard c={c} anatomyRegions={anatomyRegions} onBind={(rk, rs) => handleBindRegion(c, rk, rs)} onNeedsRegion={() => handleNeedsRegion(c)} onReject={() => handleReject(c)} />
+    }
+    return <GenericCard c={c} onApprove={() => handleApprove(c)} onReject={() => handleReject(c)} />
+  }
+
   const distinctTables = Array.from(new Set(candidates.map(c => c.target_table))).sort()
-  const visible = activeFilter ? candidates.filter(c => c.target_table === activeFilter) : candidates
+  const visibleBase = activeFilter ? candidates.filter(c => c.target_table === activeFilter) : candidates
+  const visibleConf = confFilter === 'all' ? visibleBase : visibleBase.filter(c => c.confidence === confFilter)
+  const visible = typeFilter === 'all' ? visibleConf
+    : typeFilter === 'enrichment' ? visibleConf.filter(c => c.payload?.is_enrichment === true)
+    : visibleConf.filter(c => c.payload?.is_enrichment !== true)
+
+  const groups = new Map<string, Candidate[]>()
+  for (const c of visible) {
+    const key = c.source_name || (c.payload?.source_book as string) || 'Unspecified source'
+    if (!groups.has(key)) groups.set(key, [])
+    groups.get(key)!.push(c)
+  }
+  const groupKeys = [...groups.keys()].sort((a, b) => {
+    if (a === 'Unspecified source') return 1
+    if (b === 'Unspecified source') return -1
+    return a.localeCompare(b)
+  })
 
   if (!isLoaded) {
     return (
@@ -1091,7 +1198,34 @@ function ExtractionReviewPage() {
           </div>
         )}
 
-        {/* Pills + needs-region bin toggle */}
+        {/* Summary header */}
+        {!loading && candidates.length > 0 && (
+          <div style={{ background: CARD_BG, border: `1px solid ${BORDER}`, borderRadius: 6, padding: '12px 16px', marginBottom: 20 }}>
+            <div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.14em', color: GOLD, marginBottom: 8 }}>PENDING SUMMARY</div>
+            <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', alignItems: 'center' }}>
+              <span style={{ fontFamily: cinzel, fontSize: 11, color: GOLD_DEEP, letterSpacing: '0.05em' }}>{candidates.length} total</span>
+              <span style={{ width: 1, height: 12, background: BORDER, display: 'inline-block' }} />
+              {distinctTables.map(t => (
+                <span key={t} style={{ fontFamily: crimson, fontSize: 13, color: MUTED }}>
+                  {tableLabel(t)} <strong style={{ color: TEXT }}>{candidates.filter(c => c.target_table === t).length}</strong>
+                </span>
+              ))}
+              <span style={{ width: 1, height: 12, background: BORDER, display: 'inline-block' }} />
+              {(['high', 'medium', 'low'] as const).map(conf => {
+                const count = candidates.filter(c => c.confidence === conf).length
+                if (count === 0) return null
+                const cc = confidenceColor(conf)
+                return (
+                  <span key={conf} style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.06em', padding: '2px 8px', borderRadius: 3, background: cc.bg, border: `1px solid ${cc.border}`, color: cc.color }}>
+                    {conf} {count}
+                  </span>
+                )
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Target table pills */}
         {!loading && (candidates.length > 0 || showNeedsRegion) && (
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 8, alignItems: 'center' }}>
             {candidates.length > 0 && (
@@ -1117,6 +1251,39 @@ function ExtractionReviewPage() {
             )}
           </div>
         )}
+
+        {/* Secondary filters + expand/collapse all */}
+        {!loading && candidates.length > 0 && (
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8, alignItems: 'center' }}>
+            <span style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.1em', color: MUTED, marginRight: 2 }}>CONFIDENCE</span>
+            {(['all', 'high', 'medium', 'low'] as const).map(v => (
+              <button key={v} onClick={() => setConfFilter(v)}
+                style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.08em', padding: '4px 10px', borderRadius: 3, cursor: 'pointer', background: confFilter === v ? GOLD : 'transparent', border: `1px solid ${confFilter === v ? GOLD : BORDER}`, color: confFilter === v ? '#FFFFFF' : MUTED }}
+              >
+                {v === 'all' ? 'All' : v}
+              </button>
+            ))}
+            <span style={{ width: 1, height: 14, background: BORDER, display: 'inline-block', margin: '0 6px' }} />
+            <span style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.1em', color: MUTED, marginRight: 2 }}>TYPE</span>
+            {(['all', 'new', 'enrichment'] as const).map(v => (
+              <button key={v} onClick={() => setTypeFilter(v)}
+                style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.08em', padding: '4px 10px', borderRadius: 3, cursor: 'pointer', background: typeFilter === v ? GOLD : 'transparent', border: `1px solid ${typeFilter === v ? GOLD : BORDER}`, color: typeFilter === v ? '#FFFFFF' : MUTED }}
+              >
+                {v === 'all' ? 'All' : v === 'enrichment' ? 'Enrichment' : 'New'}
+              </button>
+            ))}
+            <span style={{ flex: 1 }} />
+            <button
+              onClick={() => { const n: Record<string, boolean> = {}; visible.forEach(c => { n[c.id] = true }); setExpandedCards(n) }}
+              style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.08em', padding: '4px 10px', borderRadius: 3, cursor: 'pointer', background: 'transparent', border: `1px solid ${BORDER}`, color: MUTED }}
+            >Expand All</button>
+            <button
+              onClick={() => setExpandedCards({})}
+              style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.08em', padding: '4px 10px', borderRadius: 3, cursor: 'pointer', background: 'transparent', border: `1px solid ${BORDER}`, color: MUTED }}
+            >Collapse All</button>
+          </div>
+        )}
+
         {!loading && (
           <div style={{ marginBottom: 24 }}>
             <button
@@ -1145,45 +1312,44 @@ function ExtractionReviewPage() {
           </div>
         )}
 
-        {/* Cards */}
+        {/* Cards — grouped by source book, collapsed by default */}
         {!loading && visible.length > 0 && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
             {acting && (
               <div style={{ fontFamily: crimson, fontSize: 13, color: MUTED, textAlign: 'center', padding: 8 }}>Working…</div>
             )}
-            {visible.map(c => {
-              if (c.target_table === 'curses') {
-                return <CurseCard key={c.id} c={c} onApprove={() => handleApprove(c)} onReject={() => handleReject(c)} />
-              }
-              if (c.target_table === 'cultural_dossiers') {
-                return <DossierCard key={c.id} c={c} onApprove={() => handleApprove(c)} onReject={() => handleReject(c)} />
-              }
-              if (c.target_table === 'secret_societies') {
-                return <SocietyCard key={c.id} c={c} onApprove={() => handleApprove(c)} onReject={() => handleReject(c)} />
-              }
-              if (c.target_table === 'conditions') {
-                return (
-                  <ConditionCard
-                    key={c.id}
-                    c={c}
-                    onApprove={(editedPayload) => handleApprove(c, editedPayload)}
-                    onReject={() => handleReject(c)}
-                  />
-                )
-              }
-              if (c.target_table === 'condition_region_links') {
-                return (
-                  <RegionLinkCard
-                    key={c.id}
-                    c={c}
-                    anatomyRegions={anatomyRegions}
-                    onBind={(rk, rs) => handleBindRegion(c, rk, rs)}
-                    onNeedsRegion={() => handleNeedsRegion(c)}
-                    onReject={() => handleReject(c)}
-                  />
-                )
-              }
-              return <GenericCard key={c.id} c={c} onApprove={() => handleApprove(c)} onReject={() => handleReject(c)} />
+            {groupKeys.map(source => {
+              const items = groups.get(source)!
+              const isGroupOpen = expandedGroups[source] ?? true
+              return (
+                <div key={source}>
+                  <div
+                    onClick={() => toggleGroup(source)}
+                    style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', padding: '6px 2px', marginBottom: 8, borderBottom: `1px solid ${BORDER}` }}
+                  >
+                    <span style={{ fontFamily: cinzel, fontSize: 10, color: GOLD }}>{isGroupOpen ? '▾' : '▸'}</span>
+                    <span style={{ fontFamily: cinzel, fontSize: 12, letterSpacing: '0.07em', fontWeight: 600, color: GOLD_DEEP }}>{source}</span>
+                    <span style={{ fontFamily: crimson, fontSize: 13, color: MUTED }}>({items.length})</span>
+                  </div>
+                  {isGroupOpen && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                      {items.map(c => {
+                        const isExpanded = expandedCards[c.id] ?? false
+                        return (
+                          <div key={c.id}>
+                            <CollapsedRow c={c} isExpanded={isExpanded} onToggle={() => toggleCard(c.id)} />
+                            {isExpanded && (
+                              <div style={{ marginTop: 0 }}>
+                                {renderCandidateCard(c)}
+                              </div>
+                            )}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
+              )
             })}
           </div>
         )}
