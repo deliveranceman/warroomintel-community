@@ -84,8 +84,28 @@ async function extractText(buffer: Buffer, filename: string): Promise<string> {
     }
   }
   if (ext === 'pdf') {
-    console.log('[LIBRARY-UPLOAD] PDF uploaded — text extraction not available, will need manual re-index')
-    return ''
+    try {
+      const { getDocument, GlobalWorkerOptions } = await import('pdfjs-dist/legacy/build/pdf.mjs') as any
+      GlobalWorkerOptions.workerSrc = ''
+      const loadingTask = getDocument({ data: new Uint8Array(buffer) })
+      const pdfDoc = await loadingTask.promise
+      const pages: string[] = []
+      for (let i = 1; i <= pdfDoc.numPages; i++) {
+        const page = await pdfDoc.getPage(i)
+        const content = await page.getTextContent()
+        const pageText = (content.items as any[]).map((item: any) => item.str || '').join(' ')
+        pages.push(pageText)
+      }
+      const text = pages.join('\n\n').trim().slice(0, MAX_CHARS)
+      if (text.length < 50) {
+        console.log('[LIBRARY-UPLOAD] PDF appears to be scanned/image-only — no extractable text')
+        return ''
+      }
+      return text
+    } catch (e: any) {
+      console.error('[LIBRARY-UPLOAD] pdfjs extraction error:', e?.message)
+      return ''
+    }
   }
   return ''
 }
