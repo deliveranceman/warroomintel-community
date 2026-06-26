@@ -6080,6 +6080,7 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
   const [pdConfirmed, setPdConfirmed]             = useState<Record<string, boolean>>({})
   const [rejectReasons, setRejectReasons]         = useState<Record<string, string>>({})
   const [approvingId, setApprovingId]             = useState<string | null>(null)
+  const [pdfViewerBook, setPdfViewerBook]         = useState<any>(null)
 
   const inp: React.CSSProperties = {
     width: '100%', boxSizing: 'border-box' as const,
@@ -7621,10 +7622,10 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
                   </div>
                   <div style={{ display: 'flex', gap: 8, flexShrink: 0, alignItems: 'center' }}>
                     {book.file_url && (
-                      <a href={book.file_url} target="_blank" rel="noopener noreferrer"
-                        style={{ background: 'transparent', border: `1px solid rgba(201,168,76,0.5)`, borderRadius: 5, color: LG, fontFamily: cinzel, fontSize: 9, padding: '5px 12px', cursor: 'pointer', letterSpacing: '0.06em', textDecoration: 'none' }}>
+                      <button onClick={() => setPdfViewerBook(book)}
+                        style={{ background: 'transparent', border: `1px solid rgba(201,168,76,0.5)`, borderRadius: 5, color: LG, fontFamily: cinzel, fontSize: 9, padding: '5px 12px', cursor: 'pointer', letterSpacing: '0.06em' }}>
                         ↗ VIEW PDF
-                      </a>
+                      </button>
                     )}
                     <button onClick={() => deleteBook(book.id, book.file_path, book.title)}
                       style={{ background: 'transparent', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 5, color: '#f87171', fontFamily: cinzel, fontSize: 9, padding: '4px 10px', cursor: 'pointer', letterSpacing: '0.06em' }}>
@@ -7637,6 +7638,25 @@ function LibraryManager({ getToken, isDark }: { getToken: any; isDark: boolean }
           </div>
         )}
       </div>
+
+      {/* PDF viewer modal */}
+      {pdfViewerBook && (
+        <div onClick={() => setPdfViewerBook(null)}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 400, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div onClick={e => e.stopPropagation()}
+            style={{ background: isDark ? '#13111a' : '#fff', border: `1px solid ${LBDR}`, borderRadius: 10, width: '90vw', maxWidth: 1200, height: '90vh', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 8px 40px rgba(0,0,0,0.7)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 16px', borderBottom: `1px solid ${LBDR}`, flexShrink: 0 }}>
+              <span style={{ fontFamily: cinzel, fontSize: 12, color: LG, letterSpacing: '0.08em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{pdfViewerBook.title}</span>
+              <button onClick={() => setPdfViewerBook(null)}
+                style={{ background: 'transparent', border: `1px solid ${LBDR}`, borderRadius: 5, color: LTXT, fontFamily: cinzel, fontSize: 11, padding: '4px 12px', cursor: 'pointer', letterSpacing: '0.06em', flexShrink: 0, marginLeft: 12 }}>
+                ✕ CLOSE
+              </button>
+            </div>
+            <iframe src={pdfViewerBook.file_url} title={pdfViewerBook.title}
+              style={{ flex: 1, border: 'none', width: '100%' }} />
+          </div>
+        </div>
+      )}
 
       {/* Floating batch action bar */}
       {selectedBooks.size > 0 && (
