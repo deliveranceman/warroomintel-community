@@ -10,7 +10,7 @@ import {
 // Bloodline curse/cultural narrative needs full-condition context like conditions,
 // so windows match the conditions size (2× spirit scan size).
 // Hard cap of 200 gives ~3.2M char coverage — proportional to spirits 400 × 8000.
-const BL_WINDOW_SIZE    = 16000
+const BL_WINDOW_SIZE    = 12000
 const BL_WINDOW_OVERLAP = 800
 const BL_HARD_CAP       = 200
 
@@ -44,14 +44,19 @@ function candidateName(c: any): string {
   return (c.payload?.name as string) || ''
 }
 
+// Output token ceiling for bloodline extraction calls.
+const BLOODLINE_MAX_TOKENS = 8000
+
 // ── Per-window extraction ─────────────────────────────────────────────────────
-// Returns null on refusal or parse failure — per-window failures do not kill
-// the job; the caller accumulates a windowsFailed count for the sanity floor.
+// Returns null on refusal, parse failure, or unrecoverable truncation — all of
+// which the caller counts as windowsFailed (no silent data loss).
+// depth guards against infinite recursion when splitting truncated windows.
 async function extractWindow(
   windowText:   string,
   sourceName:   string | undefined,
   sourceAuthor: string | undefined,
   meta: { userId: string; userTier: string; callType: string },
+  depth = 0,
 ): Promise<{
   candidates:   any[]
   completeness: string | null
@@ -70,7 +75,7 @@ async function extractWindow(
     tier:      'standard',  // NEVER 'cheap' — Haiku refuses on charged content
     system:    BLOODLINE_DISCIPLINE_SYSTEM,
     messages:  [{ role: 'user', content: prompt }],
-    maxTokens: 8000,
+    maxTokens: BLOODLINE_MAX_TOKENS,
     timeoutMs: 120000,
     meta,
   })
@@ -81,6 +86,44 @@ async function extractWindow(
     return null
   }
 
+  // ── Truncation detection ───────────────────────────────────────────────────
+  // Output tokens at ≥95% of the ceiling means the JSON was almost certainly
+  // cut mid-string (even a "successful" parse at this threshold may be garbled).
+  // Remedy: split the window in half and recurse; depth cap prevents infinite loops.
+  if (res.outputTokens >= BLOODLINE_MAX_TOKENS * 0.95) {
+    if (depth >= 2) {
+      console.warn(`[research-drop-bloodline] window still truncated at depth ${depth} (${res.outputTokens} output tokens) — giving up, counting as failed`)
+      return null
+    }
+    console.warn(`[research-drop-bloodline] truncation detected (${res.outputTokens}/${BLOODLINE_MAX_TOKENS} tokens) at depth ${depth} — splitting window`)
+
+    // Split near a newline boundary close to the midpoint (±500 chars)
+    const mid         = Math.floor(windowText.length / 2)
+    const searchStart = Math.max(0, mid - 500)
+    const searchEnd   = Math.min(windowText.length, mid + 500)
+    const localNl     = windowText.slice(searchStart, searchEnd).lastIndexOf('\n')
+    const boundary    = localNl >= 0 ? searchStart + localNl : mid
+    const firstHalf   = windowText.slice(0, boundary).trim()
+    const secondHalf  = windowText.slice(boundary).trim()
+
+    const r1 = await extractWindow(firstHalf,  sourceName, sourceAuthor, meta, depth + 1)
+    const r2 = await extractWindow(secondHalf, sourceName, sourceAuthor, meta, depth + 1)
+
+    // Both halves failed — propagate failure; include this call's tokens in accounting
+    if (r1 === null && r2 === null) return null
+
+    const i1 = COMPLETENESS_ORDER.indexOf(r1?.completeness || '')
+    const i2 = COMPLETENESS_ORDER.indexOf(r2?.completeness || '')
+    return {
+      candidates:  [...(r1?.candidates ?? []), ...(r2?.candidates ?? [])],
+      completeness: i1 >= i2 ? (r1?.completeness ?? null) : (r2?.completeness ?? null),
+      // Include the truncated call's tokens — real cost was incurred
+      inputTokens:  res.inputTokens  + (r1?.inputTokens  ?? 0) + (r2?.inputTokens  ?? 0),
+      outputTokens: res.outputTokens + (r1?.outputTokens ?? 0) + (r2?.outputTokens ?? 0),
+      costUsd:      res.costUsd      + (r1?.costUsd      ?? 0) + (r2?.costUsd      ?? 0),
+    }
+  }
+
   let parsed: any
   try {
     parsed = JSON.parse(stripJsonFences(res.text))
@@ -89,6 +132,13 @@ async function extractWindow(
       const m = res.text.match(/\{[\s\S]*\}/)
       if (m) parsed = JSON.parse(m[0])
     } catch {}
+  }
+
+  // Both parse attempts failed — return null so the caller increments windowsFailed.
+  // Previously returned {candidates:[]} here, which caused undetected data loss.
+  if (parsed === undefined) {
+    console.warn('[research-drop-bloodline] JSON parse failed on window (both attempts) — counting as failed')
+    return null
   }
 
   const candidates   = Array.isArray(parsed?.candidates) ? parsed.candidates : []
