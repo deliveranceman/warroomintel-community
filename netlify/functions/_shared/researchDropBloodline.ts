@@ -1,6 +1,6 @@
 import { solCall } from './solClient'
 import { buildWindows, normalizeName } from './patristicScan'
-import { BUDGET_MS, SCAN_CONCURRENCY, BloodlineDropCheckpoint } from './researchDropTypes'
+import { SCAN_CONCURRENCY, BloodlineDropCheckpoint } from './researchDropTypes'
 import {
   BLOODLINE_DISCIPLINE_SYSTEM,
   fillBloodlinePrompt,
@@ -43,6 +43,11 @@ function candidateName(c: any): string {
   if (c?.target_table === 'cultural_dossiers') return (c.payload?.culture_name as string) || ''
   return (c.payload?.name as string) || ''
 }
+
+// Per-invocation budget and batch cap — bloodline-local, tighter than the shared
+// BUDGET_MS (13 min) so the yield guard fires well before the 16-min zombie sweeper.
+const BLOODLINE_BUDGET_MS              = 8 * 60 * 1000   // 8-minute hard limit per invocation
+const BLOODLINE_MAX_BATCHES_PER_INVOKE = 3                // max batches before yielding to cron
 
 // Output token ceiling for bloodline extraction calls.
 const BLOODLINE_MAX_TOKENS = 8000
@@ -91,7 +96,7 @@ async function extractWindow(
   // cut mid-string (even a "successful" parse at this threshold may be garbled).
   // Remedy: split the window in half and recurse; depth cap prevents infinite loops.
   if (res.outputTokens >= BLOODLINE_MAX_TOKENS * 0.95) {
-    if (depth >= 2) {
+    if (depth >= 1) {
       console.warn(`[research-drop-bloodline] window still truncated at depth ${depth} (${res.outputTokens} output tokens) — giving up, counting as failed`)
       return null
     }
@@ -294,6 +299,7 @@ export async function runResearchDropBloodline(client: any, job: any): Promise<v
     let totalCostUsd      = resumeCostUsd
     let windowsFailed     = resumeWindowsFailed
     let bestCompleteness: string | null = null
+    let batchesThisInvocation = 0
 
     // ── Step 6: Windowed extraction loop ──────────────────────────────────────
     for (let i = resumeCursor; i < windows.length; i += SCAN_CONCURRENCY) {
@@ -332,33 +338,45 @@ export async function runResearchDropBloodline(client: any, job: any): Promise<v
       })
 
       done += batch.length
+      batchesThisInvocation++
 
-      // Live flush — cost + progress visible in UI while job runs
+      // ── Soft checkpoint after every batch ──────────────────────────────────
+      // Writes _cursor + _partial_candidates every batch so a sweeper-killed
+      // invocation loses at most the in-flight batch, never the whole run.
+      const batchCp: BloodlineDropCheckpoint = {
+        _cursor:              done,
+        _partial_candidates:  Array.from(byKey.values()),
+        _total_input_tokens:  totalInputTokens,
+        _total_output_tokens: totalOutputTokens,
+        _total_cost_usd:      totalCostUsd,
+        _windows_failed:      windowsFailed,
+        _windows_total:       total,
+        _staging_cursor:      0,
+        _is_resumption:       true,
+      }
       await client.from('ai_jobs').update({
         progress:      10 + Math.round(done / total * 50),
         tokens_used:   totalInputTokens + totalOutputTokens,
         cost_estimate: totalCostUsd,
+        result_json:   batchCp,
       }).eq('id', jobId)
 
-      // Budget guard — checkpoint and requeue before hitting the 15-min ceiling
-      if (Date.now() - runStartedAt > BUDGET_MS) {
-        const cp: BloodlineDropCheckpoint = {
-          _cursor:              done,
-          _partial_candidates:  Array.from(byKey.values()),
-          _total_input_tokens:  totalInputTokens,
-          _total_output_tokens: totalOutputTokens,
-          _total_cost_usd:      totalCostUsd,
-          _windows_failed:      windowsFailed,
-          _windows_total:       total,
-          _staging_cursor:      0,
-          _is_resumption:       true,
-        }
+      // ── Yield: 8-min budget or per-invocation batch cap ────────────────────
+      // Both yield by flipping status='queued'; the per-minute cron re-invokes
+      // automatically (created_at stays original, always satisfies the 20s cutoff).
+      // The batch cap makes work deterministic regardless of wall-clock drift.
+      const overBudget  = Date.now() - runStartedAt > BLOODLINE_BUDGET_MS
+      const overBatches = batchesThisInvocation >= BLOODLINE_MAX_BATCHES_PER_INVOKE
+                          && done < windows.length
+      if (overBudget || overBatches) {
         await client.from('ai_jobs').update({
-          status:      'queued',
-          stage:       'resuming',
-          result_json: cp,
+          status: 'queued',
+          stage:  'resuming',
         }).eq('id', jobId)
-        console.log(`[research-drop-bloodline] ${jobId} budget hit at window ${done}/${total} — checkpointed and requeued`)
+        const reason = overBudget
+          ? `budget (${BLOODLINE_BUDGET_MS / 60000} min)`
+          : `batch cap (${batchesThisInvocation}/${BLOODLINE_MAX_BATCHES_PER_INVOKE} batches)`
+        console.log(`[research-drop-bloodline] ${jobId} yielding at window ${done}/${total} — ${reason} — checkpointed and requeued`)
         return
       }
     }
@@ -412,7 +430,7 @@ export async function runResearchDropBloodline(client: any, job: any): Promise<v
       }
 
       // Budget guard in staging stage
-      if (Date.now() - runStartedAt > BUDGET_MS) {
+      if (Date.now() - runStartedAt > BLOODLINE_BUDGET_MS) {
         const cp: BloodlineDropCheckpoint = {
           _cursor:              done,           // scanning complete; full array in _partial_candidates
           _partial_candidates:  candidates,
