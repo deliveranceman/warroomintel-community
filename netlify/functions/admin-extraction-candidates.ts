@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import { requireAdmin2, CORS } from './_shared/access'
+import { normalizeName } from './_shared/patristicScan'
 
 const { url: sbUrl, serviceRoleKey: sbKey } = JSON.parse(process.env.SUPABASE || '{}')
 function sb() { return createClient(sbUrl, sbKey) }
@@ -252,6 +253,7 @@ interface ConditionsApplyResult {
   conditionKey: string
   spiritLinksCreated: number
   spiritLinksUnresolved: string[]
+  spiritCandidatesSuggested: number
   regionLinksCreated: number
   regionLinksUnresolved: string[]
 }
@@ -260,6 +262,7 @@ async function applyConditions(
   client: ReturnType<typeof sb>,
   payload: Record<string, any>,
   _reviewedBy: string,
+  sourceInfo?: { sourceName: string | null; sourceResourceId: string | null },
 ): Promise<ConditionsApplyResult> {
   const conditionKey = (payload.condition_key as string || '').trim()
   if (!conditionKey) throw new Error('condition_key is required')
@@ -351,6 +354,7 @@ async function applyConditions(
   // ── Bridge links (best-effort; each wrapped; never blocks main write) ─────
   let spiritLinksCreated = 0
   const spiritLinksUnresolved: string[] = []
+  let spiritCandidatesSuggested = 0
   let regionLinksCreated = 0
   const regionLinksUnresolved: string[] = []
 
@@ -373,11 +377,46 @@ async function applyConditions(
 
       const resolved = resolveSpiritId(spiritRoster, spiritName)
       if ('unresolved' in resolved) {
-        spiritLinksUnresolved.push(
-          resolved.reason === 'ambiguous'
-            ? `${spiritName} (ambiguous — multiple spirits match)`
-            : spiritName,
-        )
+        if (resolved.reason === 'ambiguous') {
+          spiritLinksUnresolved.push(`${spiritName} (ambiguous — multiple spirits match)`)
+        } else {
+          // not_found: report as unresolved AND suggest as a spirit candidate for review
+          spiritLinksUnresolved.push(spiritName)
+          try {
+            // normalizeName matches what spirit_candidates.name_normalized stores
+            const nameNorm = normalizeName(spiritName)
+            const { data: existingCand } = await client
+              .from('spirit_candidates')
+              .select('id')
+              .eq('name_normalized', nameNorm)
+              .in('status', ['pending', 'approved'])
+              .maybeSingle()
+            if (!existingCand) {
+              const origin: Record<string, any> = {
+                type:          'condition_link',
+                condition_key: conditionKey,
+                relationship:  link.relationship,
+              }
+              if (link.note)                        origin.note               = link.note
+              if (sourceInfo?.sourceResourceId)     origin.source_resource_id = sourceInfo.sourceResourceId
+              const { error: suggestErr } = await client.from('spirit_candidates').insert({
+                name:            spiritName,
+                name_normalized: nameNorm,
+                confidence:      'low',
+                ai_notes:        `Suggested via condition '${conditionKey}' (${link.relationship})`,
+                source_type:     'condition',
+                source_id:       sourceInfo?.sourceResourceId ?? null,
+                source_name:     sourceInfo?.sourceName ?? null,
+                status:          'pending',
+                origin,
+              })
+              if (!suggestErr) spiritCandidatesSuggested++
+              else console.warn('[applyConditions] spirit_candidate suggest failed (non-fatal):', suggestErr.message)
+            }
+          } catch (e: any) {
+            console.warn('[applyConditions] spirit_candidate suggest error (non-fatal):', e?.message)
+          }
+        }
         continue
       }
 
@@ -441,7 +480,7 @@ async function applyConditions(
     }
   }
 
-  return { recordId, mode, conditionKey, spiritLinksCreated, spiritLinksUnresolved, regionLinksCreated, regionLinksUnresolved }
+  return { recordId, mode, conditionKey, spiritLinksCreated, spiritLinksUnresolved, spiritCandidatesSuggested, regionLinksCreated, regionLinksUnresolved }
 }
 
 const VALID_TABLES = new Set(['curses', 'cultural_dossiers', 'secret_societies', 'conditions', 'condition_region_links'])
@@ -563,7 +602,7 @@ export default async function handler(req: Request): Promise<Response> {
     if (action === 'approve') {
       const { data: candidate, error: loadErr } = await client
         .from('extraction_candidates')
-        .select('id, target_table, payload, source_name, status')
+        .select('id, target_table, payload, source_name, source_id, status')
         .eq('id', id)
         .single()
 
@@ -673,7 +712,10 @@ export default async function handler(req: Request): Promise<Response> {
 
         let result: ConditionsApplyResult
         try {
-          result = await applyConditions(client, effectivePayload, auth.userId)
+          result = await applyConditions(client, effectivePayload, auth.userId, {
+            sourceName:       (candidate as any).source_name as string | null,
+            sourceResourceId: (candidate as any).source_id   as string | null,
+          })
         } catch (err: any) {
           const msg = String(err.message ?? err)
           if (msg.startsWith('__CONFLICT__:')) {
@@ -695,13 +737,14 @@ export default async function handler(req: Request): Promise<Response> {
         if (stampErr) return json({ error: stampErr.message }, 500)
 
         return json({
-          applied:                 true,
-          mode:                    result.mode,
-          condition_key:           result.conditionKey,
-          spirit_links_created:    result.spiritLinksCreated,
-          spirit_links_unresolved: result.spiritLinksUnresolved,
-          region_links_created:    result.regionLinksCreated,
-          region_links_unresolved: result.regionLinksUnresolved,
+          applied:                      true,
+          mode:                         result.mode,
+          condition_key:                result.conditionKey,
+          spirit_links_created:         result.spiritLinksCreated,
+          spirit_links_unresolved:      result.spiritLinksUnresolved,
+          spirit_candidates_suggested:  result.spiritCandidatesSuggested,
+          region_links_created:         result.regionLinksCreated,
+          region_links_unresolved:      result.regionLinksUnresolved,
         })
       }
 

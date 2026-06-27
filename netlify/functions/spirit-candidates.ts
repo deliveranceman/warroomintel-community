@@ -23,7 +23,7 @@ export default async function handler(req: Request) {
 
     let query = client
       .from('spirit_candidates')
-      .select('id,name,name_normalized,also_known_as,function,manifestations,scripture_context,kingdom,biblical_rank,sub_kingdom,source_name,source_type,confidence,status,duplicate_of,ai_notes,enrichment_status,enrichment_error,ai_model_used,ai_generated_at,created_at,reviewed_at,reviewed_by,rejection_reason,airtable_record_id,is_adversarial,possible_duplicate_of,possible_duplicate_confidence,last_extraction_at,last_extraction_error')
+      .select('id,name,name_normalized,also_known_as,function,manifestations,scripture_context,kingdom,biblical_rank,sub_kingdom,source_name,source_type,confidence,status,duplicate_of,ai_notes,enrichment_status,enrichment_error,ai_model_used,ai_generated_at,created_at,reviewed_at,reviewed_by,rejection_reason,airtable_record_id,is_adversarial,possible_duplicate_of,possible_duplicate_confidence,last_extraction_at,last_extraction_error,origin')
       .order('created_at', { ascending: false })
 
     if (status !== 'all') query = query.eq('status', status)

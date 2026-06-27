@@ -119,6 +119,22 @@ export default async function handler(req: Request) {
       reviewed_by:        userId,
     }).eq('id', candidateId)
 
+    // ---- Auto-link condition if suggested via condition approval ----
+    const origin = (candidate as any).origin as Record<string, any> | null
+    if (origin?.type === 'condition_link' && origin.condition_key) {
+      try {
+        await client.from('spirit_conditions').upsert({
+          spirit_id:     record.id,
+          condition_key: origin.condition_key as string,
+          relationship:  (origin.relationship as string) ?? 'associated',
+          notes:         (origin.note as string) ?? null,
+        }, { onConflict: 'spirit_id,condition_key', ignoreDuplicates: true })
+        console.log(`[spirit-candidate-confirm] condition-link upserted: '${origin.condition_key}' -> spirit ${record.id}`)
+      } catch (e: any) {
+        console.error('[spirit-candidate-confirm] condition-link upsert failed (non-fatal):', e?.message)
+      }
+    }
+
     // ---- Unified approval: auto-fan-out paired LES ----
     // Fixes the silent-failure pattern where candidate-confirm creates the
     // spirits row but never triggers Layer 2 fan-outs from the paired LES.

@@ -13141,6 +13141,20 @@ function SpiritCandidatesManager({ getToken, isDark, allSpirits }: { getToken: a
                     </>
                   )}
 
+                  {/* Origin callout — condition-link suggested spirits */}
+                  {(c.origin as any)?.type === 'condition_link' && (
+                    <div style={{ marginBottom: 12, padding: '8px 12px', background: 'rgba(201,168,76,0.06)', border: `1px solid ${SBDR}`, borderRadius: 5 }}>
+                      <div style={{ fontFamily: cinzel, fontSize: 8, color: SG, letterSpacing: '0.1em', marginBottom: 4 }}>SUGGESTED VIA CONDITION</div>
+                      <div style={{ fontFamily: crimson, fontSize: 13, color: STXT }}>
+                        <span style={{ fontWeight: 600 }}>{(c.origin as any).condition_key}</span>
+                        <span style={{ color: SMUT }}> → {(c.origin as any).relationship ?? 'associated'}</span>
+                      </div>
+                      {(c.origin as any).note && (
+                        <div style={{ fontFamily: crimson, fontSize: 12, color: SMUT, marginTop: 4, fontStyle: 'italic' as const }}>{(c.origin as any).note}</div>
+                      )}
+                    </div>
+                  )}
+
                   {/* Possible variant warning (tier-3 word-boundary classifier) */}
                   {c.possible_duplicate_of && (
                     <div style={{ marginBottom: 12, padding: '8px 12px', background: 'rgba(228,167,67,0.06)', border: '1px solid rgba(228,167,67,0.25)', borderRadius: 5 }}>

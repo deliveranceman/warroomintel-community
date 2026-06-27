@@ -87,10 +87,10 @@ export default async function handler(req: Request) {
     console.warn('[spirit-candidate-merge] spirit updated but candidate status not updated')
   }
 
-  // ── 6. Fetch candidate name to key the LES update ────────────────────────
+  // ── 6. Fetch candidate name + origin to key the LES update and condition auto-link ──
   const { data: candidateRow } = await client
     .from('spirit_candidates')
-    .select('name')
+    .select('name, origin')
     .eq('id', candidateId)
     .single()
 
@@ -107,6 +107,22 @@ export default async function handler(req: Request) {
       .eq('status', 'pending')
     if (lesErr) {
       console.warn('[spirit-candidate-merge] LES update warning (non-blocking):', lesErr.message)
+    }
+  }
+
+  // ── 8. Auto-link condition if suggested via condition approval ───────────
+  const mergeOrigin = (candidateRow as any)?.origin as Record<string, any> | null
+  if (mergeOrigin?.type === 'condition_link' && mergeOrigin.condition_key) {
+    try {
+      await client.from('spirit_conditions').upsert({
+        spirit_id:     targetRow.id as string,
+        condition_key: mergeOrigin.condition_key as string,
+        relationship:  (mergeOrigin.relationship as string) ?? 'associated',
+        notes:         (mergeOrigin.note as string) ?? null,
+      }, { onConflict: 'spirit_id,condition_key', ignoreDuplicates: true })
+      console.log(`[spirit-candidate-merge] condition-link upserted: '${mergeOrigin.condition_key}' -> spirit ${targetRow.id}`)
+    } catch (e: any) {
+      console.warn('[spirit-candidate-merge] condition-link upsert failed (non-fatal):', e?.message)
     }
   }
 
