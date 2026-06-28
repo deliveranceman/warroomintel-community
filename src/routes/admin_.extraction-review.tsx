@@ -909,12 +909,20 @@ function CollapsedRow({ c, isExpanded, onToggle }: {
 
 // ── Main page ────────────────────────────────────────────────────────────────
 
+type TableCounts = {
+  total: number
+  by_table: Record<string, number>
+  groups: Array<{ source_name: string; count: number }>
+}
+
 function ExtractionReviewPage() {
   const { isLoaded, isSignedIn, user } = useUser()
   const { getToken } = useAuth()
 
   // All hooks before any conditional return
-  const [candidates, setCandidates]       = useState<Candidate[]>([])
+  const [tableCounts, setTableCounts]       = useState<TableCounts | null>(null)
+  const [groupCandidates, setGroupCandidates] = useState<Record<string, Candidate[]>>({})
+  const [groupLoading, setGroupLoading]     = useState<Record<string, boolean>>({})
   const [anatomyRegions, setAnatomyRegions] = useState<AnatomyRegion[]>([])
   const [loading, setLoading]             = useState(true)
   const [listError, setListError]         = useState<string | null>(null)
@@ -933,7 +941,7 @@ function ExtractionReviewPage() {
 
   useEffect(() => {
     if (!isAdmin) return
-    loadCandidates()
+    loadSummary()
   }, [isAdmin])
 
   useEffect(() => {
@@ -942,27 +950,68 @@ function ExtractionReviewPage() {
     return () => clearTimeout(t)
   }, [toast])
 
-  async function loadCandidates(status = 'pending') {
+  async function loadSummary(status = 'pending') {
     setLoading(true)
     setListError(null)
-    setActive(null)
+    setTableCounts(null)
+    setGroupCandidates({})
+    setGroupLoading({})
     setExpandedCards({})
     setExpandedGroups({})
     try {
       const token = await getToken()
-      const qs    = status !== 'pending' ? `?status=${encodeURIComponent(status)}` : ''
-      const resp  = await fetch(`/api/admin-extraction-candidates${qs}`, {
+      const resp = await fetch(`/api/admin-extraction-candidates?mode=counts&status=${encodeURIComponent(status)}`, {
         headers: { Authorization: `Bearer ${token}` },
       })
       if (!resp.ok) throw new Error(`Status ${resp.status}`)
       const data = await resp.json()
-      setCandidates(data.candidates ?? [])
-      if (Array.isArray(data.anatomy_regions)) setAnatomyRegions(data.anatomy_regions)
+      setTableCounts(data)
     } catch (err: any) {
       setListError(String(err?.message ?? err))
     } finally {
       setLoading(false)
     }
+  }
+
+  // sourceName: '' = null source_name rows (stored as '' key in groupCandidates)
+  async function loadGroupCandidates(sourceName: string, status: string) {
+    if (groupLoading[sourceName] || groupCandidates[sourceName]) return
+    setGroupLoading(prev => ({ ...prev, [sourceName]: true }))
+    try {
+      const token = await getToken()
+      const resp = await fetch(
+        `/api/admin-extraction-candidates?status=${encodeURIComponent(status)}&source_name=${encodeURIComponent(sourceName)}`,
+        { headers: { Authorization: `Bearer ${token}` } },
+      )
+      if (!resp.ok) throw new Error(`Status ${resp.status}`)
+      const data = await resp.json()
+      setGroupCandidates(prev => ({ ...prev, [sourceName]: data.candidates ?? [] }))
+      if (Array.isArray(data.anatomy_regions)) setAnatomyRegions(data.anatomy_regions)
+    } catch {
+      setGroupCandidates(prev => ({ ...prev, [sourceName]: [] }))
+    } finally {
+      setGroupLoading(prev => ({ ...prev, [sourceName]: false }))
+    }
+  }
+
+  function removeCandidateFromState(id: string, targetTable: string, sourceName: string | null) {
+    setGroupCandidates(prev => {
+      const updated = { ...prev }
+      for (const key of Object.keys(updated)) {
+        updated[key] = updated[key].filter(x => x.id !== id)
+      }
+      return updated
+    })
+    setTableCounts(prev => {
+      if (!prev) return prev
+      const newByTable = { ...prev.by_table }
+      if ((newByTable[targetTable] ?? 0) > 0) newByTable[targetTable]--
+      const gk = sourceName ?? ''
+      const newGroups = prev.groups
+        .map(g => g.source_name === gk ? { ...g, count: Math.max(0, g.count - 1) } : g)
+        .filter(g => g.count > 0)
+      return { ...prev, total: Math.max(0, prev.total - 1), by_table: newByTable, groups: newGroups }
+    })
   }
 
   async function handleApprove(c: Candidate, editedPayload?: Record<string, any>) {
@@ -988,9 +1037,8 @@ function ExtractionReviewPage() {
       }
 
       const result = await resp.json()
-      setCandidates(prev => prev.filter(x => x.id !== c.id))
+      removeCandidateFromState(c.id, c.target_table, c.source_name)
 
-      // Rich toast for conditions; simple toast for bloodline tables
       if (result.condition_key) {
         const mode = result.mode as string
         const ck   = result.condition_key as string
@@ -1031,7 +1079,7 @@ function ExtractionReviewPage() {
         setToast(`Error: ${(err as any).error ?? 'reject failed'}`)
         return
       }
-      setCandidates(prev => prev.filter(x => x.id !== c.id))
+      removeCandidateFromState(c.id, c.target_table, c.source_name)
       setToast('Candidate rejected')
     } catch (err: any) {
       setToast(`Error: ${String(err?.message ?? err)}`)
@@ -1059,7 +1107,7 @@ function ExtractionReviewPage() {
         return
       }
       const result = await resp.json()
-      setCandidates(prev => prev.filter(x => x.id !== c.id))
+      removeCandidateFromState(c.id, c.target_table, c.source_name)
       const ck = result.condition_key as string
       const rk = result.region_key as string
       const rs = result.relevance_strength as number
@@ -1087,7 +1135,7 @@ function ExtractionReviewPage() {
         setToast(`Error: ${(err as any).error ?? 'hold failed'}`)
         return
       }
-      setCandidates(prev => prev.filter(x => x.id !== c.id))
+      removeCandidateFromState(c.id, c.target_table, c.source_name)
       setToast('Held for new region')
     } catch (err: any) {
       setToast(`Error: ${String(err?.message ?? err)}`)
@@ -1101,7 +1149,12 @@ function ExtractionReviewPage() {
   }
 
   function toggleGroup(key: string) {
-    setExpandedGroups(prev => ({ ...prev, [key]: !(prev[key] ?? true) }))
+    const willOpen = !(expandedGroups[key] ?? false)
+    setExpandedGroups(prev => ({ ...prev, [key]: willOpen }))
+    if (willOpen && !groupCandidates[key] && !groupLoading[key]) {
+      const currentStatus = showNeedsRegion ? 'needs_region' : 'pending'
+      void loadGroupCandidates(key, currentStatus)
+    }
   }
 
   function renderCandidateCard(c: Candidate) {
@@ -1123,24 +1176,8 @@ function ExtractionReviewPage() {
     return <GenericCard c={c} onApprove={() => handleApprove(c)} onReject={() => handleReject(c)} />
   }
 
-  const distinctTables = Array.from(new Set(candidates.map(c => c.target_table))).sort()
-  const visibleBase = activeFilter ? candidates.filter(c => c.target_table === activeFilter) : candidates
-  const visibleConf = confFilter === 'all' ? visibleBase : visibleBase.filter(c => c.confidence === confFilter)
-  const visible = typeFilter === 'all' ? visibleConf
-    : typeFilter === 'enrichment' ? visibleConf.filter(c => c.payload?.is_enrichment === true)
-    : visibleConf.filter(c => c.payload?.is_enrichment !== true)
-
-  const groups = new Map<string, Candidate[]>()
-  for (const c of visible) {
-    const key = c.source_name || (c.payload?.source_book as string) || 'Unspecified source'
-    if (!groups.has(key)) groups.set(key, [])
-    groups.get(key)!.push(c)
-  }
-  const groupKeys = [...groups.keys()].sort((a, b) => {
-    if (a === 'Unspecified source') return 1
-    if (b === 'Unspecified source') return -1
-    return a.localeCompare(b)
-  })
+  const distinctTables = Object.keys(tableCounts?.by_table ?? {}).sort()
+  const totalCount     = tableCounts?.total ?? 0
 
   if (!isLoaded) {
     return (
@@ -1198,46 +1235,35 @@ function ExtractionReviewPage() {
           </div>
         )}
 
-        {/* Summary header */}
-        {!loading && candidates.length > 0 && (
+        {/* Summary header — true server-side COUNTs, independent of any loaded group */}
+        {!loading && tableCounts !== null && totalCount > 0 && (
           <div style={{ background: CARD_BG, border: `1px solid ${BORDER}`, borderRadius: 6, padding: '12px 16px', marginBottom: 20 }}>
             <div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.14em', color: GOLD, marginBottom: 8 }}>PENDING SUMMARY</div>
             <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', alignItems: 'center' }}>
-              <span style={{ fontFamily: cinzel, fontSize: 11, color: GOLD_DEEP, letterSpacing: '0.05em' }}>{candidates.length} total</span>
+              <span style={{ fontFamily: cinzel, fontSize: 11, color: GOLD_DEEP, letterSpacing: '0.05em' }}>{totalCount} total</span>
               <span style={{ width: 1, height: 12, background: BORDER, display: 'inline-block' }} />
               {distinctTables.map(t => (
                 <span key={t} style={{ fontFamily: crimson, fontSize: 13, color: MUTED }}>
-                  {tableLabel(t)} <strong style={{ color: TEXT }}>{candidates.filter(c => c.target_table === t).length}</strong>
+                  {tableLabel(t)} <strong style={{ color: TEXT }}>{tableCounts.by_table[t] ?? 0}</strong>
                 </span>
               ))}
-              <span style={{ width: 1, height: 12, background: BORDER, display: 'inline-block' }} />
-              {(['high', 'medium', 'low'] as const).map(conf => {
-                const count = candidates.filter(c => c.confidence === conf).length
-                if (count === 0) return null
-                const cc = confidenceColor(conf)
-                return (
-                  <span key={conf} style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.06em', padding: '2px 8px', borderRadius: 3, background: cc.bg, border: `1px solid ${cc.border}`, color: cc.color }}>
-                    {conf} {count}
-                  </span>
-                )
-              })}
             </div>
           </div>
         )}
 
         {/* Target table pills */}
-        {!loading && (candidates.length > 0 || showNeedsRegion) && (
+        {!loading && (totalCount > 0 || showNeedsRegion) && (
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 8, alignItems: 'center' }}>
-            {candidates.length > 0 && (
+            {totalCount > 0 && (
               <>
                 <button
                   onClick={() => setActive(null)}
                   style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.1em', padding: '6px 14px', borderRadius: 20, cursor: 'pointer', background: activeFilter === null ? GOLD_DEEP : 'transparent', border: `1px solid ${activeFilter === null ? GOLD_DEEP : BORDER}`, color: activeFilter === null ? '#FFFFFF' : MUTED }}
                 >
-                  All ({candidates.length})
+                  All ({totalCount})
                 </button>
                 {distinctTables.map(t => {
-                  const count = candidates.filter(c => c.target_table === t).length
+                  const count = tableCounts?.by_table[t] ?? 0
                   const active = activeFilter === t
                   return (
                     <button key={t} onClick={() => setActive(t)}
@@ -1253,7 +1279,7 @@ function ExtractionReviewPage() {
         )}
 
         {/* Secondary filters + expand/collapse all */}
-        {!loading && candidates.length > 0 && (
+        {!loading && totalCount > 0 && (
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8, alignItems: 'center' }}>
             <span style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.1em', color: MUTED, marginRight: 2 }}>CONFIDENCE</span>
             {(['all', 'high', 'medium', 'low'] as const).map(v => (
@@ -1274,11 +1300,22 @@ function ExtractionReviewPage() {
             ))}
             <span style={{ flex: 1 }} />
             <button
-              onClick={() => { const n: Record<string, boolean> = {}; visible.forEach(c => { n[c.id] = true }); setExpandedCards(n) }}
+              onClick={() => {
+                const allSources = (tableCounts?.groups ?? []).map(g => g.source_name)
+                const newExpanded: Record<string, boolean> = {}
+                for (const src of allSources) newExpanded[src] = true
+                setExpandedGroups(newExpanded)
+                const currentStatus = showNeedsRegion ? 'needs_region' : 'pending'
+                for (const src of allSources) {
+                  if (!groupCandidates[src] && !groupLoading[src]) {
+                    void loadGroupCandidates(src, currentStatus)
+                  }
+                }
+              }}
               style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.08em', padding: '4px 10px', borderRadius: 3, cursor: 'pointer', background: 'transparent', border: `1px solid ${BORDER}`, color: MUTED }}
             >Expand All</button>
             <button
-              onClick={() => setExpandedCards({})}
+              onClick={() => { setExpandedGroups({}); setExpandedCards({}) }}
               style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.08em', padding: '4px 10px', borderRadius: 3, cursor: 'pointer', background: 'transparent', border: `1px solid ${BORDER}`, color: MUTED }}
             >Collapse All</button>
           </div>
@@ -1290,7 +1327,7 @@ function ExtractionReviewPage() {
               onClick={() => {
                 const next = !showNeedsRegion
                 setShowNeedsRegion(next)
-                loadCandidates(next ? 'needs_region' : 'pending')
+                loadSummary(next ? 'needs_region' : 'pending')
               }}
               style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.1em', padding: '5px 12px', borderRadius: 20, cursor: 'pointer', background: showNeedsRegion ? 'rgba(234,179,8,0.15)' : 'transparent', border: `1px solid ${showNeedsRegion ? 'rgba(234,179,8,0.5)' : BORDER}`, color: showNeedsRegion ? '#854D0E' : MUTED }}
             >
@@ -1305,34 +1342,56 @@ function ExtractionReviewPage() {
         )}
 
         {/* Empty state */}
-        {!loading && candidates.length === 0 && !listError && (
+        {!loading && totalCount === 0 && !listError && (
           <div style={{ background: CARD_BG, border: `1px solid ${BORDER}`, borderRadius: 6, padding: '48px 32px', textAlign: 'center' }}>
             <div style={{ fontFamily: cinzel, fontSize: 11, color: GOLD_DEEP, letterSpacing: '0.12em', marginBottom: 10 }}>NO PENDING CANDIDATES</div>
             <p style={{ fontFamily: crimson, fontSize: 15, color: MUTED, margin: 0, lineHeight: 1.6 }}>No pending candidates. Run a Research Drop to extract some.</p>
           </div>
         )}
 
-        {/* Cards — grouped by source book, collapsed by default */}
-        {!loading && visible.length > 0 && (
+        {/* Groups — collapsed by default, cards lazy-loaded per group on expand */}
+        {!loading && totalCount > 0 && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
             {acting && (
               <div style={{ fontFamily: crimson, fontSize: 13, color: MUTED, textAlign: 'center', padding: 8 }}>Working…</div>
             )}
-            {groupKeys.map(source => {
-              const items = groups.get(source)!
-              const isGroupOpen = expandedGroups[source] ?? true
+            {(tableCounts?.groups ?? []).map(({ source_name: src, count: groupTotal }) => {
+              const isGroupOpen    = expandedGroups[src] ?? false
+              const loaded         = groupCandidates[src]
+              const isGroupLoading = groupLoading[src] ?? false
+              const displayName    = src || 'Unspecified source'
+
+              const items = loaded
+                ? loaded.filter(c => {
+                    if (activeFilter && c.target_table !== activeFilter) return false
+                    if (confFilter !== 'all' && c.confidence !== confFilter) return false
+                    if (typeFilter === 'enrichment' && c.payload?.is_enrichment !== true) return false
+                    if (typeFilter === 'new' && c.payload?.is_enrichment === true) return false
+                    return true
+                  })
+                : []
+
               return (
-                <div key={source}>
+                <div key={src}>
                   <div
-                    onClick={() => toggleGroup(source)}
+                    onClick={() => toggleGroup(src)}
                     style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', padding: '6px 2px', marginBottom: 8, borderBottom: `1px solid ${BORDER}` }}
                   >
                     <span style={{ fontFamily: cinzel, fontSize: 10, color: GOLD }}>{isGroupOpen ? '▾' : '▸'}</span>
-                    <span style={{ fontFamily: cinzel, fontSize: 12, letterSpacing: '0.07em', fontWeight: 600, color: GOLD_DEEP }}>{source}</span>
-                    <span style={{ fontFamily: crimson, fontSize: 13, color: MUTED }}>({items.length})</span>
+                    <span style={{ fontFamily: cinzel, fontSize: 12, letterSpacing: '0.07em', fontWeight: 600, color: GOLD_DEEP }}>{displayName}</span>
+                    <span style={{ fontFamily: crimson, fontSize: 13, color: MUTED }}>({groupTotal})</span>
+                    {isGroupLoading && <span style={{ fontFamily: crimson, fontSize: 11, color: MUTED, fontStyle: 'italic' }}>loading…</span>}
                   </div>
                   {isGroupOpen && (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                      {isGroupLoading && !loaded && (
+                        <div style={{ fontFamily: crimson, fontSize: 13, color: MUTED, padding: '8px 2px' }}>Loading candidates…</div>
+                      )}
+                      {loaded && items.length === 0 && (
+                        <div style={{ fontFamily: crimson, fontSize: 13, color: MUTED, padding: '8px 2px' }}>
+                          {activeFilter || confFilter !== 'all' || typeFilter !== 'all' ? 'No candidates match the current filters.' : 'No candidates.'}
+                        </div>
+                      )}
                       {items.map(c => {
                         const isExpanded = expandedCards[c.id] ?? false
                         return (

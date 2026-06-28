@@ -495,17 +495,62 @@ export default async function handler(req: Request): Promise<Response> {
 
   // ── GET — list pending candidates ──────────────────────────────────────────
   if (req.method === 'GET') {
-    const url          = new URL(req.url)
-    const targetTable  = url.searchParams.get('target_table')
-    const statusFilter = url.searchParams.get('status') || 'pending'
+    const url             = new URL(req.url)
+    const targetTable     = url.searchParams.get('target_table')
+    const statusFilter    = url.searchParams.get('status') || 'pending'
+    const mode            = url.searchParams.get('mode')
+    const sourceNameParam = url.searchParams.get('source_name') // null=no filter; ''=IS NULL; else exact match
 
+    // ── mode=counts: lightweight summary for page header + group list ────────
+    if (mode === 'counts') {
+      // No payload fetched — stays fast at any row count.
+      // 50 000 ceiling far exceeds any realistic pending queue; avoids silent PostgREST cap.
+      const { data: sumRows, error: sumErr } = await client
+        .from('extraction_candidates')
+        .select('target_table, source_name')
+        .eq('status', statusFilter)
+        .limit(50000)
+
+      if (sumErr) return json({ error: sumErr.message }, 500)
+
+      const rows = (sumRows ?? []) as { target_table: string; source_name: string | null }[]
+      const total = rows.length
+      const by_table: Record<string, number> = {}
+      const groupMap: Record<string, number> = {}
+
+      for (const r of rows) {
+        by_table[r.target_table] = (by_table[r.target_table] ?? 0) + 1
+        const gk = r.source_name ?? ''
+        groupMap[gk] = (groupMap[gk] ?? 0) + 1
+      }
+
+      const groups = Object.entries(groupMap)
+        .map(([source_name, count]) => ({ source_name, count }))
+        .sort((a, b) => {
+          if (!a.source_name) return 1
+          if (!b.source_name) return -1
+          return a.source_name.localeCompare(b.source_name)
+        })
+
+      return json({ total, by_table, groups })
+    }
+
+    // ── Per-group / filtered fetch ────────────────────────────────────────────
     let query = client
       .from('extraction_candidates')
       .select('id, target_table, confidence, status, source_name, source_id, payload, created_at')
       .eq('status', statusFilter)
       .order('created_at', { ascending: false })
+      .limit(500) // explicit per-group cap; a single source book will not exceed this
 
     if (targetTable) query = (query as any).eq('target_table', targetTable)
+    if (sourceNameParam !== null) {
+      if (sourceNameParam === '') {
+        query = (query as any).is('source_name', null)
+      } else {
+        query = (query as any).eq('source_name', sourceNameParam)
+      }
+    }
 
     const { data, error } = await query
     if (error) return json({ error: error.message }, 500)
