@@ -153,6 +153,7 @@
 
 [functions."assessment-upload"]
   timeout = 30
+  external_node_modules = ["mammoth"]
 
 [functions."assessment-strategy"]
   timeout = 60

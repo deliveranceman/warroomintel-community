@@ -1,13 +1,11 @@
 import { createClient } from '@supabase/supabase-js'
-import { createRequire } from 'module'
 import { requireAdmin2, CORS as HEADERS } from './_shared/access'
 import { findDuplicateResource } from './_shared/resourceDedup'
+import { extractTextFromFile } from './_shared/fileText'
 
 const { url: supabaseUrl, serviceRoleKey: supabaseServiceKey } = JSON.parse(process.env.SUPABASE || '{}')
-const require = createRequire(import.meta.url)
 
 const BUCKET = 'ministry-library'
-const MAX_CHARS = 120_000
 
 // Exact replica of chunkAndEmbed from library-backfill.ts — same constants, model, insert shape
 const CHUNK_SIZE    = 500
@@ -68,47 +66,6 @@ function makeSupabase() {
   )
 }
 
-async function extractText(buffer: Buffer, filename: string): Promise<string> {
-  const ext = filename.toLowerCase().split('.').pop()
-  if (ext === 'txt') {
-    return new TextDecoder('utf-8').decode(buffer).replace(/\0/g, ' ').slice(0, MAX_CHARS)
-  }
-  if (ext === 'docx') {
-    try {
-      const mammoth = require('mammoth')
-      const result = await mammoth.extractRawText({ buffer })
-      return (result.value || '').slice(0, MAX_CHARS)
-    } catch (e: any) {
-      console.error('[LIBRARY-UPLOAD] mammoth docx error:', e?.message)
-      return ''
-    }
-  }
-  if (ext === 'pdf') {
-    try {
-      const { getDocument, GlobalWorkerOptions } = await import('pdfjs-dist/legacy/build/pdf.mjs') as any
-      GlobalWorkerOptions.workerSrc = ''
-      const loadingTask = getDocument({ data: new Uint8Array(buffer) })
-      const pdfDoc = await loadingTask.promise
-      const pages: string[] = []
-      for (let i = 1; i <= pdfDoc.numPages; i++) {
-        const page = await pdfDoc.getPage(i)
-        const content = await page.getTextContent()
-        const pageText = (content.items as any[]).map((item: any) => item.str || '').join(' ')
-        pages.push(pageText)
-      }
-      const text = pages.join('\n\n').trim().slice(0, MAX_CHARS)
-      if (text.length < 50) {
-        console.log('[LIBRARY-UPLOAD] PDF appears to be scanned/image-only — no extractable text')
-        return ''
-      }
-      return text
-    } catch (e: any) {
-      console.error('[LIBRARY-UPLOAD] pdfjs extraction error:', e?.message)
-      return ''
-    }
-  }
-  return ''
-}
 
 export default async function handler(req: Request) {
   if (req.method === 'OPTIONS') {
@@ -202,7 +159,7 @@ export default async function handler(req: Request) {
       const fileBuffer = Buffer.from(await fileBlob.arrayBuffer())
       console.log('[LIBRARY-UPLOAD] File downloaded from storage', { bytes: fileBuffer.length })
 
-      const extractedText = await extractText(fileBuffer, resolvedFilename)
+      const { text: extractedText } = await extractTextFromFile(fileBuffer, resolvedFilename)
       console.log('[LIBRARY-UPLOAD] Text extraction result', {
         textLength: extractedText.length,
         preview: extractedText.slice(0, 300),

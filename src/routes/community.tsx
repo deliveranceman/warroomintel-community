@@ -10602,6 +10602,12 @@ function AssessmentUploadView({ theme, isMobile, tier: _tier, tierLevel: _tierLe
     setError('')
     setStrategy('')
 
+    // Base64 inflation ~1.33× — Netlify's 6 MB body limit fires around 4.5 MB source
+    if (f.size > 4 * 1024 * 1024) {
+      setError('This file is over 4 MB. Please save as a smaller file, or use the "Fill Out Now" tab to type your responses.')
+      return
+    }
+
     const reader = new FileReader()
     reader.onload = async (e) => {
       const base64 = (e.target?.result as string)?.split(',')[1]
@@ -10704,11 +10710,11 @@ function AssessmentUploadView({ theme, isMobile, tier: _tier, tierLevel: _tierLe
 
             <div style={{ fontFamily: cinzel, fontSize: 10, color: isDark ? G : '#8B6914', letterSpacing: '0.1em', marginBottom: 10 }}>STEP 2 — UPLOAD COMPLETED ASSESSMENT</div>
             <p style={{ fontFamily: crimson, fontSize: 14, color: isDark ? '#6b5e45' : '#574B33', marginBottom: 16 }}>
-              Accepts PDF, PNG, JPG (photo of paper form), or DOCX. SOL will read the content and generate a personalized war strategy.
+              Accepts PDF, PNG, JPG (photo of paper form), DOCX, or TXT. SOL will read the content and generate a personalized war strategy.
             </p>
 
             <label style={{ display: 'block', border: `2px dashed rgba(201,168,76,${file ? '0.6' : '0.25'})`, borderRadius: 10, padding: '40px 20px', textAlign: 'center' as const, cursor: 'pointer', background: isDark ? 'rgba(201,168,76,0.03)' : 'rgba(201,168,76,0.04)', transition: 'all 0.2s' }}>
-              <input type="file" accept=".pdf,.png,.jpg,.jpeg,.docx,.doc" style={{ display: 'none' }} onChange={e => { const f = e.target.files?.[0]; if (f) handleFileUpload(f) }} />
+              <input type="file" accept=".pdf,.png,.jpg,.jpeg,.docx,.doc,.txt" style={{ display: 'none' }} onChange={e => { const f = e.target.files?.[0]; if (f) handleFileUpload(f) }} />
               {uploading ? (
                 <div>
                   <div style={{ fontFamily: cinzel, fontSize: 12, color: isDark ? G : '#8B6914', letterSpacing: '0.1em', marginBottom: 8 }}>READING ASSESSMENT...</div>
@@ -10724,7 +10730,7 @@ function AssessmentUploadView({ theme, isMobile, tier: _tier, tierLevel: _tierLe
                 <div>
                   <div style={{ fontSize: 36, marginBottom: 12 }}>📋</div>
                   <div style={{ fontFamily: cinzel, fontSize: 12, color: isDark ? '#e8dcc8' : '#1F1B12', letterSpacing: '0.08em', marginBottom: 6 }}>DROP FILE HERE OR CLICK TO BROWSE</div>
-                  <div style={{ fontFamily: crimson, fontSize: 13, color: isDark ? '#6b5e45' : '#574B33' }}>PDF · PNG · JPG · DOCX</div>
+                  <div style={{ fontFamily: crimson, fontSize: 13, color: isDark ? '#6b5e45' : '#574B33' }}>PDF · PNG · JPG · DOCX · TXT</div>
                 </div>
               )}
             </label>

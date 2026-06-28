@@ -1,4 +1,5 @@
 import { requireTier } from './_shared/access'
+import { extractTextFromFile } from './_shared/fileText'
 
 const headers = {
   'Access-Control-Allow-Origin': '*',
@@ -21,12 +22,11 @@ export default async function handler(req: Request) {
   let extractedText = ''
 
   try {
-    const isImage = fileType?.startsWith('image/') || /\.(png|jpg|jpeg)$/i.test(fileName || '')
-    const isPDF = fileType === 'application/pdf' || (fileName || '').endsWith('.pdf')
-    const isDoc = /\.(docx?|doc)$/i.test(fileName || '')
+    const isImage = (fileType as string | undefined)?.startsWith('image/') || /\.(png|jpg|jpeg)$/i.test(fileName || '')
+    const isPDF   = fileType === 'application/pdf' || /\.pdf$/i.test(fileName || '')
 
-    if (isImage || isPDF) {
-      const mediaType = isImage ? (fileType || 'image/png') : 'application/pdf'
+    if (isImage) {
+      // Claude vision — works correctly, no beta header needed, keep unchanged
       const claudeRes = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
         headers: {
@@ -40,26 +40,27 @@ export default async function handler(req: Request) {
           messages: [{
             role: 'user',
             content: [
-              {
-                type: isPDF ? 'document' : 'image',
-                source: { type: 'base64', media_type: mediaType, data: fileData },
-              },
-              {
-                type: 'text',
-                text: 'This is a ministry assessment intake form. Extract ALL the content — every question, answer, checkbox, and free text response — as plain text. Preserve all answers faithfully. Do not summarize. Output only the extracted content, no preamble.',
-              },
+              { type: 'image', source: { type: 'base64', media_type: fileType || 'image/png', data: fileData } },
+              { type: 'text', text: 'This is a ministry assessment intake form. Extract ALL the content — every question, answer, checkbox, and free text response — as plain text. Preserve all answers faithfully. Do not summarize. Output only the extracted content, no preamble.' },
             ],
           }],
         }),
       })
       const claudeData = await claudeRes.json()
       extractedText = claudeData.content?.[0]?.text || ''
-    } else if (isDoc) {
-      const decoded = Buffer.from(fileData, 'base64').toString('utf-8', 0, 50000)
-      extractedText = decoded.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 8000)
-      if (extractedText.length < 100) {
-        return new Response(JSON.stringify({ error: 'Could not read DOCX. Try saving as PDF and uploading that instead.' }), { status: 400, headers })
+    } else {
+      // PDF → pdfjs-dist  |  DOCX/DOC → mammoth  |  TXT → TextDecoder
+      const buffer = Buffer.from(fileData as string, 'base64')
+      const { text, method } = await extractTextFromFile(buffer, fileName || '', fileType as string | undefined)
+      if (method === 'none' || !text) {
+        if (isPDF) {
+          return new Response(JSON.stringify({
+            error: "Couldn't read this PDF — it may be a scanned image. Please paste the text using \"Fill Out Now\", upload a .txt or .docx, or upload a clear photo of the pages.",
+          }), { status: 400, headers })
+        }
+        return new Response(JSON.stringify({ error: 'Could not extract text from this file. Please try a different format.' }), { status: 400, headers })
       }
+      extractedText = text
     }
 
     if (!extractedText || extractedText.length < 50) {
