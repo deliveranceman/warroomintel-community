@@ -33,6 +33,7 @@ import { helpCategories, helpArticles, type HelpArticle } from '@/data/helpConte
 import { WRIReactionPicker } from '@/components/chat/WRIReactionPicker'
 import { WRIReactionList } from '@/components/chat/WRIReactionList'
 import { GiphyPicker } from '@/components/chat/GiphyPicker'
+import { DaySeparator } from '@/components/chat/DaySeparator'
 import { applyOptimisticAdd, applyOptimisticRemove, sendWRIReactionDirect, removeWRIReactionDirect, userHasReacted, WRI_GOLD, type WRIReactionType } from '@/lib/wri-reactions'
 import { buildGifAttachment } from '@/lib/stream-attachments'
 import type { GiphyHit } from '@/lib/giphy-types'
@@ -3082,12 +3083,23 @@ function WarRoomChatView({ streamToken, apiKey, userId, isDark, userLevel = 0 }:
             No messages yet. Be the first to speak.
           </div>
         )}
-        {messages.filter(msg => msg.type !== 'deleted' && !msg.deleted_at).map((msg, i) => {
+        {(() => {
+        const sameDay = (a: Date, b: Date) =>
+          a.getFullYear() === b.getFullYear() &&
+          a.getMonth() === b.getMonth() &&
+          a.getDate() === b.getDate()
+        let prevDate: Date | null = null
+        return messages.filter(msg => msg.type !== 'deleted' && !msg.deleted_at).map((msg, i) => {
           const isOwn = msg.user?.id === userId
           const prevMsg = messages[i - 1]
           const sameAuthor = prevMsg && prevMsg.user?.id === msg.user?.id
           const time = new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+          const msgDate = new Date(msg.created_at)
+          const showSeparator = !prevDate || !sameDay(prevDate, msgDate)
+          prevDate = msgDate
           return (
+            <React.Fragment key={msg.id}>
+            {showSeparator && <DaySeparator date={msgDate} isDark={isDark} />}
             <div key={msg.id} className="msg-row" style={{ display: 'flex', gap: 10, alignItems: 'flex-start', marginTop: sameAuthor ? 2 : 12 }}
               onMouseEnter={() => setHoveredMsg(msg.id)}
               onMouseLeave={() => setHoveredMsg(null)}
@@ -3218,8 +3230,9 @@ function WarRoomChatView({ streamToken, apiKey, userId, isDark, userLevel = 0 }:
                 )}
               </div>
             </div>
+            </React.Fragment>
           )
-        })}
+        })})()}
         <div ref={bottomRef} />
       </div>
 
@@ -13198,13 +13211,24 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
                 <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: WMUT, fontSize: 13 }}>Loading…</div>
               ) : messages.length === 0 ? (
                 <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: WMUT, fontSize: 13 }}>No messages yet. Say hello!</div>
-              ) : messages.map(msg => {
+              ) : (() => {
+                const sameDay = (a: Date, b: Date) =>
+                  a.getFullYear() === b.getFullYear() &&
+                  a.getMonth() === b.getMonth() &&
+                  a.getDate() === b.getDate()
+                let prevDate: Date | null = null
+                return messages.map(msg => {
                 const isOwn = msg.user?.id === userId
                 const voiceAtt = msg.attachments?.find(a => a.type === 'voice')
                 const callAtt  = msg.attachments?.find(a => a.type === 'call_log')
                 const gifAtt   = msg.attachments?.find(a => a.type === 'giphy')
                 const av2 = getAvatarColor(msg.user?.id || '')
+                const msgDate = new Date(msg.created_at)
+                const showSeparator = !prevDate || !sameDay(prevDate, msgDate)
+                prevDate = msgDate
                 return (
+                  <React.Fragment key={msg.id}>
+                  {showSeparator && <DaySeparator date={msgDate} isDark={isDark} />}
                   <div key={msg.id} style={{ display: 'flex', flexDirection: isOwn ? 'row-reverse' : 'row', gap: 8, alignItems: 'flex-end' }}>
                     {!isOwn && (
                       <div style={{ width: 22, height: 22, borderRadius: '50%', background: av2.bg, color: av2.color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 8, fontWeight: 700, flexShrink: 0, overflow: 'hidden' }}>
@@ -13294,8 +13318,9 @@ function MessengerSection({ userId, getToken, tier, pendingDmUserId, pendingDmUs
                       )}
                     </div>
                   </div>
+                  </React.Fragment>
                 )
-              })}
+              })})()}
               <div ref={messagesEndRef} />
             </div>
 
