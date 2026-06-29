@@ -153,7 +153,7 @@
 
 [functions."assessment-upload"]
   timeout = 30
-  external_node_modules = ["mammoth"]
+  external_node_modules = ["mammoth", "@napi-rs/canvas"]
 
 [functions."assessment-strategy"]
   timeout = 60
@@ -258,6 +258,7 @@
 
 [functions."job-worker-background"]
   # Netlify background function — no timeout key (background ignores it)
+  external_node_modules = ["@napi-rs/canvas"]
 
 [functions."dashboard-load"]
   timeout = 15
