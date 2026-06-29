@@ -509,7 +509,7 @@ export default async function handler(req: Request): Promise<Response> {
       // and a PostgREST 12 GROUP BY aggregate for per-source counts.
       // HEAD requests use SELECT COUNT(*) on the DB — not subject to max_rows.
       // The aggregate returns ~10 rows (one per distinct source_name) — well under max_rows.
-      const [totalRes, tableRes, groupRes] = await Promise.all([
+      const [totalRes, tableRes] = await Promise.all([
         client.from('extraction_candidates')
           .select('*', { count: 'exact', head: true })
           .eq('status', statusFilter),
@@ -519,15 +519,9 @@ export default async function handler(req: Request): Promise<Response> {
             .eq('status', statusFilter)
             .eq('target_table', t)
         )),
-        // PostgREST 12 aggregate: one row per distinct source_name with COUNT(*)
-        (client.from('extraction_candidates') as any)
-          .select('source_name, cnt:count()')
-          .eq('status', statusFilter)
-          .order('source_name', { ascending: true, nullsFirst: false }),
       ])
 
       if (totalRes.error) return json({ error: totalRes.error.message }, 500)
-      if (groupRes.error) return json({ error: (groupRes.error as any).message }, 500)
 
       const total = totalRes.count ?? 0
 
@@ -537,16 +531,12 @@ export default async function handler(req: Request): Promise<Response> {
         if (cnt > 0) by_table[KNOWN_TABLES[i]] = cnt
       }
 
-      const groups = ((groupRes.data ?? []) as { source_name: string | null; cnt: unknown }[])
-        .map(r => ({
-          source_name: r.source_name ?? '',
-          count: Number(r.cnt ?? 0),
-        }))
-        .sort((a, b) => {
-          if (!a.source_name) return 1
-          if (!b.source_name) return -1
-          return a.source_name.localeCompare(b.source_name)
-        })
+      // RPC: one GROUP BY query regardless of source count — O(1) round-trips
+      const { data: groupRows, error: gErr } = await client.rpc('extraction_pending_group_counts', { p_status: statusFilter })
+      if (gErr) return json({ error: gErr.message }, 500)
+
+      const groups = ((groupRows ?? []) as { source_name: string | null; cnt: bigint | number }[])
+        .map(r => ({ source_name: r.source_name ?? '', count: Number(r.cnt) }))
 
       return json({ total, by_table, groups })
     }
