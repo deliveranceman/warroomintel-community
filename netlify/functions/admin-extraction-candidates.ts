@@ -501,31 +501,47 @@ export default async function handler(req: Request): Promise<Response> {
     const mode            = url.searchParams.get('mode')
     const sourceNameParam = url.searchParams.get('source_name') // null=no filter; ''=IS NULL; else exact match
 
-    // ── mode=counts: lightweight summary for page header + group list ────────
+    // ── mode=counts: true database COUNTs — no row fetching, immune to max_rows ─
     if (mode === 'counts') {
-      // No payload fetched — stays fast at any row count.
-      // 50 000 ceiling far exceeds any realistic pending queue; avoids silent PostgREST cap.
-      const { data: sumRows, error: sumErr } = await client
-        .from('extraction_candidates')
-        .select('target_table, source_name')
-        .eq('status', statusFilter)
-        .limit(50000)
+      const KNOWN_TABLES = ['curses', 'conditions', 'condition_region_links', 'cultural_dossiers', 'secret_societies'] as const
 
-      if (sumErr) return json({ error: sumErr.message }, 500)
+      // All in parallel: HEAD count for total, one HEAD count per target_table,
+      // and a PostgREST 12 GROUP BY aggregate for per-source counts.
+      // HEAD requests use SELECT COUNT(*) on the DB — not subject to max_rows.
+      // The aggregate returns ~10 rows (one per distinct source_name) — well under max_rows.
+      const [totalRes, tableRes, groupRes] = await Promise.all([
+        client.from('extraction_candidates')
+          .select('*', { count: 'exact', head: true })
+          .eq('status', statusFilter),
+        Promise.all(KNOWN_TABLES.map(t =>
+          client.from('extraction_candidates')
+            .select('*', { count: 'exact', head: true })
+            .eq('status', statusFilter)
+            .eq('target_table', t)
+        )),
+        // PostgREST 12 aggregate: one row per distinct source_name with COUNT(*)
+        (client.from('extraction_candidates') as any)
+          .select('source_name, cnt:count()')
+          .eq('status', statusFilter)
+          .order('source_name', { ascending: true, nullsFirst: false }),
+      ])
 
-      const rows = (sumRows ?? []) as { target_table: string; source_name: string | null }[]
-      const total = rows.length
+      if (totalRes.error) return json({ error: totalRes.error.message }, 500)
+      if (groupRes.error) return json({ error: (groupRes.error as any).message }, 500)
+
+      const total = totalRes.count ?? 0
+
       const by_table: Record<string, number> = {}
-      const groupMap: Record<string, number> = {}
-
-      for (const r of rows) {
-        by_table[r.target_table] = (by_table[r.target_table] ?? 0) + 1
-        const gk = r.source_name ?? ''
-        groupMap[gk] = (groupMap[gk] ?? 0) + 1
+      for (let i = 0; i < KNOWN_TABLES.length; i++) {
+        const cnt = tableRes[i].count ?? 0
+        if (cnt > 0) by_table[KNOWN_TABLES[i]] = cnt
       }
 
-      const groups = Object.entries(groupMap)
-        .map(([source_name, count]) => ({ source_name, count }))
+      const groups = ((groupRes.data ?? []) as { source_name: string | null; cnt: unknown }[])
+        .map(r => ({
+          source_name: r.source_name ?? '',
+          count: Number(r.cnt ?? 0),
+        }))
         .sort((a, b) => {
           if (!a.source_name) return 1
           if (!b.source_name) return -1
