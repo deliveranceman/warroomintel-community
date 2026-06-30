@@ -262,3 +262,30 @@
 
 [functions."dashboard-load"]
   timeout = 15
+
+[functions."admin-artifacts"]
+  timeout = 15
+
+[functions."admin-artifact-relationships"]
+  timeout = 15
+
+[functions."admin-artifact-spirits"]
+  timeout = 15
+
+[functions."admin-artifact-scriptures"]
+  timeout = 15
+
+[functions."admin-artifact-resources"]
+  timeout = 15
+
+[functions."admin-artifact-traditions"]
+  timeout = 15
+
+[functions."admin-artifact-media"]
+  timeout = 15
+
+[functions."admin-artifact-sources"]
+  timeout = 15
+
+[functions."admin-artifact-types"]
+  timeout = 10

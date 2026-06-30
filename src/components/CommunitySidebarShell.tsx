@@ -380,6 +380,10 @@ export function CommunitySidebarShell({ activeItem, fillViewport, children }: Pr
             </div>
           ))}
 
+          {/* ── BABEL FILES ── */}
+          {sectionLabel('Babel Files')}
+          {navLink('Babel Files', '/community', <span style={{ fontSize: 14, lineHeight: 1 }}>🗂</span>)}
+
           {/* ── ADMIN (minister only) ── */}
           {isMinister && (
             <>

@@ -13603,6 +13603,7 @@ function AdminPage() {
   })
   const [solOpen,        setSolOpen]        = useState(() => { try { return localStorage.getItem('adm_sol_open') !== 'false' } catch { return true } })
   const [intelOpen,      setIntelOpen]      = useState(() => { try { return localStorage.getItem('adm_intel_open') !== 'false' } catch { return true } })
+  const [babelOpen,      setBabelOpen]      = useState(() => { try { return localStorage.getItem('adm_babel_open') !== 'false' } catch { return true } })
   const [moderationOpen, setModerationOpen] = useState(() => { try { return localStorage.getItem('adm_mod_open') !== 'false' } catch { return true } })
   const [contentOpen,    setContentOpen]    = useState(() => { try { return localStorage.getItem('adm_content_open') !== 'false' } catch { return true } })
   const [operationsOpen, setOperationsOpen] = useState(() => { try { return localStorage.getItem('adm_ops_open') !== 'false' } catch { return true } })
@@ -13670,6 +13671,9 @@ function AdminPage() {
       { key: 'sources',            label: '✦ Sources'               },
       { key: 'taxonomy',           label: 'Taxonomy Review'         },
       { key: 'spiritual-mapping',  label: 'Spiritual Mapping'       },
+    ]},
+    { label: 'BABEL FILES', items: [
+      { key: 'babel-files',        label: '🗂 Artifacts'            },
     ]},
     { label: 'MODERATION', items: [
       { key: 'moderation', label: '📋 Moderation' },
@@ -13747,6 +13751,7 @@ function AdminPage() {
                 DASHBOARD: true,
                 SOL: solOpen,
                 'INTEL ARCHIVE': intelOpen,
+                'BABEL FILES': babelOpen,
                 MODERATION: moderationOpen,
                 CONTENT: contentOpen,
                 OPERATIONS: operationsOpen,
@@ -13754,6 +13759,7 @@ function AdminPage() {
               const groupToggleMap: Record<string, () => void> = {
                 SOL:           () => { const n = !solOpen;        setSolOpen(n);        try { localStorage.setItem('adm_sol_open', String(n)) } catch {} },
                 'INTEL ARCHIVE': () => { const n = !intelOpen;    setIntelOpen(n);      try { localStorage.setItem('adm_intel_open', String(n)) } catch {} },
+                'BABEL FILES': () => { const n = !babelOpen;      setBabelOpen(n);      try { localStorage.setItem('adm_babel_open', String(n)) } catch {} },
                 MODERATION:    () => { const n = !moderationOpen; setModerationOpen(n); try { localStorage.setItem('adm_mod_open', String(n)) } catch {} },
                 CONTENT:       () => { const n = !contentOpen;    setContentOpen(n);    try { localStorage.setItem('adm_content_open', String(n)) } catch {} },
                 OPERATIONS:    () => { const n = !operationsOpen; setOperationsOpen(n); try { localStorage.setItem('adm_ops_open', String(n)) } catch {} },
@@ -13883,6 +13889,7 @@ function AdminPage() {
               </div>
             )}
             {tab === 'atmosphere'        && <AtmosphereAdmin getToken={getToken} isDark={isDark} />}
+            {tab === 'babel-files'       && <BabelFilesAdmin getToken={getToken} isDark={isDark} />}
           </div>
         </div>
 
@@ -17799,6 +17806,981 @@ function RunExtractionPanel({ getToken, isDark }: { getToken: any; isDark: boole
           </button>
         </div>
       )}
+    </div>
+  )
+}
+
+// ─── BABEL FILES ADMIN ────────────────────────────────────────────────────────
+
+type ArtifactRow = {
+  id: string; slug: string; name: string; artifactType: string; status: string
+  classification: string; intelligenceOnly: boolean; cautionLevel: number | null
+  published: boolean; compiledBy: string; createdAt: string; updatedAt: string
+  subjectImageUrl: string; aliases: string; summary: string; body: string
+  cautionNote: string; firstAppearance: string; origin: string; ogImageUrl: string
+  details: Record<string, any>; createdBy: string; sourcesCount: number; shareCount: number
+}
+
+type ArtifactType = { code: string; display_name: string; babel_brand: string; icon: string; sort_order: number }
+
+function BabelFilesAdmin({ getToken, isDark }: { getToken: any; isDark: boolean }) {
+  const [view, setView]         = useState<'list' | 'edit'>('list')
+  const [editing, setEditing]   = useState<ArtifactRow | null>(null)
+
+  function openNew() { setEditing(null); setView('edit') }
+  function openEdit(a: ArtifactRow) { setEditing(a); setView('edit') }
+  function backToList() { setView('list'); setEditing(null) }
+
+  if (view === 'edit') {
+    return <ArtifactEditForm artifact={editing} getToken={getToken} isDark={isDark} onBack={backToList} />
+  }
+  return <ArtifactList getToken={getToken} isDark={isDark} onNew={openNew} onEdit={openEdit} />
+}
+
+// ─── ArtifactList ─────────────────────────────────────────────────────────────
+
+function ArtifactList({ getToken, isDark, onNew, onEdit }: {
+  getToken: any; isDark: boolean
+  onNew: () => void
+  onEdit: (a: ArtifactRow) => void
+}) {
+  const G2    = isDark ? G : '#A07C2C'
+  const surf  = isDark ? SURF2 : '#FFFFFF'
+  const bdr   = isDark ? BDR   : 'rgba(139,105,20,0.25)'
+  const txt   = isDark ? TXT   : '#2D2924'
+  const dim   = isDark ? DIM   : '#6B5520'
+  const bg    = isDark ? '#0D0B14' : '#FAF8F5'
+
+  const [artifacts, setArtifacts] = useState<ArtifactRow[]>([])
+  const [types, setTypes]         = useState<ArtifactType[]>([])
+  const [total, setTotal]         = useState(0)
+  const [loading, setLoading]     = useState(false)
+  const [search, setSearch]       = useState('')
+  const [typeFilter, setTypeFilter] = useState('')
+  const [pubFilter, setPubFilter]   = useState('')
+  const [deleteId, setDeleteId]     = useState<string | null>(null)
+
+  async function load() {
+    setLoading(true)
+    const token = await getToken()
+    const params = new URLSearchParams({ limit: '100' })
+    if (search)     params.set('search', search)
+    if (typeFilter) params.set('type', typeFilter)
+    if (pubFilter)  params.set('published', pubFilter)
+    const [artRes, typRes] = await Promise.all([
+      fetch(`/api/admin-artifacts?${params}`, { headers: { Authorization: `Bearer ${token}` } }),
+      types.length ? Promise.resolve(null) : fetch('/api/admin-artifact-types', { headers: { Authorization: `Bearer ${token}` } }),
+    ])
+    const artData = await artRes.json()
+    setArtifacts(artData.artifacts || [])
+    setTotal(artData.total || 0)
+    if (typRes) {
+      const typData = await typRes.json()
+      setTypes(typData.types || [])
+    }
+    setLoading(false)
+  }
+
+  useEffect(() => { load() }, [search, typeFilter, pubFilter])
+
+  async function handleDelete(id: string) {
+    const token = await getToken()
+    await fetch('/api/admin-artifacts', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'delete', id }),
+    })
+    setDeleteId(null)
+    load()
+  }
+
+  const typeMap = Object.fromEntries(types.map(t => [t.code, t]))
+  const inp: React.CSSProperties = {
+    background: isDark ? '#0a0813' : '#fff', border: `1px solid ${bdr}`, borderRadius: 6,
+    padding: '7px 10px', color: txt, fontFamily: "'Crimson Pro',serif", fontSize: 13, outline: 'none',
+  }
+
+  return (
+    <div style={{ background: bg, minHeight: '100%' }}>
+      <div style={{ padding: '24px 0 16px' }}>
+        {/* Header */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+          <div>
+            <div style={{ fontFamily: "'Cinzel',serif", fontSize: 14, letterSpacing: '0.12em', color: G2 }}>🗂 BABEL FILES</div>
+            <div style={{ fontFamily: "'Crimson Pro',serif", fontSize: 12, color: dim, marginTop: 4 }}>
+              {total} artifact{total !== 1 ? 's' : ''} · CIA-style cultural intelligence dossiers
+            </div>
+          </div>
+          <button onClick={onNew} style={{ padding: '8px 18px', background: 'rgba(201,168,76,0.12)', border: `1px solid rgba(201,168,76,0.4)`, borderRadius: 4, color: G2, fontFamily: "'Cinzel',serif", fontSize: 9, letterSpacing: '0.1em', cursor: 'pointer' }}>
+            + NEW ARTIFACT
+          </button>
+        </div>
+
+        {/* Filters */}
+        <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' as const }}>
+          <input value={search} onChange={e => setSearch(e.target.value)}
+            placeholder="Search by name..." style={{ ...inp, flex: '1 1 180px', minWidth: 140 }} />
+          <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)} style={{ ...inp }}>
+            <option value="">All types</option>
+            {types.map(t => <option key={t.code} value={t.code}>{t.icon} {t.display_name}</option>)}
+          </select>
+          <select value={pubFilter} onChange={e => setPubFilter(e.target.value)} style={{ ...inp }}>
+            <option value="">All statuses</option>
+            <option value="1">Published</option>
+            <option value="0">Unpublished</option>
+          </select>
+        </div>
+
+        {/* Table */}
+        {loading ? (
+          <div style={{ textAlign: 'center', padding: 40, fontFamily: "'Cinzel',serif", fontSize: 10, color: dim, letterSpacing: '0.12em' }}>LOADING...</div>
+        ) : artifacts.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: 40, fontFamily: "'Crimson Pro',serif", fontSize: 13, color: dim }}>
+            No artifacts found. <button onClick={onNew} style={{ color: G2, background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontSize: 'inherit', textDecoration: 'underline' }}>Create the first one →</button>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            {artifacts.map(a => {
+              const typeInfo = typeMap[a.artifactType]
+              return (
+                <div key={a.id} style={{ background: surf, border: `1px solid ${bdr}`, borderRadius: 6, padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer', transition: 'border-color 0.12s' }}
+                  onClick={() => onEdit(a)}>
+                  <span style={{ fontSize: 18, flexShrink: 0 }}>{typeInfo?.icon || '📄'}</span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontFamily: "'Cinzel',serif", fontSize: 11, color: txt, letterSpacing: '0.05em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>
+                      {a.name}
+                    </div>
+                    <div style={{ fontFamily: "'Crimson Pro',serif", fontSize: 11, color: dim, marginTop: 2 }}>
+                      {typeInfo?.display_name || a.artifactType}
+                      {a.aliases ? ` · ${a.aliases.slice(0, 40)}` : ''}
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', gap: 6, flexShrink: 0, alignItems: 'center' }}>
+                    <span style={{ fontFamily: "'Cinzel',serif", fontSize: 8, letterSpacing: '0.08em', padding: '2px 6px', borderRadius: 3, background: a.status === 'active' ? 'rgba(34,197,94,0.1)' : 'rgba(201,168,76,0.1)', color: a.status === 'active' ? '#22c55e' : dim, border: `1px solid ${a.status === 'active' ? 'rgba(34,197,94,0.3)' : 'rgba(201,168,76,0.2)'}` }}>
+                      {a.status.toUpperCase()}
+                    </span>
+                    {a.published
+                      ? <span style={{ fontFamily: "'Cinzel',serif", fontSize: 8, letterSpacing: '0.08em', padding: '2px 6px', borderRadius: 3, background: 'rgba(59,130,246,0.1)', color: '#60a5fa', border: '1px solid rgba(59,130,246,0.3)' }}>PUB</span>
+                      : <span style={{ fontFamily: "'Cinzel',serif", fontSize: 8, letterSpacing: '0.08em', padding: '2px 6px', borderRadius: 3, background: 'rgba(156,163,175,0.1)', color: dim, border: `1px solid ${bdr}` }}>DRAFT</span>
+                    }
+                    {a.cautionLevel && <span style={{ fontFamily: "'Cinzel',serif", fontSize: 8, padding: '2px 6px', borderRadius: 3, background: 'rgba(239,68,68,0.1)', color: '#f87171', border: '1px solid rgba(239,68,68,0.3)' }}>⚠ {a.cautionLevel}</span>}
+                    <button onClick={e => { e.stopPropagation(); setDeleteId(a.id) }}
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: dim, fontSize: 14, padding: '2px 4px', lineHeight: 1 }}>✕</button>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
+
+        {/* Delete confirm */}
+        {deleteId && (
+          <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div style={{ background: isDark ? '#1a1625' : '#fff', border: `1px solid ${bdr}`, borderRadius: 8, padding: 28, maxWidth: 360 }}>
+              <div style={{ fontFamily: "'Cinzel',serif", fontSize: 12, color: '#f87171', marginBottom: 12 }}>DELETE ARTIFACT</div>
+              <div style={{ fontFamily: "'Crimson Pro',serif", fontSize: 13, color: txt, marginBottom: 20 }}>This will permanently delete the artifact and all linked data. This cannot be undone.</div>
+              <div style={{ display: 'flex', gap: 10 }}>
+                <button onClick={() => handleDelete(deleteId)} style={{ flex: 1, padding: '8px 0', background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.4)', borderRadius: 4, color: '#f87171', fontFamily: "'Cinzel',serif", fontSize: 9, letterSpacing: '0.1em', cursor: 'pointer' }}>DELETE</button>
+                <button onClick={() => setDeleteId(null)} style={{ flex: 1, padding: '8px 0', background: 'transparent', border: `1px solid ${bdr}`, borderRadius: 4, color: dim, fontFamily: "'Cinzel',serif", fontSize: 9, letterSpacing: '0.1em', cursor: 'pointer' }}>CANCEL</button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ─── ArtifactEditForm ─────────────────────────────────────────────────────────
+
+const ARTIFACT_STATUSES    = ['active', 'historical', 'dormant', 'disputed'] as const
+const ARTIFACT_CLASSIFS    = ['unclassified', 'intelligence_only', 'confirmed', 'unverified', 'redacted'] as const
+const ARTIFACT_REL_TYPES   = [
+  'member_of','founded','influenced_by','influenced','depicts','derived_from',
+  'successor_of','predecessor_of','associated_with','authored','featured_in',
+  'symbol_of','practice_of','connected_to',
+] as const
+const ARTIFACT_MEDIA_TYPES = ['youtube','vimeo','audio','image','external_link'] as const
+
+function secHdr(label: string, adBdr: string, adGold: string) {
+  return (
+    <div style={{ gridColumn: '1 / -1', fontFamily: "'Cinzel',serif", fontSize: 9, color: adGold, letterSpacing: '0.15em', textTransform: 'uppercase' as const, marginBottom: 8, marginTop: 8, paddingTop: 16, paddingBottom: 6, borderTop: `1px solid ${adBdr}`, borderBottom: `1px solid ${adBdr}` }}>
+      {label}
+    </div>
+  )
+}
+
+function ArtifactEditForm({ artifact, getToken, isDark, onBack }: {
+  artifact: ArtifactRow | null; getToken: any; isDark: boolean; onBack: () => void
+}) {
+  const adBdr  = isDark ? BDR : '#D8D1BE'
+  const adTxt  = isDark ? TXT : '#1F1B12'
+  const adDim  = isDark ? DIM : '#574B33'
+  const adGold = isDark ? G   : '#604408'
+
+  const inp: React.CSSProperties = {
+    width: '100%', boxSizing: 'border-box' as const, background: isDark ? '#0a0813' : '#fff',
+    border: `1px solid ${adBdr}`, borderRadius: 6, padding: '9px 11px',
+    color: adTxt, fontFamily: "'Crimson Pro',serif", fontSize: 13, outline: 'none',
+  }
+  const l: React.CSSProperties = { display: 'block', fontFamily: "'Cinzel',serif", fontSize: 9, color: adDim, letterSpacing: '0.1em', marginBottom: 4 }
+
+  const isNew = !artifact?.id
+  const [types, setTypes]       = useState<ArtifactType[]>([])
+  const [saving, setSaving]     = useState(false)
+  const [msg, setMsg]           = useState('')
+  const [savedId, setSavedId]   = useState(artifact?.id || '')
+
+  // Main form fields
+  const [name, setName]                   = useState(artifact?.name || '')
+  const [artifactType, setArtifactType]   = useState(artifact?.artifactType || '')
+  const [aliases, setAliases]             = useState(artifact?.aliases || '')
+  const [status, setStatus]               = useState(artifact?.status || 'active')
+  const [classification, setClassification] = useState(artifact?.classification || 'unclassified')
+  const [intelligenceOnly, setIntelligenceOnly] = useState(artifact?.intelligenceOnly || false)
+  const [published, setPublished]         = useState(artifact?.published || false)
+  const [cautionLevel, setCautionLevel]   = useState<string>(artifact?.cautionLevel?.toString() || '')
+  const [cautionNote, setCautionNote]     = useState(artifact?.cautionNote || '')
+  const [compiledBy, setCompiledBy]       = useState(artifact?.compiledBy || 'manual')
+  const [subjectImageUrl, setSubjectImageUrl] = useState(artifact?.subjectImageUrl || '')
+  const [ogImageUrl, setOgImageUrl]       = useState(artifact?.ogImageUrl || '')
+  const [summary, setSummary]             = useState(artifact?.summary || '')
+  const [body, setBody]                   = useState(artifact?.body || '')
+  const [firstAppearance, setFirstAppearance] = useState(artifact?.firstAppearance || '')
+  const [origin, setOrigin]               = useState(artifact?.origin || '')
+  const [details, setDetails]             = useState<Record<string, any>>(artifact?.details || {})
+
+  // Join table lists
+  const [relationships, setRelationships] = useState<any[]>([])
+  const [spirits, setSpirits]             = useState<any[]>([])
+  const [scriptures, setScriptures]       = useState<any[]>([])
+  const [resources, setResources]         = useState<any[]>([])
+  const [traditions, setTraditions]       = useState<any[]>([])
+  const [media, setMedia]                 = useState<any[]>([])
+  const [sources, setSources]             = useState<any[]>([])
+  const [demons, setDemons]               = useState<any[]>([])
+
+  // Add-form states for each section
+  const [addRel,  setAddRel]  = useState({ toArtifactId: '', toName: '', relationshipType: 'associated_with', confidence: 5, notes: '' })
+  const [addSpi,  setAddSpi]  = useState({ spiritId: '', spiritName: '', relevance: '', confidence: 5 })
+  const [addScr,  setAddScr]  = useState({ reference: '', application: '' })
+  const [addRes,  setAddRes]  = useState({ resourceId: '', resourceTitle: '', relevance: '' })
+  const [addTrad, setAddTrad] = useState({ tradition: '', role: '', notes: '' })
+  const [addMed,  setAddMed]  = useState({ mediaType: 'youtube', url: '', title: '', caption: '' })
+  const [addSrc,  setAddSrc]  = useState({ sourceTable: 'cultural_dossiers', sourceRowId: '', sourceLabel: '', relevance: '' })
+
+  // Search typeahead states
+  const [artifactSearch, setArtifactSearch]       = useState('')
+  const [artifactResults, setArtifactResults]     = useState<any[]>([])
+  const [spiritSearch, setSpiritSearch]           = useState('')
+  const [resourceSearch, setResourceSearch]       = useState('')
+  const [resourceResults, setResourceResults]     = useState<any[]>([])
+  const [sourceSearch, setSourceSearch]           = useState('')
+  const [sourceResults, setSourceResults]         = useState<any[]>([])
+
+  const effectiveId = savedId || artifact?.id || ''
+
+  async function loadTypes() {
+    const token = await getToken()
+    const res = await fetch('/api/admin-artifact-types', { headers: { Authorization: `Bearer ${token}` } })
+    const d = await res.json()
+    setTypes(d.types || [])
+  }
+
+  async function loadJoinTables(id: string) {
+    const token = await getToken()
+    const headers = { Authorization: `Bearer ${token}` }
+    const [relR, spiR, scrR, resR, tradR, medR, srcR, demR] = await Promise.all([
+      fetch(`/api/admin-artifact-relationships?artifactId=${id}`, { headers }),
+      fetch(`/api/admin-artifact-spirits?artifactId=${id}`, { headers }),
+      fetch(`/api/admin-artifact-scriptures?artifactId=${id}`, { headers }),
+      fetch(`/api/admin-artifact-resources?artifactId=${id}`, { headers }),
+      fetch(`/api/admin-artifact-traditions?artifactId=${id}`, { headers }),
+      fetch(`/api/admin-artifact-media?artifactId=${id}`, { headers }),
+      fetch(`/api/admin-artifact-sources?artifactId=${id}`, { headers }),
+      fetch('/api/demons', { headers }),
+    ])
+    const [relD, spiD, scrD, resD, tradD, medD, srcD, demD] = await Promise.all([
+      relR.json(), spiR.json(), scrR.json(), resR.json(), tradR.json(), medR.json(), srcR.json(), demR.json(),
+    ])
+    setRelationships(relD.relationships || [])
+    setSpirits(spiD.links || [])
+    setScriptures(scrD.scriptures || [])
+    setResources(resD.links || [])
+    setTraditions(tradD.traditions || [])
+    setMedia(medD.media || [])
+    setSources(srcD.sources || [])
+    setDemons(demD.demons || [])
+  }
+
+  useEffect(() => {
+    loadTypes()
+    if (effectiveId) loadJoinTables(effectiveId)
+  }, [effectiveId])
+
+  // Typeahead searches
+  useEffect(() => {
+    if (!artifactSearch.trim()) { setArtifactResults([]); return }
+    const t = setTimeout(async () => {
+      const token = await getToken()
+      const res = await fetch(`/api/admin-artifacts?search=${encodeURIComponent(artifactSearch)}&limit=10`, { headers: { Authorization: `Bearer ${token}` } })
+      const d = await res.json()
+      setArtifactResults((d.artifacts || []).filter((a: any) => a.id !== effectiveId))
+    }, 300)
+    return () => clearTimeout(t)
+  }, [artifactSearch])
+
+  useEffect(() => {
+    if (!sourceSearch.trim()) { setSourceResults([]); return }
+    const t = setTimeout(async () => {
+      const token = await getToken()
+      const res = await fetch(`/api/admin-artifact-sources?search=${encodeURIComponent(sourceSearch)}`, { headers: { Authorization: `Bearer ${token}` } })
+      const d = await res.json()
+      setSourceResults(d.results || [])
+    }, 300)
+    return () => clearTimeout(t)
+  }, [sourceSearch])
+
+  async function save() {
+    if (!name.trim()) { setMsg('Name is required'); return }
+    if (!artifactType) { setMsg('Artifact type is required'); return }
+    setSaving(true); setMsg('')
+    const token = await getToken()
+    const payload: Record<string, any> = {
+      name, artifactType, aliases, status, classification, intelligenceOnly, published,
+      cautionNote, compiledBy, subjectImageUrl, ogImageUrl, summary, body, firstAppearance, origin, details,
+    }
+    if (cautionLevel) payload.cautionLevel = parseInt(cautionLevel, 10)
+
+    const isCreating = !effectiveId
+    payload.action = isCreating ? 'create' : 'update'
+    if (!isCreating) payload.id = effectiveId
+
+    const res = await fetch('/api/admin-artifacts', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+    const d = await res.json()
+    if (!res.ok) { setMsg(d.error || 'Save failed'); setSaving(false); return }
+    const newId = d.artifact?.id || effectiveId
+    if (isCreating && newId) { setSavedId(newId) }
+    setMsg('Saved.')
+    setSaving(false)
+    if (isCreating && newId) loadJoinTables(newId)
+  }
+
+  // Join table add helpers
+  async function addRelationship() {
+    if (!addRel.toArtifactId || !effectiveId) return
+    const token = await getToken()
+    await fetch('/api/admin-artifact-relationships', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ fromArtifactId: effectiveId, toArtifactId: addRel.toArtifactId, relationshipType: addRel.relationshipType, confidence: addRel.confidence, notes: addRel.notes }),
+    })
+    setAddRel({ toArtifactId: '', toName: '', relationshipType: 'associated_with', confidence: 5, notes: '' })
+    setArtifactSearch(''); setArtifactResults([])
+    loadJoinTables(effectiveId)
+  }
+
+  async function removeRelationship(id: string) {
+    const token = await getToken()
+    await fetch('/api/admin-artifact-relationships', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'delete', id }),
+    })
+    loadJoinTables(effectiveId)
+  }
+
+  async function addSpirit() {
+    if (!addSpi.spiritId || !effectiveId) return
+    const token = await getToken()
+    await fetch('/api/admin-artifact-spirits', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ artifactId: effectiveId, spiritId: addSpi.spiritId, relevance: addSpi.relevance, confidence: addSpi.confidence }),
+    })
+    setAddSpi({ spiritId: '', spiritName: '', relevance: '', confidence: 5 })
+    setSpiritSearch('')
+    loadJoinTables(effectiveId)
+  }
+
+  async function removeSpirit(id: string) {
+    const token = await getToken()
+    await fetch('/api/admin-artifact-spirits', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'delete', id }),
+    })
+    loadJoinTables(effectiveId)
+  }
+
+  async function addScripture() {
+    if (!addScr.reference.trim() || !effectiveId) return
+    const token = await getToken()
+    await fetch('/api/admin-artifact-scriptures', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ artifactId: effectiveId, reference: addScr.reference, application: addScr.application }),
+    })
+    setAddScr({ reference: '', application: '' })
+    loadJoinTables(effectiveId)
+  }
+
+  async function removeScripture(id: string) {
+    const token = await getToken()
+    await fetch('/api/admin-artifact-scriptures', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'delete', id }),
+    })
+    loadJoinTables(effectiveId)
+  }
+
+  async function addTradition() {
+    if (!addTrad.tradition.trim() || !effectiveId) return
+    const token = await getToken()
+    await fetch('/api/admin-artifact-traditions', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ artifactId: effectiveId, tradition: addTrad.tradition, role: addTrad.role, notes: addTrad.notes }),
+    })
+    setAddTrad({ tradition: '', role: '', notes: '' })
+    loadJoinTables(effectiveId)
+  }
+
+  async function removeTradition(id: string) {
+    const token = await getToken()
+    await fetch('/api/admin-artifact-traditions', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'delete', id }),
+    })
+    loadJoinTables(effectiveId)
+  }
+
+  async function addMedia() {
+    if (!addMed.url.trim() || !effectiveId) return
+    const token = await getToken()
+    await fetch('/api/admin-artifact-media', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ artifactId: effectiveId, mediaType: addMed.mediaType, url: addMed.url, title: addMed.title, caption: addMed.caption }),
+    })
+    setAddMed({ mediaType: 'youtube', url: '', title: '', caption: '' })
+    loadJoinTables(effectiveId)
+  }
+
+  async function removeMedia(id: string) {
+    const token = await getToken()
+    await fetch('/api/admin-artifact-media', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'delete', id }),
+    })
+    loadJoinTables(effectiveId)
+  }
+
+  async function addSource() {
+    if (!addSrc.sourceRowId || !effectiveId) return
+    const token = await getToken()
+    await fetch('/api/admin-artifact-sources', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ artifactId: effectiveId, sourceTable: addSrc.sourceTable, sourceRowId: addSrc.sourceRowId, relevance: addSrc.relevance }),
+    })
+    setAddSrc({ sourceTable: 'cultural_dossiers', sourceRowId: '', sourceLabel: '', relevance: '' })
+    setSourceSearch(''); setSourceResults([])
+    loadJoinTables(effectiveId)
+  }
+
+  async function removeSource(id: string) {
+    const token = await getToken()
+    await fetch('/api/admin-artifact-sources', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'delete', id }),
+    })
+    loadJoinTables(effectiveId)
+  }
+
+  const JoinList = ({ children }: { children: React.ReactNode }) => (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 12 }}>{children}</div>
+  )
+  const JoinItem = ({ label, sub, onDel }: { label: string; sub?: string; onDel: () => void }) => (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: isDark ? 'rgba(201,168,76,0.04)' : 'rgba(201,168,76,0.06)', border: `1px solid ${adBdr}`, borderRadius: 4, padding: '6px 10px' }}>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontFamily: "'Cinzel',serif", fontSize: 10, color: adTxt, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{label}</div>
+        {sub && <div style={{ fontFamily: "'Crimson Pro',serif", fontSize: 11, color: adDim, marginTop: 1 }}>{sub}</div>}
+      </div>
+      <button onClick={onDel} style={{ background: 'none', border: 'none', cursor: 'pointer', color: adDim, fontSize: 13, padding: '0 2px', lineHeight: 1, flexShrink: 0 }}>✕</button>
+    </div>
+  )
+
+  // Per-type details fields
+  function DetailsEditor() {
+    const setDetail = (k: string, v: string) => setDetails(prev => ({ ...prev, [k]: v }))
+    const ti = (k: string, ph?: string) => (
+      <input value={details[k] || ''} onChange={e => setDetail(k, e.target.value)} placeholder={ph} style={{ ...inp }} />
+    )
+    const ta = (k: string, rows = 3, ph?: string) => (
+      <textarea value={details[k] || ''} onChange={e => setDetail(k, e.target.value)} rows={rows} placeholder={ph} style={{ ...inp, resize: 'vertical' as const }} />
+    )
+
+    if (artifactType === 'movie' || artifactType === 'tv_show' || artifactType === 'anime') {
+      return (
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          {secHdr('Details — Film / Media', adBdr, adGold)}
+          <div><label style={l}>Release Year</label>{ti('release_year', '1968')}</div>
+          <div><label style={l}>Director / Creator</label>{ti('director')}</div>
+          <div><label style={l}>Studio / Network</label>{ti('studio')}</div>
+          <div><label style={l}>Rating</label>{ti('rating', 'R / TV-MA')}</div>
+          <div style={{ gridColumn: '1 / -1' }}><label style={l}>Themes (comma-separated)</label>{ti('themes', 'occult, ritual, duality')}</div>
+          <div style={{ gridColumn: '1 / -1' }}><label style={l}>Symbolism Notes</label>{ta('symbolism_notes', 4)}</div>
+        </div>
+      )
+    }
+    if (artifactType === 'person') {
+      return (
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          {secHdr('Details — Person', adBdr, adGold)}
+          <div><label style={l}>Born</label>{ti('born', 'YYYY-MM-DD')}</div>
+          <div><label style={l}>Died</label>{ti('died', 'YYYY-MM-DD or living')}</div>
+          <div><label style={l}>Nationality</label>{ti('nationality')}</div>
+          <div><label style={l}>Roles (comma-separated)</label>{ti('roles', 'occultist, author')}</div>
+          <div style={{ gridColumn: '1 / -1' }}><label style={l}>Organizations (comma-separated)</label>{ti('organizations', 'Golden Dawn, OTO')}</div>
+          <div style={{ gridColumn: '1 / -1' }}><label style={l}>Known For</label>{ta('known_for', 3)}</div>
+        </div>
+      )
+    }
+    if (artifactType === 'secret_society' || artifactType === 'organization') {
+      return (
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          {secHdr('Details — Organization', adBdr, adGold)}
+          <div><label style={l}>Founded</label>{ti('founded', '1776')}</div>
+          <div><label style={l}>Headquarters</label>{ti('headquarters')}</div>
+          <div style={{ gridColumn: '1 / -1' }}><label style={l}>Known Members (comma-separated)</label>{ti('known_members')}</div>
+          <div style={{ gridColumn: '1 / -1' }}><label style={l}>Degrees / Ranks (comma-separated)</label>{ti('degrees', '1st, 2nd, 3rd')}</div>
+          <div style={{ gridColumn: '1 / -1' }}><label style={l}>Ritual Description</label>{ta('ritual_description', 4)}</div>
+        </div>
+      )
+    }
+    if (artifactType === 'symbol' || artifactType === 'practice') {
+      return (
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          {secHdr('Details — Symbol / Practice', adBdr, adGold)}
+          <div style={{ gridColumn: '1 / -1' }}><label style={l}>Usage Contexts (comma-separated)</label>{ti('usage_contexts', 'Freemasonry, Satanism, New Age')}</div>
+          <div style={{ gridColumn: '1 / -1' }}><label style={l}>Historical Origins</label>{ta('historical_origins', 3)}</div>
+          <div style={{ gridColumn: '1 / -1' }}><label style={l}>Occult Associations</label>{ta('occult_associations', 3)}</div>
+          <div style={{ gridColumn: '1 / -1' }}><label style={l}>Physical Description</label>{ta('description_of_form', 2)}</div>
+        </div>
+      )
+    }
+    // Generic jsonb editor
+    return (
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+        {secHdr('Details (JSON)', adBdr, adGold)}
+        <div style={{ gridColumn: '1 / -1' }}>
+          <textarea
+            value={JSON.stringify(details, null, 2)}
+            onChange={e => { try { setDetails(JSON.parse(e.target.value)) } catch {} }}
+            rows={8}
+            style={{ ...inp, fontFamily: 'monospace', fontSize: 11, resize: 'vertical' as const }}
+          />
+          <div style={{ fontFamily: "'Crimson Pro',serif", fontSize: 10, color: adDim, marginTop: 3, fontStyle: 'italic' }}>Edit as JSON. Per-type structured editor available for: movie, tv_show, anime, person, secret_society, organization, symbol, practice.</div>
+        </div>
+      </div>
+    )
+  }
+
+  const typeMap = Object.fromEntries(types.map(t => [t.code, t]))
+
+  // Spirit filtered search
+  const filteredDemons = spiritSearch.trim()
+    ? demons.filter((d: any) => d.name?.toLowerCase().includes(spiritSearch.toLowerCase())).slice(0, 8)
+    : []
+  // Resource search
+  useEffect(() => {
+    if (!resourceSearch.trim()) { setResourceResults([]); return }
+    const t = setTimeout(async () => {
+      const token = await getToken()
+      const res = await fetch(`/api/admin-library?search=${encodeURIComponent(resourceSearch)}&limit=10`, { headers: { Authorization: `Bearer ${token}` } })
+      if (!res.ok) return
+      const d = await res.json()
+      setResourceResults(d.books || d.resources || [])
+    }, 300)
+    return () => clearTimeout(t)
+  }, [resourceSearch])
+
+  return (
+    <div style={{ background: isDark ? '#09080f' : '#F7F5F0', minHeight: '100%' }}>
+      {/* Back + header */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24, paddingBottom: 16, borderBottom: `1px solid ${adBdr}` }}>
+        <button onClick={onBack} style={{ background: 'none', border: 'none', cursor: 'pointer', color: adDim, fontFamily: "'Cinzel',serif", fontSize: 10, letterSpacing: '0.1em', padding: 0 }}>← BACK</button>
+        <span style={{ color: adBdr }}>|</span>
+        <span style={{ fontFamily: "'Cinzel',serif", fontSize: 12, color: adGold, letterSpacing: '0.1em' }}>
+          {isNew ? 'NEW ARTIFACT' : name || 'EDIT ARTIFACT'}
+        </span>
+        {effectiveId && (
+          <span style={{ fontFamily: 'monospace', fontSize: 10, color: adDim, marginLeft: 'auto' }}>
+            {typeMap[artifactType]?.icon} {typeMap[artifactType]?.display_name}
+          </span>
+        )}
+      </div>
+
+      <div style={{ border: `1px solid ${adBdr}`, borderRadius: 8, padding: 20 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+
+          {/* ── SUBJECT ─────────────────────────────────────────── */}
+          {secHdr('Subject', adBdr, adGold)}
+
+          <div style={{ gridColumn: '1 / -1' }}>
+            <label style={l}>Name *</label>
+            <input value={name} onChange={e => setName(e.target.value)} placeholder="Artifact name" style={{ ...inp }} />
+          </div>
+
+          <div>
+            <label style={l}>Artifact Type *</label>
+            <select value={artifactType} onChange={e => setArtifactType(e.target.value)} style={{ ...inp }}>
+              <option value="">Select type</option>
+              {types.map(t => <option key={t.code} value={t.code}>{t.icon} {t.display_name}</option>)}
+            </select>
+          </div>
+
+          <div>
+            <label style={l}>Aliases / Also Known As</label>
+            <input value={aliases} onChange={e => setAliases(e.target.value)} placeholder="Comma-separated alternate names" style={{ ...inp }} />
+          </div>
+
+          <div>
+            <label style={l}>Status</label>
+            <select value={status} onChange={e => setStatus(e.target.value)} style={{ ...inp }}>
+              {ARTIFACT_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
+            </select>
+          </div>
+
+          <div>
+            <label style={l}>Classification</label>
+            <select value={classification} onChange={e => setClassification(e.target.value)} style={{ ...inp }}>
+              {ARTIFACT_CLASSIFS.map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
+          </div>
+
+          <div>
+            <label style={l}>Caution Level (1–5 or blank)</label>
+            <select value={cautionLevel} onChange={e => setCautionLevel(e.target.value)} style={{ ...inp }}>
+              <option value="">None</option>
+              {[1,2,3,4,5].map(n => <option key={n} value={String(n)}>{n}</option>)}
+            </select>
+          </div>
+
+          <div>
+            <label style={l}>Compiled By</label>
+            <input value={compiledBy} onChange={e => setCompiledBy(e.target.value)} placeholder="manual" style={{ ...inp }} />
+          </div>
+
+          <div style={{ gridColumn: '1 / -1' }}>
+            <label style={l}>Caution Note</label>
+            <textarea value={cautionNote} onChange={e => setCautionNote(e.target.value)} rows={2} placeholder="Viewer caution advisory..." style={{ ...inp, resize: 'vertical' as const }} />
+          </div>
+
+          <div style={{ gridColumn: '1 / -1', display: 'flex', gap: 24 }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+              <input type="checkbox" checked={intelligenceOnly} onChange={e => setIntelligenceOnly(e.target.checked)} style={{ accentColor: adGold, width: 14, height: 14 }} />
+              <span style={{ fontFamily: "'Crimson Pro',serif", fontSize: 13, color: adTxt }}>Intelligence Only (hide from standard members)</span>
+            </label>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+              <input type="checkbox" checked={published} onChange={e => setPublished(e.target.checked)} style={{ accentColor: adGold, width: 14, height: 14 }} />
+              <span style={{ fontFamily: "'Crimson Pro',serif", fontSize: 13, color: adTxt }}>Published (visible to members)</span>
+            </label>
+          </div>
+
+          <div><label style={l}>Subject Image URL</label><input value={subjectImageUrl} onChange={e => setSubjectImageUrl(e.target.value)} placeholder="https://..." style={{ ...inp }} /></div>
+          <div><label style={l}>OG Image URL</label><input value={ogImageUrl} onChange={e => setOgImageUrl(e.target.value)} placeholder="https://..." style={{ ...inp }} /></div>
+
+          {/* ── BODY ─────────────────────────────────────────────── */}
+          {secHdr('Body', adBdr, adGold)}
+
+          <div style={{ gridColumn: '1 / -1' }}><label style={l}>Summary (2–4 sentences)</label><textarea value={summary} onChange={e => setSummary(e.target.value)} rows={3} style={{ ...inp, resize: 'vertical' as const }} /></div>
+          <div style={{ gridColumn: '1 / -1' }}><label style={l}>Body (full intelligence dossier)</label><textarea value={body} onChange={e => setBody(e.target.value)} rows={10} style={{ ...inp, resize: 'vertical' as const }} /></div>
+          <div><label style={l}>First Appearance</label><input value={firstAppearance} onChange={e => setFirstAppearance(e.target.value)} placeholder="e.g. 14th century, Book of Shadows" style={{ ...inp }} /></div>
+          <div><label style={l}>Origin / Source Region</label><input value={origin} onChange={e => setOrigin(e.target.value)} placeholder="Babylon, Egypt, Western occultism..." style={{ ...inp }} /></div>
+
+          {/* Save button for SUBJECT + BODY */}
+          <div style={{ gridColumn: '1 / -1', display: 'flex', alignItems: 'center', gap: 12, paddingTop: 8 }}>
+            <button onClick={save} disabled={saving} style={{ padding: '9px 28px', background: 'rgba(201,168,76,0.15)', border: `1px solid rgba(201,168,76,0.5)`, borderRadius: 4, color: adGold, fontFamily: "'Cinzel',serif", fontSize: 9, letterSpacing: '0.1em', cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.6 : 1 }}>
+              {saving ? 'SAVING...' : isNew ? 'CREATE ARTIFACT' : 'SAVE ARTIFACT'}
+            </button>
+            {msg && <span style={{ fontFamily: "'Crimson Pro',serif", fontSize: 12, color: msg.includes('fail') || msg.includes('required') ? '#f87171' : '#22c55e' }}>{msg}</span>}
+          </div>
+        </div>
+
+        {/* DETAILS — per-type (only when type is selected) */}
+        {artifactType && (
+          <div style={{ marginTop: 8 }}>
+            <DetailsEditor />
+            <div style={{ marginTop: 12 }}>
+              <button onClick={save} disabled={saving} style={{ padding: '7px 20px', background: 'transparent', border: `1px solid ${adBdr}`, borderRadius: 4, color: adDim, fontFamily: "'Cinzel',serif", fontSize: 8, letterSpacing: '0.1em', cursor: 'pointer' }}>
+                SAVE DETAILS
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Join table sections — only active after artifact saved */}
+        {effectiveId && (
+          <>
+            {/* ── RELATIONSHIPS ───────────────────────────────────── */}
+            <div style={{ marginTop: 16, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              {secHdr('Relationships', adBdr, adGold)}
+              <div style={{ gridColumn: '1 / -1' }}>
+                <JoinList>
+                  {relationships.map(r => {
+                    const other = r.from_artifact_id === effectiveId ? r.to : r.from
+                    return <JoinItem key={r.id}
+                      label={`${r.relationship_type.replace(/_/g,' ')} → ${other?.name || r.to_artifact_id}`}
+                      sub={r.notes || undefined}
+                      onDel={() => removeRelationship(r.id)} />
+                  })}
+                </JoinList>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end', flexWrap: 'wrap' as const }}>
+                  <div style={{ flex: '1 1 200px', position: 'relative' }}>
+                    <label style={l}>Linked Artifact</label>
+                    <input value={addRel.toName || artifactSearch}
+                      onChange={e => { setArtifactSearch(e.target.value); setAddRel(p => ({ ...p, toArtifactId: '', toName: '' })) }}
+                      placeholder="Search artifacts..." style={{ ...inp }} />
+                    {artifactResults.length > 0 && (
+                      <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 50, background: isDark ? '#1a1625' : '#fff', border: `1px solid ${adBdr}`, borderRadius: 4, maxHeight: 160, overflowY: 'auto' as const }}>
+                        {artifactResults.map((a: any) => (
+                          <div key={a.id} onMouseDown={() => { setAddRel(p => ({ ...p, toArtifactId: a.id, toName: a.name })); setArtifactSearch(''); setArtifactResults([]) }}
+                            style={{ padding: '7px 12px', cursor: 'pointer', fontFamily: "'Cinzel',serif", fontSize: 10, color: adDim }}
+                            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(201,168,76,0.1)' }}
+                            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent' }}>
+                            {a.name} <span style={{ fontSize: 8, opacity: 0.5 }}>{a.artifactType}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <div style={{ flex: '0 0 160px' }}>
+                    <label style={l}>Relationship Type</label>
+                    <select value={addRel.relationshipType} onChange={e => setAddRel(p => ({ ...p, relationshipType: e.target.value }))} style={{ ...inp }}>
+                      {ARTIFACT_REL_TYPES.map(t => <option key={t} value={t}>{t.replace(/_/g,' ')}</option>)}
+                    </select>
+                  </div>
+                  <button onClick={addRelationship} style={{ padding: '9px 16px', background: 'rgba(201,168,76,0.1)', border: `1px solid rgba(201,168,76,0.3)`, borderRadius: 4, color: adGold, fontFamily: "'Cinzel',serif", fontSize: 9, cursor: 'pointer', flexShrink: 0 }}>+ ADD</button>
+                </div>
+              </div>
+            </div>
+
+            {/* ── SPIRITS ─────────────────────────────────────────── */}
+            <div style={{ marginTop: 8, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              {secHdr('Spirits (Linked Demons)', adBdr, adGold)}
+              <div style={{ gridColumn: '1 / -1' }}>
+                <JoinList>
+                  {spirits.map((s: any) => (
+                    <JoinItem key={s.id}
+                      label={s.spirits?.name || s.spirit_id}
+                      sub={s.relevance || s.spirits?.hierarchy_category || undefined}
+                      onDel={() => removeSpirit(s.id)} />
+                  ))}
+                </JoinList>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end' }}>
+                  <div style={{ flex: 1, position: 'relative' }}>
+                    <label style={l}>Spirit Name</label>
+                    <input value={addSpi.spiritName || spiritSearch}
+                      onChange={e => { setSpiritSearch(e.target.value); setAddSpi(p => ({ ...p, spiritId: '', spiritName: '' })) }}
+                      placeholder="Search spirits..." style={{ ...inp }} />
+                    {filteredDemons.length > 0 && (
+                      <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 50, background: isDark ? '#1a1625' : '#fff', border: `1px solid ${adBdr}`, borderRadius: 4, maxHeight: 160, overflowY: 'auto' as const }}>
+                        {filteredDemons.map((d: any) => (
+                          <div key={d.id} onMouseDown={() => { setAddSpi(p => ({ ...p, spiritId: d.id, spiritName: d.name })); setSpiritSearch('') }}
+                            style={{ padding: '7px 12px', cursor: 'pointer', fontFamily: "'Cinzel',serif", fontSize: 10, color: adDim }}
+                            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(201,168,76,0.1)' }}
+                            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent' }}>
+                            {d.name}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <button onClick={addSpirit} style={{ padding: '9px 16px', background: 'rgba(201,168,76,0.1)', border: `1px solid rgba(201,168,76,0.3)`, borderRadius: 4, color: adGold, fontFamily: "'Cinzel',serif", fontSize: 9, cursor: 'pointer', flexShrink: 0 }}>+ ADD</button>
+                </div>
+              </div>
+            </div>
+
+            {/* ── SCRIPTURES ──────────────────────────────────────── */}
+            <div style={{ marginTop: 8, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              {secHdr('Scripture References', adBdr, adGold)}
+              <div style={{ gridColumn: '1 / -1' }}>
+                <JoinList>
+                  {scriptures.map((s: any) => (
+                    <JoinItem key={s.id} label={s.reference} sub={s.application || undefined} onDel={() => removeScripture(s.id)} />
+                  ))}
+                </JoinList>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end' }}>
+                  <div style={{ flex: '0 0 160px' }}>
+                    <label style={l}>Reference</label>
+                    <input value={addScr.reference} onChange={e => setAddScr(p => ({ ...p, reference: e.target.value }))} placeholder="Rev 17:5" style={{ ...inp }} />
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <label style={l}>Application</label>
+                    <input value={addScr.application} onChange={e => setAddScr(p => ({ ...p, application: e.target.value }))} placeholder="How this scripture applies..." style={{ ...inp }} />
+                  </div>
+                  <button onClick={addScripture} style={{ padding: '9px 16px', background: 'rgba(201,168,76,0.1)', border: `1px solid rgba(201,168,76,0.3)`, borderRadius: 4, color: adGold, fontFamily: "'Cinzel',serif", fontSize: 9, cursor: 'pointer', flexShrink: 0 }}>+ ADD</button>
+                </div>
+              </div>
+            </div>
+
+            {/* ── RESOURCES ───────────────────────────────────────── */}
+            <div style={{ marginTop: 8, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              {secHdr('Library Resources', adBdr, adGold)}
+              <div style={{ gridColumn: '1 / -1' }}>
+                <JoinList>
+                  {resources.map((r: any) => (
+                    <JoinItem key={r.id} label={r.resources?.title || r.resource_id} sub={r.relevance || r.resources?.author || undefined} onDel={async () => {
+                      const token = await getToken()
+                      await fetch('/api/admin-artifact-resources', { method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'delete', id: r.id }) })
+                      loadJoinTables(effectiveId)
+                    }} />
+                  ))}
+                </JoinList>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end' }}>
+                  <div style={{ flex: 1, position: 'relative' }}>
+                    <label style={l}>Library Resource</label>
+                    <input value={addRes.resourceTitle || resourceSearch}
+                      onChange={e => { setResourceSearch(e.target.value); setAddRes(p => ({ ...p, resourceId: '', resourceTitle: '' })) }}
+                      placeholder="Search library..." style={{ ...inp }} />
+                    {resourceResults.length > 0 && (
+                      <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 50, background: isDark ? '#1a1625' : '#fff', border: `1px solid ${adBdr}`, borderRadius: 4, maxHeight: 160, overflowY: 'auto' as const }}>
+                        {resourceResults.map((r: any) => (
+                          <div key={r.id} onMouseDown={() => { setAddRes(p => ({ ...p, resourceId: r.id, resourceTitle: r.title })); setResourceSearch(''); setResourceResults([]) }}
+                            style={{ padding: '7px 12px', cursor: 'pointer', fontFamily: "'Cinzel',serif", fontSize: 10, color: adDim }}
+                            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(201,168,76,0.1)' }}
+                            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent' }}>
+                            {r.title} {r.author ? `— ${r.author}` : ''}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <button onClick={async () => {
+                    if (!addRes.resourceId || !effectiveId) return
+                    const token = await getToken()
+                    await fetch('/api/admin-artifact-resources', { method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ artifactId: effectiveId, resourceId: addRes.resourceId, relevance: addRes.relevance }) })
+                    setAddRes({ resourceId: '', resourceTitle: '', relevance: '' }); setResourceSearch(''); setResourceResults([])
+                    loadJoinTables(effectiveId)
+                  }} style={{ padding: '9px 16px', background: 'rgba(201,168,76,0.1)', border: `1px solid rgba(201,168,76,0.3)`, borderRadius: 4, color: adGold, fontFamily: "'Cinzel',serif", fontSize: 9, cursor: 'pointer', flexShrink: 0 }}>+ ADD</button>
+                </div>
+              </div>
+            </div>
+
+            {/* ── TRADITIONS ──────────────────────────────────────── */}
+            <div style={{ marginTop: 8, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              {secHdr('Traditions', adBdr, adGold)}
+              <div style={{ gridColumn: '1 / -1' }}>
+                <JoinList>
+                  {traditions.map((t: any) => (
+                    <JoinItem key={t.id} label={t.tradition} sub={t.role || t.notes || undefined} onDel={() => removeTradition(t.id)} />
+                  ))}
+                </JoinList>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end' }}>
+                  <div style={{ flex: 1 }}>
+                    <label style={l}>Tradition</label>
+                    <input value={addTrad.tradition} onChange={e => setAddTrad(p => ({ ...p, tradition: e.target.value }))} placeholder="Freemasonry, Kabbalah, Vodou..." style={{ ...inp }} />
+                  </div>
+                  <div style={{ flex: '0 0 140px' }}>
+                    <label style={l}>Role</label>
+                    <input value={addTrad.role} onChange={e => setAddTrad(p => ({ ...p, role: e.target.value }))} placeholder="central symbol, invoked deity..." style={{ ...inp }} />
+                  </div>
+                  <button onClick={addTradition} style={{ padding: '9px 16px', background: 'rgba(201,168,76,0.1)', border: `1px solid rgba(201,168,76,0.3)`, borderRadius: 4, color: adGold, fontFamily: "'Cinzel',serif", fontSize: 9, cursor: 'pointer', flexShrink: 0 }}>+ ADD</button>
+                </div>
+              </div>
+            </div>
+
+            {/* ── MEDIA ───────────────────────────────────────────── */}
+            <div style={{ marginTop: 8, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              {secHdr('Media', adBdr, adGold)}
+              <div style={{ gridColumn: '1 / -1' }}>
+                <JoinList>
+                  {media.map((m: any) => (
+                    <JoinItem key={m.id} label={m.title || m.url} sub={`${m.media_type}${m.caption ? ' · ' + m.caption : ''}`} onDel={() => removeMedia(m.id)} />
+                  ))}
+                </JoinList>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end', flexWrap: 'wrap' as const }}>
+                  <div style={{ flex: '0 0 120px' }}>
+                    <label style={l}>Type</label>
+                    <select value={addMed.mediaType} onChange={e => setAddMed(p => ({ ...p, mediaType: e.target.value }))} style={{ ...inp }}>
+                      {ARTIFACT_MEDIA_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+                    </select>
+                  </div>
+                  <div style={{ flex: '2 1 200px' }}>
+                    <label style={l}>URL</label>
+                    <input value={addMed.url} onChange={e => setAddMed(p => ({ ...p, url: e.target.value }))} placeholder="https://..." style={{ ...inp }} />
+                  </div>
+                  <div style={{ flex: '1 1 140px' }}>
+                    <label style={l}>Title</label>
+                    <input value={addMed.title} onChange={e => setAddMed(p => ({ ...p, title: e.target.value }))} placeholder="Optional title" style={{ ...inp }} />
+                  </div>
+                  <button onClick={addMedia} style={{ padding: '9px 16px', background: 'rgba(201,168,76,0.1)', border: `1px solid rgba(201,168,76,0.3)`, borderRadius: 4, color: adGold, fontFamily: "'Cinzel',serif", fontSize: 9, cursor: 'pointer', flexShrink: 0 }}>+ ADD</button>
+                </div>
+              </div>
+            </div>
+
+            {/* ── EXTRACTION SOURCES ──────────────────────────────── */}
+            <div style={{ marginTop: 8, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              {secHdr('Extraction Sources (Path A links)', adBdr, adGold)}
+              <div style={{ gridColumn: '1 / -1' }}>
+                <JoinList>
+                  {sources.map((s: any) => (
+                    <JoinItem key={s.id} label={`${s.source_table} / ${s.source_row_id.slice(0,8)}…`} sub={s.relevance || undefined} onDel={() => removeSource(s.id)} />
+                  ))}
+                </JoinList>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end', flexWrap: 'wrap' as const }}>
+                  <div style={{ flex: '0 0 160px' }}>
+                    <label style={l}>Source Table</label>
+                    <select value={addSrc.sourceTable} onChange={e => setAddSrc(p => ({ ...p, sourceTable: e.target.value, sourceRowId: '', sourceLabel: '' }))} style={{ ...inp }}>
+                      <option value="cultural_dossiers">cultural_dossiers</option>
+                      <option value="secret_societies">secret_societies</option>
+                      <option value="curses">curses</option>
+                      <option value="library_chunks">library_chunks</option>
+                    </select>
+                  </div>
+                  <div style={{ flex: 1, position: 'relative' }}>
+                    <label style={l}>Search Source Row</label>
+                    <input value={addSrc.sourceLabel || sourceSearch}
+                      onChange={e => { setSourceSearch(e.target.value); setAddSrc(p => ({ ...p, sourceRowId: '', sourceLabel: '' })) }}
+                      placeholder="Search by name..." style={{ ...inp }} />
+                    {sourceResults.length > 0 && (
+                      <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 50, background: isDark ? '#1a1625' : '#fff', border: `1px solid ${adBdr}`, borderRadius: 4, maxHeight: 160, overflowY: 'auto' as const }}>
+                        {sourceResults
+                          .filter((r: any) => r.table === addSrc.sourceTable)
+                          .map((r: any) => (
+                            <div key={r.id} onMouseDown={() => { setAddSrc(p => ({ ...p, sourceRowId: r.id, sourceLabel: r.label })); setSourceSearch(''); setSourceResults([]) }}
+                              style={{ padding: '7px 12px', cursor: 'pointer', fontFamily: "'Cinzel',serif", fontSize: 10, color: adDim }}
+                              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(201,168,76,0.1)' }}
+                              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent' }}>
+                              {r.label}
+                            </div>
+                          ))}
+                      </div>
+                    )}
+                  </div>
+                  <button onClick={addSource} style={{ padding: '9px 16px', background: 'rgba(201,168,76,0.1)', border: `1px solid rgba(201,168,76,0.3)`, borderRadius: 4, color: adGold, fontFamily: "'Cinzel',serif", fontSize: 9, cursor: 'pointer', flexShrink: 0 }}>+ LINK</button>
+                </div>
+              </div>
+            </div>
+          </>
+        )}
+
+        {!effectiveId && (
+          <div style={{ marginTop: 20, padding: '14px 16px', background: 'rgba(201,168,76,0.04)', border: `1px solid ${adBdr}`, borderRadius: 6, fontFamily: "'Crimson Pro',serif", fontSize: 12, color: adDim, fontStyle: 'italic' }}>
+            Relationships, Spirits, Scriptures, Resources, Traditions, Media, and Extraction Sources become available after the artifact is created.
+          </div>
+        )}
+      </div>
     </div>
   )
 }

@@ -15745,6 +15745,9 @@ function CommunityPage() {
           {row('Gateway',        <DoorOpen size={15} strokeWidth={1.6} />,       activeSection === 'gateway',        () => go('gateway'))}
           {pageLink('Dream Interpreter', <Moon size={15} strokeWidth={1.6} />,   '/community/dream-interpreter')}
 
+          {grpHdr('Babel Files')}
+          {row('Babel Files', <BookOpen size={15} strokeWidth={1.6} />, activeSection === 'babel-files', () => go('babel-files'))}
+
           {grpHdr('Account')}
           {row('Profile',        <Eye size={15} strokeWidth={1.6} />,            false,                               () => { setEditingProfile(true); closeDrawer() })}
           {row('Settings',       <Settings size={15} strokeWidth={1.6} />,       false,                               () => { setEditingProfile(true); closeDrawer() })}
@@ -16028,6 +16031,10 @@ function CommunityPage() {
           </div>
         </div>
 
+        {/* ── BABEL FILES ── */}
+        {sectionLabel('Babel Files')}
+        {navItem('Babel Files', 'babel-files', <span style={{ fontSize: 14, lineHeight: 1 }}>🗂</span>)}
+
         {/* ── ADMIN (minister only) ── */}
         {(user?.publicMetadata?.role as string) === 'minister' && (
           <>
@@ -16148,6 +16155,17 @@ function CommunityPage() {
       {activeSection === 'events'         && <EventsView theme={theme} isMobile={isMobile} setSidebarOpen={setSidebarOpen} userTier={tier} getToken={getToken} />}
       {activeSection === 'feedback'       && <FeedbackView theme={theme} userTier={tier} isMobile={isMobile} setSidebarOpen={setSidebarOpen} userId={user?.id || ''} userName={`${user?.firstName || ''} ${user?.lastName || ''}`.trim() || 'Warrior'} />}
       {activeSection === 'my-intel'       && <MyIntelView theme={theme} isMobile={isMobile} setSidebarOpen={setSidebarOpen} getToken={getToken} />}
+      {activeSection === 'babel-files'    && (
+        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', background: isDark ? '#0D0B14' : '#FAF8F5', padding: '40px 20px' }}>
+          <div style={{ textAlign: 'center' as const, maxWidth: 480 }}>
+            <div style={{ fontSize: 48, marginBottom: 16 }}>🗂</div>
+            <div style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.18em', color: G, marginBottom: 12 }}>BABEL FILES</div>
+            <div style={{ fontFamily: "'Crimson Pro',serif", fontSize: 14, color: isDark ? 'rgba(232,224,208,0.6)' : 'rgba(0,0,0,0.6)', lineHeight: 1.7 }}>
+              Cultural intelligence dossiers on movies, music, symbols, people, secret societies, and more — coming soon.
+            </div>
+          </div>
+        </div>
+      )}
       {activeSection === 'my-sol-jobs'    && <MySolJobsView theme={theme} isMobile={isMobile} getToken={getToken} onOpenProtocol={(result: any) => { setStpResult(result); setActiveSection('deliverance-protocol'); if (isMobile) setSidebarOpen(false) }} onNavigate={(section: string) => { setActiveSection(section); if (isMobile) setSidebarOpen(false) }} />}
       {activeSection === 'daily-brief'    && <DailyDevotionView theme={theme} isMobile={isMobile} setSidebarOpen={setSidebarOpen} userTier={tier} userId={user?.id || ''} />}
       {activeSection === 'sol' && (
