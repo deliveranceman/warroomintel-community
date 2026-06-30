@@ -100,7 +100,7 @@ export async function createArtifact(
   sb: any,
   inbound: Record<string, any>,
   userId: string,
-): Promise<{ record: Record<string, any> | null; error: string | null }> {
+): Promise<{ record: Record<string, any> | null; error: string | null; embedWarning?: string | null }> {
   const name = (inbound.name || '').toString().trim()
   if (!name) return { record: null, error: 'name required' }
 
@@ -113,10 +113,15 @@ export async function createArtifact(
   const { data, error } = await sb.from('artifacts').insert(cols).select('*').single()
   if (error) return { record: null, error: error.message }
 
-  void reembedArtifactAfterWrite(sb, data.id, process.env.OPENAI_API_KEY).catch(
-    (e: any) => console.error('[artifactWrite] embed failed after create:', e?.message)
-  )
-  return { record: mapArtifactRow(data), error: null }
+  let embedWarning: string | null = null
+  try {
+    await reembedArtifactAfterWrite(sb, data.id, process.env.OPENAI_API_KEY)
+  } catch (e: any) {
+    const msg = e?.message ?? String(e)
+    console.error('[artifactWrite] embed failed after create:', msg)
+    embedWarning = msg
+  }
+  return { record: mapArtifactRow(data), error: null, embedWarning }
 }
 
 // Update an existing artifact by id. Partial — only present keys change.
@@ -124,7 +129,7 @@ export async function updateArtifact(
   sb: any,
   id: string,
   inbound: Record<string, any>,
-): Promise<{ record: Record<string, any> | null; error: string | null }> {
+): Promise<{ record: Record<string, any> | null; error: string | null; embedWarning?: string | null }> {
   const cols = toArtifactColumns(inbound)
   cols.updated_at = new Date().toISOString()
   // created_by must not be overwritten on update
@@ -134,10 +139,15 @@ export async function updateArtifact(
   if (error) return { record: null, error: error.message }
   if (!data)  return { record: null, error: 'Artifact not found' }
 
-  void reembedArtifactAfterWrite(sb, data.id, process.env.OPENAI_API_KEY).catch(
-    (e: any) => console.error('[artifactWrite] embed failed after update:', e?.message)
-  )
-  return { record: mapArtifactRow(data), error: null }
+  let embedWarning: string | null = null
+  try {
+    await reembedArtifactAfterWrite(sb, data.id, process.env.OPENAI_API_KEY)
+  } catch (e: any) {
+    const msg = e?.message ?? String(e)
+    console.error('[artifactWrite] embed failed after update:', msg)
+    embedWarning = msg
+  }
+  return { record: mapArtifactRow(data), error: null, embedWarning }
 }
 
 export { generateArtifactSlug, uniqueArtifactSlug, CAMEL_TO_COL, COL_TO_CAMEL }

@@ -79,17 +79,17 @@ export default async function handler(req: Request): Promise<Response> {
 
     // ── create ───────────────────────────────────────────────────────────────
     if (action === 'create') {
-      const { record, error } = await createArtifact(client, body as Record<string, any>, userId)
+      const { record, error, embedWarning } = await createArtifact(client, body as Record<string, any>, userId)
       if (error) return json({ error }, 400)
-      return json({ artifact: record }, 201)
+      return json({ artifact: record, embedWarning }, 201)
     }
 
     // ── update (default) ────────────────────────────────────────────────────
     const id = typeof body.id === 'string' ? body.id.trim() : ''
     if (!id) return json({ error: 'id required for update' }, 400)
-    const { record, error } = await updateArtifact(client, id, body as Record<string, any>)
+    const { record, error, embedWarning } = await updateArtifact(client, id, body as Record<string, any>)
     if (error) return json({ error }, 400)
-    return json({ artifact: record })
+    return json({ artifact: record, embedWarning })
   }
 
   return json({ error: 'method_not_allowed' }, 405)

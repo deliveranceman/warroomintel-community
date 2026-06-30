@@ -18214,7 +18214,11 @@ function ArtifactEditForm({ artifact, getToken, isDark, onBack }: {
     if (!res.ok) { setMsg(d.error || 'Save failed'); setSaving(false); return }
     const newId = d.artifact?.id || effectiveId
     if (isCreating && newId) { setSavedId(newId) }
-    setMsg('Saved.')
+    if (d?.embedWarning) {
+      setMsg(`✓ Saved, but embedding failed: ${d.embedWarning}. Search may be stale for this dossier.`)
+    } else {
+      setMsg('Saved.')
+    }
     setDirty(false)
     setSaving(false)
     if (isCreating && newId) loadJoinTables(newId)
@@ -18577,7 +18581,7 @@ function ArtifactEditForm({ artifact, getToken, isDark, onBack }: {
             <button onClick={save} disabled={saveDisabled} style={{ padding: '9px 28px', background: saveDisabled ? 'rgba(201,168,76,0.2)' : adGold, border: 'none', borderRadius: 4, color: saveDisabled ? adDim : '#0D0B14', fontFamily: "'Cinzel',serif", fontSize: 9, letterSpacing: '0.1em', cursor: saveDisabled ? 'not-allowed' : 'pointer' }}>
               {hydrating ? 'LOADING...' : saving ? 'SAVING...' : (!dirty && !isNew && hydrated) ? '✓ SAVED' : isNew ? 'CREATE ARTIFACT' : '✓ SAVE ARTIFACT'}
             </button>
-            {msg && <span style={{ fontFamily: "'Crimson Pro',serif", fontSize: 12, color: msg.includes('fail') || msg.includes('required') ? '#f87171' : '#22c55e' }}>{msg}</span>}
+            {msg && <span style={{ fontFamily: "'Crimson Pro',serif", fontSize: 12, color: (msg.startsWith('✓') && msg.includes('fail')) ? '#f59e0b' : msg.includes('fail') || msg.includes('required') ? '#f87171' : '#22c55e' }}>{msg}</span>}
           </div>
         </div>
 
@@ -18855,7 +18859,7 @@ function ArtifactEditForm({ artifact, getToken, isDark, onBack }: {
             style={{ background: 'transparent', color: adDim, border: `1px solid ${adBdr}`, borderRadius: 6, padding: '9px 18px', fontFamily: "'Cinzel',serif", fontSize: 10, letterSpacing: '0.1em', cursor: 'pointer' }}>
             Cancel
           </button>
-          {msg && <span style={{ fontFamily: "'Crimson Pro',serif", fontSize: 12, color: msg.includes('fail') || msg.includes('required') ? '#f87171' : '#22c55e' }}>{msg}</span>}
+          {msg && <span style={{ fontFamily: "'Crimson Pro',serif", fontSize: 12, color: (msg.startsWith('✓') && msg.includes('fail')) ? '#f59e0b' : msg.includes('fail') || msg.includes('required') ? '#f87171' : '#22c55e' }}>{msg}</span>}
         </div>
       </div>
     </div>
@@ -18863,7 +18867,7 @@ function ArtifactEditForm({ artifact, getToken, isDark, onBack }: {
     {/* FIX 1 — Sticky FAB: always visible regardless of scroll position */}
     <div style={{ position: 'fixed', bottom: 'calc(16px + env(safe-area-inset-bottom, 0px))', right: 24, zIndex: 90, display: 'flex', flexDirection: 'column' as const, alignItems: 'flex-end', gap: 6 }}>
       {msg && (
-        <div style={{ fontFamily: "'Crimson Pro',serif", fontSize: 12, color: msg.includes('fail') || msg.includes('required') ? '#f87171' : '#22c55e', background: isDark ? 'rgba(9,8,15,0.92)' : 'rgba(247,245,240,0.92)', padding: '4px 10px', borderRadius: 4, backdropFilter: 'blur(4px)', whiteSpace: 'nowrap' as const }}>
+        <div style={{ fontFamily: "'Crimson Pro',serif", fontSize: 12, color: (msg.startsWith('✓') && msg.includes('fail')) ? '#f59e0b' : msg.includes('fail') || msg.includes('required') ? '#f87171' : '#22c55e', background: isDark ? 'rgba(9,8,15,0.92)' : 'rgba(247,245,240,0.92)', padding: '4px 10px', borderRadius: 4, backdropFilter: 'blur(4px)', whiteSpace: 'nowrap' as const }}>
           {msg}
         </div>
       )}
