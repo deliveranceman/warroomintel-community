@@ -382,7 +382,7 @@ export function CommunitySidebarShell({ activeItem, fillViewport, children }: Pr
 
           {/* ── BABEL FILES ── */}
           {sectionLabel('Babel Files')}
-          {navLink('Babel Files', '/community', <span style={{ fontSize: 14, lineHeight: 1 }}>🗂</span>)}
+          {navLink('Babel Files', '/community/babel-files', <span style={{ fontSize: 14, lineHeight: 1 }}>🗂</span>)}
 
           {/* ── ADMIN (minister only) ── */}
           {isMinister && (
