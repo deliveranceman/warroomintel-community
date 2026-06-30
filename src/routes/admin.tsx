@@ -18078,6 +18078,12 @@ function ArtifactEditForm({ artifact, getToken, isDark, onBack }: {
   const [sourceSearch, setSourceSearch]           = useState('')
   const [sourceResults, setSourceResults]         = useState<any[]>([])
 
+  // Hydration state — guards save from wiping DB with empty-string init values
+  const [hydrating, setHydrating]       = useState<boolean>(!isNew)
+  const [hydrated,  setHydrated]        = useState<boolean>(isNew)
+  const [hydrateError, setHydrateError] = useState<string | null>(null)
+  const [dirty, setDirty]               = useState(false)
+
   const effectiveId = savedId || artifact?.id || ''
 
   async function loadTypes() {
@@ -18141,6 +18147,49 @@ function ArtifactEditForm({ artifact, getToken, isDark, onBack }: {
     return () => clearTimeout(t)
   }, [sourceSearch])
 
+  // Hydration: fetch full artifact row when editing — list endpoint returns sparse cols only.
+  useEffect(() => {
+    if (!effectiveId) return
+    setHydrating(true)
+    setHydrateError(null)
+    ;(async () => {
+      try {
+        const token = await getToken()
+        const res = await fetch(`/api/admin-artifacts?id=${encodeURIComponent(effectiveId)}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        })
+        if (res.status === 404) { setHydrateError('Artifact not found (404). Save is disabled.'); return }
+        if (!res.ok) { setHydrateError(`Load failed (${res.status}). Save is disabled.`); return }
+        const d = await res.json()
+        const a = d.artifact
+        if (!a) { setHydrateError('No data returned. Save is disabled.'); return }
+        setName(a.name || '')
+        setArtifactType(a.artifactType || '')
+        setAliases(a.aliases || '')
+        setStatus(a.status || 'active')
+        setClassification(a.classification || 'unclassified')
+        setIntelligenceOnly(!!a.intelligenceOnly)
+        setPublished(!!a.published)
+        setCautionLevel(a.cautionLevel?.toString() || '')
+        setCautionNote(a.cautionNote || '')
+        setCompiledBy(a.compiledBy || 'manual')
+        setSubjectImageUrl(a.subjectImageUrl || '')
+        setOgImageUrl(a.ogImageUrl || '')
+        setSummary(a.summary || '')
+        setBody(a.body || '')
+        setFirstAppearance(a.firstAppearance || '')
+        setOrigin(a.origin || '')
+        setDetails(typeof a.details === 'object' && a.details ? a.details : {})
+        setHydrated(true)
+        setDirty(false)
+      } catch (e: any) {
+        setHydrateError(e.message || 'Failed to load artifact. Save is disabled.')
+      } finally {
+        setHydrating(false)
+      }
+    })()
+  }, [effectiveId])
+
   async function save() {
     if (!name.trim()) { setMsg('Name is required'); return }
     if (!artifactType) { setMsg('Artifact type is required'); return }
@@ -18166,6 +18215,7 @@ function ArtifactEditForm({ artifact, getToken, isDark, onBack }: {
     const newId = d.artifact?.id || effectiveId
     if (isCreating && newId) { setSavedId(newId) }
     setMsg('Saved.')
+    setDirty(false)
     setSaving(false)
     if (isCreating && newId) loadJoinTables(newId)
   }
@@ -18414,6 +18464,8 @@ function ArtifactEditForm({ artifact, getToken, isDark, onBack }: {
     return () => clearTimeout(t)
   }, [resourceSearch])
 
+  const saveDisabled = saving || hydrating || !!hydrateError || (!dirty && !isNew && hydrated)
+
   return (
     <>
     <div style={{ background: isDark ? '#09080f' : '#F7F5F0', minHeight: '100%' }}>
@@ -18431,7 +18483,18 @@ function ArtifactEditForm({ artifact, getToken, isDark, onBack }: {
         )}
       </div>
 
-      <div style={{ border: `1px solid ${adBdr}`, borderRadius: 8, padding: 20 }}>
+      <div style={{ position: 'relative', border: `1px solid ${adBdr}`, borderRadius: 8, padding: 20 }}
+           onChange={() => { if (hydrated) setDirty(true) }}>
+        {hydrating && (
+          <div style={{ position: 'absolute', inset: 0, background: isDark ? 'rgba(9,8,15,0.8)' : 'rgba(247,245,240,0.8)', zIndex: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 8, backdropFilter: 'blur(2px)' }}>
+            <span style={{ fontFamily: "'Cinzel',serif", fontSize: 10, letterSpacing: '0.15em', color: adGold }}>LOADING DOSSIER...</span>
+          </div>
+        )}
+        {hydrateError && (
+          <div style={{ marginBottom: 16, padding: '10px 14px', background: 'rgba(248,113,113,0.12)', border: '1px solid rgba(248,113,113,0.35)', borderRadius: 6, fontFamily: "'Crimson Pro',serif", fontSize: 13, color: '#f87171' }}>
+            ⚠ {hydrateError}
+          </div>
+        )}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
 
           {/* ── SUBJECT ─────────────────────────────────────────── */}
@@ -18511,8 +18574,8 @@ function ArtifactEditForm({ artifact, getToken, isDark, onBack }: {
 
           {/* Save button for SUBJECT + BODY — solid gold pill (FIX 3) */}
           <div style={{ gridColumn: '1 / -1', display: 'flex', alignItems: 'center', gap: 12, paddingTop: 8 }}>
-            <button onClick={save} disabled={saving} style={{ padding: '9px 28px', background: saving ? 'rgba(201,168,76,0.2)' : adGold, border: 'none', borderRadius: 4, color: saving ? adDim : '#0D0B14', fontFamily: "'Cinzel',serif", fontSize: 9, letterSpacing: '0.1em', cursor: saving ? 'not-allowed' : 'pointer' }}>
-              {saving ? 'SAVING...' : isNew ? 'CREATE ARTIFACT' : '✓ SAVE ARTIFACT'}
+            <button onClick={save} disabled={saveDisabled} style={{ padding: '9px 28px', background: saveDisabled ? 'rgba(201,168,76,0.2)' : adGold, border: 'none', borderRadius: 4, color: saveDisabled ? adDim : '#0D0B14', fontFamily: "'Cinzel',serif", fontSize: 9, letterSpacing: '0.1em', cursor: saveDisabled ? 'not-allowed' : 'pointer' }}>
+              {hydrating ? 'LOADING...' : saving ? 'SAVING...' : (!dirty && !isNew && hydrated) ? '✓ SAVED' : isNew ? 'CREATE ARTIFACT' : '✓ SAVE ARTIFACT'}
             </button>
             {msg && <span style={{ fontFamily: "'Crimson Pro',serif", fontSize: 12, color: msg.includes('fail') || msg.includes('required') ? '#f87171' : '#22c55e' }}>{msg}</span>}
           </div>
@@ -18523,8 +18586,8 @@ function ArtifactEditForm({ artifact, getToken, isDark, onBack }: {
           <div style={{ marginTop: 8 }}>
             <DetailsEditor />
             <div style={{ marginTop: 12 }}>
-              <button onClick={save} disabled={saving} style={{ padding: '7px 20px', background: 'rgba(201,168,76,0.12)', border: `1px solid rgba(201,168,76,0.4)`, borderRadius: 4, color: adGold, fontFamily: "'Cinzel',serif", fontSize: 8, letterSpacing: '0.1em', cursor: saving ? 'not-allowed' : 'pointer' }}>
-                {saving ? 'Saving...' : '✓ Save Details'}
+              <button onClick={save} disabled={saveDisabled} style={{ padding: '7px 20px', background: 'rgba(201,168,76,0.12)', border: `1px solid rgba(201,168,76,0.4)`, borderRadius: 4, color: saveDisabled ? adDim : adGold, fontFamily: "'Cinzel',serif", fontSize: 8, letterSpacing: '0.1em', cursor: saveDisabled ? 'not-allowed' : 'pointer' }}>
+                {hydrating ? 'Loading...' : saving ? 'Saving...' : (!dirty && !isNew && hydrated) ? '✓ Saved' : '✓ Save Details'}
               </button>
             </div>
           </div>
@@ -18784,9 +18847,9 @@ function ArtifactEditForm({ artifact, getToken, isDark, onBack }: {
 
         {/* FIX 2 — Tail-end save: mirrors SpiritEditForm bottom pattern */}
         <div style={{ marginTop: 20, paddingTop: 16, borderTop: `1px solid ${adBdr}`, display: 'flex', alignItems: 'center', gap: 10 }}>
-          <button onClick={save} disabled={saving}
-            style={{ background: saving ? 'rgba(201,168,76,0.2)' : adGold, color: saving ? adDim : '#0D0B14', border: 'none', borderRadius: 6, padding: '9px 22px', fontFamily: "'Cinzel',serif", fontSize: 10, letterSpacing: '0.1em', cursor: saving ? 'not-allowed' : 'pointer' }}>
-            {saving ? 'Saving...' : '✓ Save'}
+          <button onClick={save} disabled={saveDisabled}
+            style={{ background: saveDisabled ? 'rgba(201,168,76,0.2)' : adGold, color: saveDisabled ? adDim : '#0D0B14', border: 'none', borderRadius: 6, padding: '9px 22px', fontFamily: "'Cinzel',serif", fontSize: 10, letterSpacing: '0.1em', cursor: saveDisabled ? 'not-allowed' : 'pointer' }}>
+            {hydrating ? 'Loading...' : saving ? 'Saving...' : (!dirty && !isNew && hydrated) ? '✓ Saved' : '✓ Save'}
           </button>
           <button onClick={onBack}
             style={{ background: 'transparent', color: adDim, border: `1px solid ${adBdr}`, borderRadius: 6, padding: '9px 18px', fontFamily: "'Cinzel',serif", fontSize: 10, letterSpacing: '0.1em', cursor: 'pointer' }}>
@@ -18804,17 +18867,17 @@ function ArtifactEditForm({ artifact, getToken, isDark, onBack }: {
           {msg}
         </div>
       )}
-      <button onClick={save} disabled={saving} style={{
-        background: saving ? 'rgba(201,168,76,0.2)' : adGold,
-        color: saving ? adDim : '#0D0B14',
+      <button onClick={save} disabled={saveDisabled} style={{
+        background: saveDisabled ? 'rgba(201,168,76,0.2)' : adGold,
+        color: saveDisabled ? adDim : '#0D0B14',
         border: 'none', borderRadius: 24,
         padding: '9px 22px',
         fontFamily: "'Cinzel',serif", fontSize: 10, letterSpacing: '0.1em',
-        cursor: saving ? 'not-allowed' : 'pointer',
+        cursor: saveDisabled ? 'not-allowed' : 'pointer',
         boxShadow: '0 4px 16px rgba(0,0,0,0.35)',
         whiteSpace: 'nowrap' as const,
       }}>
-        {saving ? 'Saving...' : '✓ Save'}
+        {hydrating ? 'Loading...' : saving ? 'Saving...' : (!dirty && !isNew && hydrated) ? '✓ Saved' : '✓ Save'}
       </button>
     </div>
     </>

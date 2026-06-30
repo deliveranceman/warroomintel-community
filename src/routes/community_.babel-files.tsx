@@ -1,4 +1,4 @@
-import { createFileRoute, useSearch } from '@tanstack/react-router'
+import { createFileRoute, useSearch, useRouterState, Outlet, Link } from '@tanstack/react-router'
 import { useAuth, useUser } from '@clerk/tanstack-start'
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { CommunitySidebarShell } from '@/components/CommunitySidebarShell'
@@ -9,10 +9,6 @@ import { Search, AlertTriangle, Shield } from 'lucide-react'
 export const Route = createFileRoute('/community_/babel-files')({
   ssr: false,
   component: BabelFilesPage,
-  validateSearch: (s: Record<string, unknown>) => ({
-    type: typeof s.type === 'string' ? s.type : '',
-    search: typeof s.search === 'string' ? s.search : '',
-  }),
 })
 
 // ── Sub-brand labels ───────────────────────────────────────────────────────
@@ -77,8 +73,9 @@ function ArtifactCard({ a, isDark }: { a: Artifact; isDark: boolean }) {
   const mut = isDark ? 'rgba(232,224,208,0.5)' : 'rgba(45,41,36,0.5)'
 
   return (
-    <a
-      href={`/community/babel-files/${a.slug}`}
+    <Link
+      to="/community/babel-files/$slug"
+      params={{ slug: a.slug }}
       style={{
         display: 'flex', flexDirection: 'column',
         background: surf, border: `1px solid ${brd}`,
@@ -87,12 +84,12 @@ function ArtifactCard({ a, isDark }: { a: Artifact; isDark: boolean }) {
         transition: 'border-color 0.15s, background 0.15s',
         cursor: 'pointer',
       }}
-      onMouseEnter={e => {
+      onMouseEnter={(e: React.MouseEvent<HTMLAnchorElement>) => {
         const el = e.currentTarget as HTMLElement
         el.style.borderColor = 'rgba(201,168,76,0.45)'
         el.style.background = isDark ? 'rgba(201,168,76,0.04)' : 'rgba(201,168,76,0.06)'
       }}
-      onMouseLeave={e => {
+      onMouseLeave={(e: React.MouseEvent<HTMLAnchorElement>) => {
         const el = e.currentTarget as HTMLElement
         el.style.borderColor = brd
         el.style.background = surf
@@ -141,7 +138,7 @@ function ArtifactCard({ a, isDark }: { a: Artifact; isDark: boolean }) {
           </p>
         )}
       </div>
-    </a>
+    </Link>
   )
 }
 
@@ -152,8 +149,9 @@ function ArtifactCardMobile({ a, isDark }: { a: Artifact; isDark: boolean }) {
   const mut = isDark ? 'rgba(232,224,208,0.5)' : 'rgba(45,41,36,0.5)'
 
   return (
-    <a
-      href={`/community/babel-files/${a.slug}`}
+    <Link
+      to="/community/babel-files/$slug"
+      params={{ slug: a.slug }}
       style={{
         display: 'flex', alignItems: 'center', gap: 12,
         padding: '12px 16px', background: 'transparent',
@@ -184,7 +182,7 @@ function ArtifactCardMobile({ a, isDark }: { a: Artifact; isDark: boolean }) {
         )}
       </div>
       {a.cautionLevel >= 3 && <CautionMeter level={a.cautionLevel} />}
-    </a>
+    </Link>
   )
 }
 
@@ -253,6 +251,11 @@ function BabelFilesPage() {
 
   useEffect(() => { void fetchArtifacts() }, [fetchArtifacts])
 
+  // Detect when the $slug child route is active — defer rendering to its component.
+  const hasChildRoute = useRouterState({
+    select: (s) => s.matches.some(m => m.routeId === '/community_/babel-files/$slug'),
+  })
+
   // ── Theme tokens ───────────────────────────────────────────────────────
   const bg   = isDark ? '#0D0B14' : '#FAF8F5'
   const txt  = isDark ? '#e8dcc8' : '#2D2924'
@@ -279,6 +282,8 @@ function BabelFilesPage() {
       )}
     </div>
   )
+
+  if (hasChildRoute) return <Outlet />
 
   return (
     <CommunitySidebarShell activeItem="Babel Files" fillViewport>
