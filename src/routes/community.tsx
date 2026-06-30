@@ -14272,6 +14272,9 @@ function CommunityPage() {
   const [intelArchiveOpen, setIntelArchiveOpen] = useState(() => {
     try { return localStorage.getItem('sidebar_intel_archive_open') !== 'false' } catch { return true }
   })
+  const [babelFilesOpen, setBabelFilesOpen] = useState(() => {
+    try { return localStorage.getItem('sidebar_babel_files_open') !== 'false' } catch { return true }
+  })
   const [tooltipVisible, setTooltipVisible]     = useState<string | null>(null)
 
   const [streamToken, setStreamToken] = useState<string>('')
@@ -15746,7 +15749,18 @@ function CommunityPage() {
           {pageLink('Dream Interpreter', <Moon size={15} strokeWidth={1.6} />,   '/community/dream-interpreter')}
 
           {grpHdr('Babel Files')}
-          {row('Babel Files', <BookOpen size={15} strokeWidth={1.6} />, activeSection === 'babel-files', () => go('babel-files'))}
+          {pageLink('Babel Files', <BookOpen size={15} strokeWidth={1.6} />, '/community/babel-files')}
+          {pageLink('🧑 Babel Figures',   <span style={{ fontSize: 12, lineHeight: 1 }}>🧑</span>, '/community/babel-files?type=person')}
+          {pageLink('🎬 Babel Cinema',    <span style={{ fontSize: 12, lineHeight: 1 }}>🎬</span>, '/community/babel-files?type=movie')}
+          {pageLink('👁 Babel Symbols',   <span style={{ fontSize: 12, lineHeight: 1 }}>👁</span>, '/community/babel-files?type=symbol')}
+          {pageLink('📺 Babel Broadcast', <span style={{ fontSize: 12, lineHeight: 1 }}>📺</span>, '/community/babel-files?type=tv_show')}
+          {pageLink('🎵 Babel Beats',     <span style={{ fontSize: 12, lineHeight: 1 }}>🎵</span>, '/community/babel-files?type=music')}
+          {pageLink('🎮 Babel Games',     <span style={{ fontSize: 12, lineHeight: 1 }}>🎮</span>, '/community/babel-files?type=game')}
+          {pageLink('📖 Babel Codex',     <span style={{ fontSize: 12, lineHeight: 1 }}>📖</span>, '/community/babel-files?type=book')}
+          {pageLink('✝ Babel Beliefs',    <span style={{ fontSize: 12, lineHeight: 1 }}>✝</span>,  '/community/babel-files?type=religion')}
+          {pageLink('⚡ Babel Mythos',    <span style={{ fontSize: 12, lineHeight: 1 }}>⚡</span>, '/community/babel-files?type=mythology')}
+          {pageLink('🏛 Babel Societies', <span style={{ fontSize: 12, lineHeight: 1 }}>🏛</span>, '/community/babel-files?type=secret_society')}
+          {pageLink('📅 Babel Current',   <span style={{ fontSize: 12, lineHeight: 1 }}>📅</span>, '/community/babel-files?type=event')}
 
           {grpHdr('Account')}
           {row('Profile',        <Eye size={15} strokeWidth={1.6} />,            false,                               () => { setEditingProfile(true); closeDrawer() })}
@@ -16033,7 +16047,77 @@ function CommunityPage() {
 
         {/* ── BABEL FILES ── */}
         {sectionLabel('Babel Files')}
-        {navItem('Babel Files', 'babel-files', <span style={{ fontSize: 14, lineHeight: 1 }}>🗂</span>)}
+        <div style={{ display: 'flex', alignItems: 'stretch' }}>
+          <a
+            href="/community/babel-files"
+            style={{
+              display: 'flex', alignItems: 'center', gap: 8, flex: 1,
+              padding: sidebarCollapsed && !isMobile ? '10px 0' : '8px 8px 8px 16px',
+              background: 'transparent', textDecoration: 'none',
+              borderLeft: '2px solid transparent',
+              justifyContent: sidebarCollapsed && !isMobile ? 'center' : 'flex-start',
+              fontFamily: cinzel, fontSize: 12, letterSpacing: '0.1em',
+              color: NAV_DEFAULT, transition: 'all 0.15s',
+              boxSizing: 'border-box' as const,
+            }}
+            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(201,168,76,0.05)'; e.currentTarget.style.color = navGold }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = NAV_DEFAULT }}
+          >
+            <span style={{ display: 'flex', alignItems: 'center', width: 20, flexShrink: 0 }}>
+              <span style={{ fontSize: 14, lineHeight: 1 }}>🗂</span>
+            </span>
+            {!(sidebarCollapsed && !isMobile) && 'Babel Files'}
+          </a>
+          {!(sidebarCollapsed && !isMobile) && (
+            <button
+              onClick={() => {
+                const next = !babelFilesOpen
+                setBabelFilesOpen(next)
+                try { localStorage.setItem('sidebar_babel_files_open', String(next)) } catch {}
+              }}
+              style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: '8px 12px 8px 4px', color: isDark ? '#6b5e45' : '#5C5248', flexShrink: 0 }}
+            >
+              <span style={chevronStyle(babelFilesOpen)}>›</span>
+            </button>
+          )}
+        </div>
+        {!(sidebarCollapsed && !isMobile) && (
+          <div style={{ overflow: 'hidden', maxHeight: babelFilesOpen ? 400 : 0, transition: 'max-height 0.2s ease' }}>
+            <div style={{ paddingLeft: 16 }}>
+              {([
+                { label: 'Babel Figures',   type: 'person',         icon: '🧑' },
+                { label: 'Babel Cinema',    type: 'movie',          icon: '🎬' },
+                { label: 'Babel Symbols',   type: 'symbol',         icon: '👁' },
+                { label: 'Babel Broadcast', type: 'tv_show',        icon: '📺' },
+                { label: 'Babel Beats',     type: 'music',          icon: '🎵' },
+                { label: 'Babel Games',     type: 'game',           icon: '🎮' },
+                { label: 'Babel Codex',     type: 'book',           icon: '📖' },
+                { label: 'Babel Beliefs',   type: 'religion',       icon: '✝' },
+                { label: 'Babel Mythos',    type: 'mythology',      icon: '⚡' },
+                { label: 'Babel Societies', type: 'secret_society', icon: '🏛' },
+                { label: 'Babel Current',   type: 'event',          icon: '📅' },
+              ] as { label: string; type: string; icon: string }[]).map(({ label, type, icon }) => (
+                <a
+                  key={type}
+                  href={`/community/babel-files?type=${type}`}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 8, width: '100%',
+                    padding: '6px 16px', background: 'transparent', textDecoration: 'none',
+                    borderLeft: '2px solid rgba(201,168,76,0.1)',
+                    fontFamily: cinzel, fontSize: 12, letterSpacing: '0.08em',
+                    color: isDark ? '#9a8874' : '#7a6858',
+                    boxSizing: 'border-box' as const, transition: 'all 0.15s',
+                  }}
+                  onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = navGold; (e.currentTarget as HTMLElement).style.borderLeftColor = 'rgba(201,168,76,0.5)' }}
+                  onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = isDark ? '#9a8874' : '#7a6858'; (e.currentTarget as HTMLElement).style.borderLeftColor = 'rgba(201,168,76,0.1)' }}
+                >
+                  <span style={{ fontSize: 11, width: 14, flexShrink: 0, textAlign: 'center' as const }}>{icon}</span>
+                  <span>{label}</span>
+                </a>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* ── ADMIN (minister only) ── */}
         {(user?.publicMetadata?.role as string) === 'minister' && (

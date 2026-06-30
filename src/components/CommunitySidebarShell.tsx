@@ -35,6 +35,9 @@ export function CommunitySidebarShell({ activeItem, fillViewport, children }: Pr
   const [archiveOpen, setArchiveOpen] = useState(() => {
     try { return localStorage.getItem('sidebar_intel_archive_open') !== 'false' } catch { return true }
   })
+  const [babelOpen, setBabelOpen] = useState(() => {
+    try { return localStorage.getItem('sidebar_babel_files_open') !== 'false' } catch { return true }
+  })
   const [sidebarSearchVal, setSidebarSearchVal] = useState('')
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false)
   const sidebarSearchRef = useRef<HTMLInputElement>(null)
@@ -382,7 +385,25 @@ export function CommunitySidebarShell({ activeItem, fillViewport, children }: Pr
 
           {/* ── BABEL FILES ── */}
           {sectionLabel('Babel Files')}
-          {navLink('Babel Files', '/community/babel-files', <span style={{ fontSize: 14, lineHeight: 1 }}>🗂</span>)}
+          {collapseParent('Babel Files', <span style={{ fontSize: 14, lineHeight: 1 }}>🗂</span>, babelOpen, () => {
+            const next = !babelOpen
+            setBabelOpen(next)
+            try { localStorage.setItem('sidebar_babel_files_open', String(next)) } catch {}
+          }, (
+            <div style={{ paddingLeft: 16 }}>
+              {subNavLink('Babel Figures',   '/community/babel-files?type=person',         <span style={{ fontSize: 11 }}>🧑</span>, ['Babel Figures'])}
+              {subNavLink('Babel Cinema',    '/community/babel-files?type=movie',           <span style={{ fontSize: 11 }}>🎬</span>, ['Babel Cinema'])}
+              {subNavLink('Babel Symbols',   '/community/babel-files?type=symbol',          <span style={{ fontSize: 11 }}>👁</span>, ['Babel Symbols'])}
+              {subNavLink('Babel Broadcast', '/community/babel-files?type=tv_show',         <span style={{ fontSize: 11 }}>📺</span>, ['Babel Broadcast'])}
+              {subNavLink('Babel Beats',     '/community/babel-files?type=music',           <span style={{ fontSize: 11 }}>🎵</span>, ['Babel Beats'])}
+              {subNavLink('Babel Games',     '/community/babel-files?type=game',            <span style={{ fontSize: 11 }}>🎮</span>, ['Babel Games'])}
+              {subNavLink('Babel Codex',     '/community/babel-files?type=book',            <span style={{ fontSize: 11 }}>📖</span>, ['Babel Codex'])}
+              {subNavLink('Babel Beliefs',   '/community/babel-files?type=religion',        <span style={{ fontSize: 11 }}>✝</span>,  ['Babel Beliefs'])}
+              {subNavLink('Babel Mythos',    '/community/babel-files?type=mythology',       <span style={{ fontSize: 11 }}>⚡</span>, ['Babel Mythos'])}
+              {subNavLink('Babel Societies', '/community/babel-files?type=secret_society',  <span style={{ fontSize: 11 }}>🏛</span>, ['Babel Societies'])}
+              {subNavLink('Babel Current',   '/community/babel-files?type=event',           <span style={{ fontSize: 11 }}>📅</span>, ['Babel Current'])}
+            </div>
+          ))}
 
           {/* ── ADMIN (minister only) ── */}
           {isMinister && (

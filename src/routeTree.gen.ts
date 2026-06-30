@@ -38,6 +38,7 @@ import { Route as CommunityFieldOpsRouteImport } from './routes/community_.field
 import { Route as CommunityFieldManualRouteImport } from './routes/community_.field-manual'
 import { Route as CommunityDreamInterpreterRouteImport } from './routes/community_.dream-interpreter'
 import { Route as CommunityBloodlineRouteImport } from './routes/community_.bloodline'
+import { Route as CommunityBabelFilesRouteImport } from './routes/community_.babel-files'
 import { Route as CommunityAskSolRouteImport } from './routes/community_.ask-sol'
 import { Route as ApiWarroomChatRouteImport } from './routes/api.warroom-chat'
 import { Route as ApiUserTierRouteImport } from './routes/api.user-tier'
@@ -58,6 +59,7 @@ import { Route as ApiGenerateSummaryRouteImport } from './routes/api.generate-su
 import { Route as ApiGenerateFieldCardRouteImport } from './routes/api.generate-field-card'
 import { Route as ApiDemonsRouteImport } from './routes/api.demons'
 import { Route as ApiClerkWebhookRouteImport } from './routes/api.clerk-webhook'
+import { Route as ApiBabelRouteImport } from './routes/api.babel'
 import { Route as ApiAssessmentBoardRouteImport } from './routes/api.assessment-board'
 import { Route as ApiAdminUploadRouteImport } from './routes/api.admin-upload'
 import { Route as ApiAdminAuthRouteImport } from './routes/api.admin-auth'
@@ -68,6 +70,7 @@ import { Route as AdminLoginRouteImport } from './routes/admin.login'
 import { Route as AdminChurchFathersLibraryRouteImport } from './routes/admin.church-fathers-library'
 import { Route as CommunitySpiritsSpiritIdRouteImport } from './routes/community_.spirits.$spiritId'
 import { Route as CommunityBloodlineProfileIdRouteImport } from './routes/community_.bloodline_.$profileId'
+import { Route as CommunityBabelFilesSlugRouteImport } from './routes/community_.babel-files.$slug'
 import { Route as CommunityArsenalResourceIdRouteImport } from './routes/community_.arsenal.$resourceId'
 import { Route as AdminIntelSolTestRouteImport } from './routes/admin_.intel.sol-test'
 import { Route as AdminIntelScripturesRouteImport } from './routes/admin_.intel.scriptures'
@@ -223,6 +226,11 @@ const CommunityBloodlineRoute = CommunityBloodlineRouteImport.update({
   path: '/community/bloodline',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CommunityBabelFilesRoute = CommunityBabelFilesRouteImport.update({
+  id: '/community_/babel-files',
+  path: '/community/babel-files',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const CommunityAskSolRoute = CommunityAskSolRouteImport.update({
   id: '/community_/ask-sol',
   path: '/community/ask-sol',
@@ -323,6 +331,11 @@ const ApiClerkWebhookRoute = ApiClerkWebhookRouteImport.update({
   path: '/api/clerk-webhook',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiBabelRoute = ApiBabelRouteImport.update({
+  id: '/api/babel',
+  path: '/api/babel',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiAssessmentBoardRoute = ApiAssessmentBoardRouteImport.update({
   id: '/api/assessment-board',
   path: '/api/assessment-board',
@@ -376,6 +389,11 @@ const CommunityBloodlineProfileIdRoute =
     path: '/community/bloodline/$profileId',
     getParentRoute: () => rootRouteImport,
   } as any)
+const CommunityBabelFilesSlugRoute = CommunityBabelFilesSlugRouteImport.update({
+  id: '/$slug',
+  path: '/$slug',
+  getParentRoute: () => CommunityBabelFilesRoute,
+} as any)
 const CommunityArsenalResourceIdRoute =
   CommunityArsenalResourceIdRouteImport.update({
     id: '/community_/arsenal/$resourceId',
@@ -442,6 +460,7 @@ export interface FileRoutesByFullPath {
   '/api/admin-auth': typeof ApiAdminAuthRoute
   '/api/admin-upload': typeof ApiAdminUploadRoute
   '/api/assessment-board': typeof ApiAssessmentBoardRoute
+  '/api/babel': typeof ApiBabelRoute
   '/api/clerk-webhook': typeof ApiClerkWebhookRoute
   '/api/demons': typeof ApiDemonsRoute
   '/api/generate-field-card': typeof ApiGenerateFieldCardRoute
@@ -462,6 +481,7 @@ export interface FileRoutesByFullPath {
   '/api/user-tier': typeof ApiUserTierRoute
   '/api/warroom-chat': typeof ApiWarroomChatRoute
   '/community/ask-sol': typeof CommunityAskSolRoute
+  '/community/babel-files': typeof CommunityBabelFilesRouteWithChildren
   '/community/bloodline': typeof CommunityBloodlineRoute
   '/community/dream-interpreter': typeof CommunityDreamInterpreterRoute
   '/community/field-manual': typeof CommunityFieldManualRoute
@@ -480,6 +500,7 @@ export interface FileRoutesByFullPath {
   '/admin/intel/scriptures': typeof AdminIntelScripturesRoute
   '/admin/intel/sol-test': typeof AdminIntelSolTestRoute
   '/community/arsenal/$resourceId': typeof CommunityArsenalResourceIdRoute
+  '/community/babel-files/$slug': typeof CommunityBabelFilesSlugRoute
   '/community/bloodline/$profileId': typeof CommunityBloodlineProfileIdRoute
   '/community/spirits/$spiritId': typeof CommunitySpiritsSpiritIdRoute
 }
@@ -509,6 +530,7 @@ export interface FileRoutesByTo {
   '/api/admin-auth': typeof ApiAdminAuthRoute
   '/api/admin-upload': typeof ApiAdminUploadRoute
   '/api/assessment-board': typeof ApiAssessmentBoardRoute
+  '/api/babel': typeof ApiBabelRoute
   '/api/clerk-webhook': typeof ApiClerkWebhookRoute
   '/api/demons': typeof ApiDemonsRoute
   '/api/generate-field-card': typeof ApiGenerateFieldCardRoute
@@ -529,6 +551,7 @@ export interface FileRoutesByTo {
   '/api/user-tier': typeof ApiUserTierRoute
   '/api/warroom-chat': typeof ApiWarroomChatRoute
   '/community/ask-sol': typeof CommunityAskSolRoute
+  '/community/babel-files': typeof CommunityBabelFilesRouteWithChildren
   '/community/bloodline': typeof CommunityBloodlineRoute
   '/community/dream-interpreter': typeof CommunityDreamInterpreterRoute
   '/community/field-manual': typeof CommunityFieldManualRoute
@@ -547,6 +570,7 @@ export interface FileRoutesByTo {
   '/admin/intel/scriptures': typeof AdminIntelScripturesRoute
   '/admin/intel/sol-test': typeof AdminIntelSolTestRoute
   '/community/arsenal/$resourceId': typeof CommunityArsenalResourceIdRoute
+  '/community/babel-files/$slug': typeof CommunityBabelFilesSlugRoute
   '/community/bloodline/$profileId': typeof CommunityBloodlineProfileIdRoute
   '/community/spirits/$spiritId': typeof CommunitySpiritsSpiritIdRoute
 }
@@ -578,6 +602,7 @@ export interface FileRoutesById {
   '/api/admin-auth': typeof ApiAdminAuthRoute
   '/api/admin-upload': typeof ApiAdminUploadRoute
   '/api/assessment-board': typeof ApiAssessmentBoardRoute
+  '/api/babel': typeof ApiBabelRoute
   '/api/clerk-webhook': typeof ApiClerkWebhookRoute
   '/api/demons': typeof ApiDemonsRoute
   '/api/generate-field-card': typeof ApiGenerateFieldCardRoute
@@ -598,6 +623,7 @@ export interface FileRoutesById {
   '/api/user-tier': typeof ApiUserTierRoute
   '/api/warroom-chat': typeof ApiWarroomChatRoute
   '/community_/ask-sol': typeof CommunityAskSolRoute
+  '/community_/babel-files': typeof CommunityBabelFilesRouteWithChildren
   '/community_/bloodline': typeof CommunityBloodlineRoute
   '/community_/dream-interpreter': typeof CommunityDreamInterpreterRoute
   '/community_/field-manual': typeof CommunityFieldManualRoute
@@ -616,6 +642,7 @@ export interface FileRoutesById {
   '/admin_/intel/scriptures': typeof AdminIntelScripturesRoute
   '/admin_/intel/sol-test': typeof AdminIntelSolTestRoute
   '/community_/arsenal/$resourceId': typeof CommunityArsenalResourceIdRoute
+  '/community_/babel-files/$slug': typeof CommunityBabelFilesSlugRoute
   '/community_/bloodline_/$profileId': typeof CommunityBloodlineProfileIdRoute
   '/community_/spirits/$spiritId': typeof CommunitySpiritsSpiritIdRoute
 }
@@ -648,6 +675,7 @@ export interface FileRouteTypes {
     | '/api/admin-auth'
     | '/api/admin-upload'
     | '/api/assessment-board'
+    | '/api/babel'
     | '/api/clerk-webhook'
     | '/api/demons'
     | '/api/generate-field-card'
@@ -668,6 +696,7 @@ export interface FileRouteTypes {
     | '/api/user-tier'
     | '/api/warroom-chat'
     | '/community/ask-sol'
+    | '/community/babel-files'
     | '/community/bloodline'
     | '/community/dream-interpreter'
     | '/community/field-manual'
@@ -686,6 +715,7 @@ export interface FileRouteTypes {
     | '/admin/intel/scriptures'
     | '/admin/intel/sol-test'
     | '/community/arsenal/$resourceId'
+    | '/community/babel-files/$slug'
     | '/community/bloodline/$profileId'
     | '/community/spirits/$spiritId'
   fileRoutesByTo: FileRoutesByTo
@@ -715,6 +745,7 @@ export interface FileRouteTypes {
     | '/api/admin-auth'
     | '/api/admin-upload'
     | '/api/assessment-board'
+    | '/api/babel'
     | '/api/clerk-webhook'
     | '/api/demons'
     | '/api/generate-field-card'
@@ -735,6 +766,7 @@ export interface FileRouteTypes {
     | '/api/user-tier'
     | '/api/warroom-chat'
     | '/community/ask-sol'
+    | '/community/babel-files'
     | '/community/bloodline'
     | '/community/dream-interpreter'
     | '/community/field-manual'
@@ -753,6 +785,7 @@ export interface FileRouteTypes {
     | '/admin/intel/scriptures'
     | '/admin/intel/sol-test'
     | '/community/arsenal/$resourceId'
+    | '/community/babel-files/$slug'
     | '/community/bloodline/$profileId'
     | '/community/spirits/$spiritId'
   id:
@@ -783,6 +816,7 @@ export interface FileRouteTypes {
     | '/api/admin-auth'
     | '/api/admin-upload'
     | '/api/assessment-board'
+    | '/api/babel'
     | '/api/clerk-webhook'
     | '/api/demons'
     | '/api/generate-field-card'
@@ -803,6 +837,7 @@ export interface FileRouteTypes {
     | '/api/user-tier'
     | '/api/warroom-chat'
     | '/community_/ask-sol'
+    | '/community_/babel-files'
     | '/community_/bloodline'
     | '/community_/dream-interpreter'
     | '/community_/field-manual'
@@ -821,6 +856,7 @@ export interface FileRouteTypes {
     | '/admin_/intel/scriptures'
     | '/admin_/intel/sol-test'
     | '/community_/arsenal/$resourceId'
+    | '/community_/babel-files/$slug'
     | '/community_/bloodline_/$profileId'
     | '/community_/spirits/$spiritId'
   fileRoutesById: FileRoutesById
@@ -850,6 +886,7 @@ export interface RootRouteChildren {
   ApiAdminAuthRoute: typeof ApiAdminAuthRoute
   ApiAdminUploadRoute: typeof ApiAdminUploadRoute
   ApiAssessmentBoardRoute: typeof ApiAssessmentBoardRoute
+  ApiBabelRoute: typeof ApiBabelRoute
   ApiClerkWebhookRoute: typeof ApiClerkWebhookRoute
   ApiDemonsRoute: typeof ApiDemonsRoute
   ApiGenerateFieldCardRoute: typeof ApiGenerateFieldCardRoute
@@ -870,6 +907,7 @@ export interface RootRouteChildren {
   ApiUserTierRoute: typeof ApiUserTierRoute
   ApiWarroomChatRoute: typeof ApiWarroomChatRoute
   CommunityAskSolRoute: typeof CommunityAskSolRoute
+  CommunityBabelFilesRoute: typeof CommunityBabelFilesRouteWithChildren
   CommunityBloodlineRoute: typeof CommunityBloodlineRoute
   CommunityDreamInterpreterRoute: typeof CommunityDreamInterpreterRoute
   CommunityFieldManualRoute: typeof CommunityFieldManualRoute
@@ -1093,6 +1131,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CommunityBloodlineRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/community_/babel-files': {
+      id: '/community_/babel-files'
+      path: '/community/babel-files'
+      fullPath: '/community/babel-files'
+      preLoaderRoute: typeof CommunityBabelFilesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/community_/ask-sol': {
       id: '/community_/ask-sol'
       path: '/community/ask-sol'
@@ -1233,6 +1278,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiClerkWebhookRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/babel': {
+      id: '/api/babel'
+      path: '/api/babel'
+      fullPath: '/api/babel'
+      preLoaderRoute: typeof ApiBabelRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/assessment-board': {
       id: '/api/assessment-board'
       path: '/api/assessment-board'
@@ -1302,6 +1354,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/community/bloodline/$profileId'
       preLoaderRoute: typeof CommunityBloodlineProfileIdRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/community_/babel-files/$slug': {
+      id: '/community_/babel-files/$slug'
+      path: '/$slug'
+      fullPath: '/community/babel-files/$slug'
+      preLoaderRoute: typeof CommunityBabelFilesSlugRouteImport
+      parentRoute: typeof CommunityBabelFilesRoute
     }
     '/community_/arsenal/$resourceId': {
       id: '/community_/arsenal/$resourceId'
@@ -1385,6 +1444,17 @@ const AdminBloodlineRouteWithChildren = AdminBloodlineRoute._addFileChildren(
   AdminBloodlineRouteChildren,
 )
 
+interface CommunityBabelFilesRouteChildren {
+  CommunityBabelFilesSlugRoute: typeof CommunityBabelFilesSlugRoute
+}
+
+const CommunityBabelFilesRouteChildren: CommunityBabelFilesRouteChildren = {
+  CommunityBabelFilesSlugRoute: CommunityBabelFilesSlugRoute,
+}
+
+const CommunityBabelFilesRouteWithChildren =
+  CommunityBabelFilesRoute._addFileChildren(CommunityBabelFilesRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   SplatRoute: SplatRoute,
@@ -1410,6 +1480,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiAdminAuthRoute: ApiAdminAuthRoute,
   ApiAdminUploadRoute: ApiAdminUploadRoute,
   ApiAssessmentBoardRoute: ApiAssessmentBoardRoute,
+  ApiBabelRoute: ApiBabelRoute,
   ApiClerkWebhookRoute: ApiClerkWebhookRoute,
   ApiDemonsRoute: ApiDemonsRoute,
   ApiGenerateFieldCardRoute: ApiGenerateFieldCardRoute,
@@ -1430,6 +1501,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiUserTierRoute: ApiUserTierRoute,
   ApiWarroomChatRoute: ApiWarroomChatRoute,
   CommunityAskSolRoute: CommunityAskSolRoute,
+  CommunityBabelFilesRoute: CommunityBabelFilesRouteWithChildren,
   CommunityBloodlineRoute: CommunityBloodlineRoute,
   CommunityDreamInterpreterRoute: CommunityDreamInterpreterRoute,
   CommunityFieldManualRoute: CommunityFieldManualRoute,
