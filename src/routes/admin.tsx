@@ -18415,6 +18415,7 @@ function ArtifactEditForm({ artifact, getToken, isDark, onBack }: {
   }, [resourceSearch])
 
   return (
+    <>
     <div style={{ background: isDark ? '#09080f' : '#F7F5F0', minHeight: '100%' }}>
       {/* Back + header */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24, paddingBottom: 16, borderBottom: `1px solid ${adBdr}` }}>
@@ -18508,10 +18509,10 @@ function ArtifactEditForm({ artifact, getToken, isDark, onBack }: {
           <div><label style={l}>First Appearance</label><input value={firstAppearance} onChange={e => setFirstAppearance(e.target.value)} placeholder="e.g. 14th century, Book of Shadows" style={{ ...inp }} /></div>
           <div><label style={l}>Origin / Source Region</label><input value={origin} onChange={e => setOrigin(e.target.value)} placeholder="Babylon, Egypt, Western occultism..." style={{ ...inp }} /></div>
 
-          {/* Save button for SUBJECT + BODY */}
+          {/* Save button for SUBJECT + BODY — solid gold pill (FIX 3) */}
           <div style={{ gridColumn: '1 / -1', display: 'flex', alignItems: 'center', gap: 12, paddingTop: 8 }}>
-            <button onClick={save} disabled={saving} style={{ padding: '9px 28px', background: 'rgba(201,168,76,0.15)', border: `1px solid rgba(201,168,76,0.5)`, borderRadius: 4, color: adGold, fontFamily: "'Cinzel',serif", fontSize: 9, letterSpacing: '0.1em', cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.6 : 1 }}>
-              {saving ? 'SAVING...' : isNew ? 'CREATE ARTIFACT' : 'SAVE ARTIFACT'}
+            <button onClick={save} disabled={saving} style={{ padding: '9px 28px', background: saving ? 'rgba(201,168,76,0.2)' : adGold, border: 'none', borderRadius: 4, color: saving ? adDim : '#0D0B14', fontFamily: "'Cinzel',serif", fontSize: 9, letterSpacing: '0.1em', cursor: saving ? 'not-allowed' : 'pointer' }}>
+              {saving ? 'SAVING...' : isNew ? 'CREATE ARTIFACT' : '✓ SAVE ARTIFACT'}
             </button>
             {msg && <span style={{ fontFamily: "'Crimson Pro',serif", fontSize: 12, color: msg.includes('fail') || msg.includes('required') ? '#f87171' : '#22c55e' }}>{msg}</span>}
           </div>
@@ -18522,8 +18523,8 @@ function ArtifactEditForm({ artifact, getToken, isDark, onBack }: {
           <div style={{ marginTop: 8 }}>
             <DetailsEditor />
             <div style={{ marginTop: 12 }}>
-              <button onClick={save} disabled={saving} style={{ padding: '7px 20px', background: 'transparent', border: `1px solid ${adBdr}`, borderRadius: 4, color: adDim, fontFamily: "'Cinzel',serif", fontSize: 8, letterSpacing: '0.1em', cursor: 'pointer' }}>
-                SAVE DETAILS
+              <button onClick={save} disabled={saving} style={{ padding: '7px 20px', background: 'rgba(201,168,76,0.12)', border: `1px solid rgba(201,168,76,0.4)`, borderRadius: 4, color: adGold, fontFamily: "'Cinzel',serif", fontSize: 8, letterSpacing: '0.1em', cursor: saving ? 'not-allowed' : 'pointer' }}>
+                {saving ? 'Saving...' : '✓ Save Details'}
               </button>
             </div>
           </div>
@@ -18780,7 +18781,42 @@ function ArtifactEditForm({ artifact, getToken, isDark, onBack }: {
             Relationships, Spirits, Scriptures, Resources, Traditions, Media, and Extraction Sources become available after the artifact is created.
           </div>
         )}
+
+        {/* FIX 2 — Tail-end save: mirrors SpiritEditForm bottom pattern */}
+        <div style={{ marginTop: 20, paddingTop: 16, borderTop: `1px solid ${adBdr}`, display: 'flex', alignItems: 'center', gap: 10 }}>
+          <button onClick={save} disabled={saving}
+            style={{ background: saving ? 'rgba(201,168,76,0.2)' : adGold, color: saving ? adDim : '#0D0B14', border: 'none', borderRadius: 6, padding: '9px 22px', fontFamily: "'Cinzel',serif", fontSize: 10, letterSpacing: '0.1em', cursor: saving ? 'not-allowed' : 'pointer' }}>
+            {saving ? 'Saving...' : '✓ Save'}
+          </button>
+          <button onClick={onBack}
+            style={{ background: 'transparent', color: adDim, border: `1px solid ${adBdr}`, borderRadius: 6, padding: '9px 18px', fontFamily: "'Cinzel',serif", fontSize: 10, letterSpacing: '0.1em', cursor: 'pointer' }}>
+            Cancel
+          </button>
+          {msg && <span style={{ fontFamily: "'Crimson Pro',serif", fontSize: 12, color: msg.includes('fail') || msg.includes('required') ? '#f87171' : '#22c55e' }}>{msg}</span>}
+        </div>
       </div>
     </div>
+
+    {/* FIX 1 — Sticky FAB: always visible regardless of scroll position */}
+    <div style={{ position: 'fixed', bottom: 'calc(16px + env(safe-area-inset-bottom, 0px))', right: 24, zIndex: 90, display: 'flex', flexDirection: 'column' as const, alignItems: 'flex-end', gap: 6 }}>
+      {msg && (
+        <div style={{ fontFamily: "'Crimson Pro',serif", fontSize: 12, color: msg.includes('fail') || msg.includes('required') ? '#f87171' : '#22c55e', background: isDark ? 'rgba(9,8,15,0.92)' : 'rgba(247,245,240,0.92)', padding: '4px 10px', borderRadius: 4, backdropFilter: 'blur(4px)', whiteSpace: 'nowrap' as const }}>
+          {msg}
+        </div>
+      )}
+      <button onClick={save} disabled={saving} style={{
+        background: saving ? 'rgba(201,168,76,0.2)' : adGold,
+        color: saving ? adDim : '#0D0B14',
+        border: 'none', borderRadius: 24,
+        padding: '9px 22px',
+        fontFamily: "'Cinzel',serif", fontSize: 10, letterSpacing: '0.1em',
+        cursor: saving ? 'not-allowed' : 'pointer',
+        boxShadow: '0 4px 16px rgba(0,0,0,0.35)',
+        whiteSpace: 'nowrap' as const,
+      }}>
+        {saving ? 'Saving...' : '✓ Save'}
+      </button>
+    </div>
+    </>
   )
 }
