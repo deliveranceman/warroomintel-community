@@ -1,3 +1,13 @@
+// ── URL convention ────────────────────────────────────────────────────────────
+// TanStack Start binds one server route to one fixed path. Sub-path segments
+// (/api/babel/:slug) are not possible in a single file. This route therefore
+// uses query params exclusively:
+//   ?slug=X          → single artifact (full dossier data)
+//   ?type=X          → list filtered by artifact_type
+//   ?search=X        → name ilike filter on list
+//   ?limit=N&offset=N → pagination on list
+// The hybrid search endpoint lives in api.babel.search.ts → /api/babel/search
+// ─────────────────────────────────────────────────────────────────────────────
 import { createFileRoute } from '@tanstack/react-router'
 import { createClient } from '@supabase/supabase-js'
 import { requireAuth } from '../../netlify/functions/_shared/access'
@@ -83,8 +93,8 @@ export const Route = createFileRoute('/api/babel')({
           if (level >= 1) {
             const { data: relRows } = await client
               .from('artifact_relationships')
-              .select('id,relationship_type,from_id,to_id,notes,strength')
-              .or(`from_id.eq.${data.id},to_id.eq.${data.id}`)
+              .select('id,relationship_type,from_artifact_id,to_artifact_id,notes,confidence')
+              .or(`from_artifact_id.eq.${data.id},to_artifact_id.eq.${data.id}`)
               .limit(50)
             relationships = relRows ?? []
           }
@@ -92,7 +102,7 @@ export const Route = createFileRoute('/api/babel')({
           // Scriptures — tier 0 (reference text, not sensitive)
           const { data: scriptureRows } = await client
             .from('artifact_scriptures')
-            .select('id,book,chapter,verse_start,verse_end,text,notes,sort_order')
+            .select('id,reference,application,sort_order')
             .eq('artifact_id', data.id)
             .order('sort_order', { ascending: true })
             .limit(20)

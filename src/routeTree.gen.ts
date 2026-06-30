@@ -72,6 +72,7 @@ import { Route as CommunitySpiritsSpiritIdRouteImport } from './routes/community
 import { Route as CommunityBloodlineProfileIdRouteImport } from './routes/community_.bloodline_.$profileId'
 import { Route as CommunityBabelFilesSlugRouteImport } from './routes/community_.babel-files.$slug'
 import { Route as CommunityArsenalResourceIdRouteImport } from './routes/community_.arsenal.$resourceId'
+import { Route as ApiBabelSearchRouteImport } from './routes/api.babel.search'
 import { Route as AdminIntelSolTestRouteImport } from './routes/admin_.intel.sol-test'
 import { Route as AdminIntelScripturesRouteImport } from './routes/admin_.intel.scriptures'
 import { Route as AdminIntelGatewaysRouteImport } from './routes/admin_.intel.gateways'
@@ -400,6 +401,11 @@ const CommunityArsenalResourceIdRoute =
     path: '/community/arsenal/$resourceId',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiBabelSearchRoute = ApiBabelSearchRouteImport.update({
+  id: '/search',
+  path: '/search',
+  getParentRoute: () => ApiBabelRoute,
+} as any)
 const AdminIntelSolTestRoute = AdminIntelSolTestRouteImport.update({
   id: '/admin_/intel/sol-test',
   path: '/admin/intel/sol-test',
@@ -460,7 +466,7 @@ export interface FileRoutesByFullPath {
   '/api/admin-auth': typeof ApiAdminAuthRoute
   '/api/admin-upload': typeof ApiAdminUploadRoute
   '/api/assessment-board': typeof ApiAssessmentBoardRoute
-  '/api/babel': typeof ApiBabelRoute
+  '/api/babel': typeof ApiBabelRouteWithChildren
   '/api/clerk-webhook': typeof ApiClerkWebhookRoute
   '/api/demons': typeof ApiDemonsRoute
   '/api/generate-field-card': typeof ApiGenerateFieldCardRoute
@@ -499,6 +505,7 @@ export interface FileRoutesByFullPath {
   '/admin/intel/gateways': typeof AdminIntelGatewaysRoute
   '/admin/intel/scriptures': typeof AdminIntelScripturesRoute
   '/admin/intel/sol-test': typeof AdminIntelSolTestRoute
+  '/api/babel/search': typeof ApiBabelSearchRoute
   '/community/arsenal/$resourceId': typeof CommunityArsenalResourceIdRoute
   '/community/babel-files/$slug': typeof CommunityBabelFilesSlugRoute
   '/community/bloodline/$profileId': typeof CommunityBloodlineProfileIdRoute
@@ -530,7 +537,7 @@ export interface FileRoutesByTo {
   '/api/admin-auth': typeof ApiAdminAuthRoute
   '/api/admin-upload': typeof ApiAdminUploadRoute
   '/api/assessment-board': typeof ApiAssessmentBoardRoute
-  '/api/babel': typeof ApiBabelRoute
+  '/api/babel': typeof ApiBabelRouteWithChildren
   '/api/clerk-webhook': typeof ApiClerkWebhookRoute
   '/api/demons': typeof ApiDemonsRoute
   '/api/generate-field-card': typeof ApiGenerateFieldCardRoute
@@ -569,6 +576,7 @@ export interface FileRoutesByTo {
   '/admin/intel/gateways': typeof AdminIntelGatewaysRoute
   '/admin/intel/scriptures': typeof AdminIntelScripturesRoute
   '/admin/intel/sol-test': typeof AdminIntelSolTestRoute
+  '/api/babel/search': typeof ApiBabelSearchRoute
   '/community/arsenal/$resourceId': typeof CommunityArsenalResourceIdRoute
   '/community/babel-files/$slug': typeof CommunityBabelFilesSlugRoute
   '/community/bloodline/$profileId': typeof CommunityBloodlineProfileIdRoute
@@ -602,7 +610,7 @@ export interface FileRoutesById {
   '/api/admin-auth': typeof ApiAdminAuthRoute
   '/api/admin-upload': typeof ApiAdminUploadRoute
   '/api/assessment-board': typeof ApiAssessmentBoardRoute
-  '/api/babel': typeof ApiBabelRoute
+  '/api/babel': typeof ApiBabelRouteWithChildren
   '/api/clerk-webhook': typeof ApiClerkWebhookRoute
   '/api/demons': typeof ApiDemonsRoute
   '/api/generate-field-card': typeof ApiGenerateFieldCardRoute
@@ -641,6 +649,7 @@ export interface FileRoutesById {
   '/admin_/intel/gateways': typeof AdminIntelGatewaysRoute
   '/admin_/intel/scriptures': typeof AdminIntelScripturesRoute
   '/admin_/intel/sol-test': typeof AdminIntelSolTestRoute
+  '/api/babel/search': typeof ApiBabelSearchRoute
   '/community_/arsenal/$resourceId': typeof CommunityArsenalResourceIdRoute
   '/community_/babel-files/$slug': typeof CommunityBabelFilesSlugRoute
   '/community_/bloodline_/$profileId': typeof CommunityBloodlineProfileIdRoute
@@ -714,6 +723,7 @@ export interface FileRouteTypes {
     | '/admin/intel/gateways'
     | '/admin/intel/scriptures'
     | '/admin/intel/sol-test'
+    | '/api/babel/search'
     | '/community/arsenal/$resourceId'
     | '/community/babel-files/$slug'
     | '/community/bloodline/$profileId'
@@ -784,6 +794,7 @@ export interface FileRouteTypes {
     | '/admin/intel/gateways'
     | '/admin/intel/scriptures'
     | '/admin/intel/sol-test'
+    | '/api/babel/search'
     | '/community/arsenal/$resourceId'
     | '/community/babel-files/$slug'
     | '/community/bloodline/$profileId'
@@ -855,6 +866,7 @@ export interface FileRouteTypes {
     | '/admin_/intel/gateways'
     | '/admin_/intel/scriptures'
     | '/admin_/intel/sol-test'
+    | '/api/babel/search'
     | '/community_/arsenal/$resourceId'
     | '/community_/babel-files/$slug'
     | '/community_/bloodline_/$profileId'
@@ -886,7 +898,7 @@ export interface RootRouteChildren {
   ApiAdminAuthRoute: typeof ApiAdminAuthRoute
   ApiAdminUploadRoute: typeof ApiAdminUploadRoute
   ApiAssessmentBoardRoute: typeof ApiAssessmentBoardRoute
-  ApiBabelRoute: typeof ApiBabelRoute
+  ApiBabelRoute: typeof ApiBabelRouteWithChildren
   ApiClerkWebhookRoute: typeof ApiClerkWebhookRoute
   ApiDemonsRoute: typeof ApiDemonsRoute
   ApiGenerateFieldCardRoute: typeof ApiGenerateFieldCardRoute
@@ -1369,6 +1381,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CommunityArsenalResourceIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/babel/search': {
+      id: '/api/babel/search'
+      path: '/search'
+      fullPath: '/api/babel/search'
+      preLoaderRoute: typeof ApiBabelSearchRouteImport
+      parentRoute: typeof ApiBabelRoute
+    }
     '/admin_/intel/sol-test': {
       id: '/admin_/intel/sol-test'
       path: '/admin/intel/sol-test'
@@ -1444,6 +1463,18 @@ const AdminBloodlineRouteWithChildren = AdminBloodlineRoute._addFileChildren(
   AdminBloodlineRouteChildren,
 )
 
+interface ApiBabelRouteChildren {
+  ApiBabelSearchRoute: typeof ApiBabelSearchRoute
+}
+
+const ApiBabelRouteChildren: ApiBabelRouteChildren = {
+  ApiBabelSearchRoute: ApiBabelSearchRoute,
+}
+
+const ApiBabelRouteWithChildren = ApiBabelRoute._addFileChildren(
+  ApiBabelRouteChildren,
+)
+
 interface CommunityBabelFilesRouteChildren {
   CommunityBabelFilesSlugRoute: typeof CommunityBabelFilesSlugRoute
 }
@@ -1480,7 +1511,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiAdminAuthRoute: ApiAdminAuthRoute,
   ApiAdminUploadRoute: ApiAdminUploadRoute,
   ApiAssessmentBoardRoute: ApiAssessmentBoardRoute,
-  ApiBabelRoute: ApiBabelRoute,
+  ApiBabelRoute: ApiBabelRouteWithChildren,
   ApiClerkWebhookRoute: ApiClerkWebhookRoute,
   ApiDemonsRoute: ApiDemonsRoute,
   ApiGenerateFieldCardRoute: ApiGenerateFieldCardRoute,

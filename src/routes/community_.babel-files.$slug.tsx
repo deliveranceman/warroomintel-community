@@ -146,14 +146,11 @@ function MediaItem({ item, isDark }: { item: any; isDark: boolean }) {
 
 function ScriptureCard({ s, isDark }: { s: any; isDark: boolean }) {
   const txt = isDark ? '#e8dcc8' : '#2D2924'
-  const mut = isDark ? 'rgba(232,224,208,0.5)' : 'rgba(45,41,36,0.5)'
   const surf = isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)'
-  const ref = [s.book, s.chapter && `${s.chapter}:${s.verse_start}${s.verse_end && s.verse_end !== s.verse_start ? `-${s.verse_end}` : ''}`].filter(Boolean).join(' ')
   return (
-    <div style={{ margin: '0 20px 10px', padding: '12px 14px', background: surf, borderLeft: `2px solid rgba(201,168,76,0.3)', borderRadius: '0 6px 6px 0` }}>
-      {ref && <div style={{ fontFamily: 'var(--font-label)', fontSize: 8, letterSpacing: '0.14em', color: G, marginBottom: 6 }}>{ref}</div>}
-      {s.text && <p style={{ fontFamily: crimson, fontSize: 14, color: txt, margin: 0, lineHeight: 1.7, fontStyle: 'italic' }}>{s.text}</p>}
-      {s.notes && <p style={{ fontFamily: crimson, fontSize: 12, color: mut, margin: '6px 0 0', lineHeight: 1.5 }}>{s.notes}</p>}
+    <div style={{ margin: '0 20px 10px', padding: '12px 14px', background: surf, borderLeft: '2px solid rgba(201,168,76,0.3)', borderRadius: '0 6px 6px 0' }}>
+      {s.reference && <div style={{ fontFamily: 'var(--font-label)', fontSize: 8, letterSpacing: '0.14em', color: G, marginBottom: 6 }}>{s.reference}</div>}
+      {s.application && <p style={{ fontFamily: crimson, fontSize: 14, color: txt, margin: 0, lineHeight: 1.7, fontStyle: 'italic' }}>{s.application}</p>}
     </div>
   )
 }
@@ -176,6 +173,7 @@ function BabelDossierPage() {
     typeof window !== 'undefined' ? window.innerWidth < 768 : false
   )
   const [shareToast, setShareToast]     = useState(false)
+  const [shareOpen, setShareOpen]       = useState(false)
   const shareTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Tier gating enforced server-side; lockedSections returned from API
@@ -185,6 +183,20 @@ function BabelDossierPage() {
     window.addEventListener('resize', check)
     return () => window.removeEventListener('resize', check)
   }, [])
+
+  // Inject og:image / og:title / og:description into document head (CSR-only route)
+  useEffect(() => {
+    if (!artifact) return
+    const set = (prop: string, val: string) => {
+      let el = document.querySelector(`meta[property="${prop}"]`) as HTMLMetaElement | null
+      if (!el) { el = document.createElement('meta'); el.setAttribute('property', prop); document.head.appendChild(el) }
+      el.setAttribute('content', val)
+    }
+    if (artifact.ogImageUrl)  set('og:image',       artifact.ogImageUrl)
+    if (artifact.name)        set('og:title',        `${artifact.name} · Babel Files`)
+    if (artifact.summary)     set('og:description',  artifact.summary.slice(0, 200))
+    set('og:url', window.location.href)
+  }, [artifact])
 
   const fetchDossier = useCallback(async () => {
     setLoading(true)
@@ -215,11 +227,23 @@ function BabelDossierPage() {
 
   useEffect(() => { void fetchDossier() }, [fetchDossier])
 
-  const handleShare = useCallback(() => {
+  const handleShare = useCallback(() => { setShareOpen(true) }, [])
+
+  const handleCopyLink = useCallback(() => {
     navigator.clipboard.writeText(window.location.href).catch(() => {})
+    setShareOpen(false)
     setShareToast(true)
     if (shareTimerRef.current) clearTimeout(shareTimerRef.current)
     shareTimerRef.current = setTimeout(() => setShareToast(false), 2000)
+  }, [])
+
+  const handleShareNative = useCallback((title: string) => {
+    if (navigator.share) {
+      navigator.share({ title, url: window.location.href }).catch(() => {})
+    } else {
+      navigator.clipboard.writeText(window.location.href).catch(() => {})
+    }
+    setShareOpen(false)
   }, [])
 
   // ── Theme tokens ───────────────────────────────────────────────────────
@@ -295,7 +319,7 @@ function BabelDossierPage() {
         </div>
         <button onClick={handleShare} style={{ background: 'none', border: 'none', cursor: 'pointer', color: cls.color, opacity: 0.7, display: 'flex', alignItems: 'center', gap: 4, fontFamily: cinzel, fontSize: 9 }}>
           <Share2 size={11} />
-          {shareToast ? 'COPIED' : 'SHARE'}
+          SHARE
         </button>
       </div>
 
@@ -430,7 +454,7 @@ function BabelDossierPage() {
                     {relationships.map((r: any) => (
                       <div key={r.id} style={{ padding: '4px 10px', background: 'rgba(201,168,76,0.08)', border: '1px solid rgba(201,168,76,0.2)', borderRadius: 4, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.06em', color: mut }}>
                         {r.relationship_type?.replace(/_/g, ' ')}
-                        {r.strength ? ` · ${r.strength}/5` : ''}
+                        {r.confidence ? ` · ${r.confidence}/5` : ''}
                       </div>
                     ))}
                   </div>
@@ -497,7 +521,7 @@ function BabelDossierPage() {
         <button onClick={handleShare} style={{ background: 'none', border: 'none', cursor: 'pointer', color: cls.color, opacity: 0.7 }}>
           <Share2 size={14} />
         </button>
-        {shareToast && <span style={{ fontFamily: cinzel, fontSize: 8, color: cls.color, letterSpacing: '0.1em' }}>COPIED</span>}
+        {shareToast && <span style={{ fontFamily: cinzel, fontSize: 8, color: cls.color, letterSpacing: '0.1em' }}>LINK COPIED</span>}
       </div>
 
       {/* Hero */}
@@ -604,9 +628,106 @@ function BabelDossierPage() {
     </div>
   )
 
+  const shareUrl  = typeof window !== 'undefined' ? window.location.href : ''
+  const shareTitle = artifact?.name ? `${artifact.name} · Babel Files` : 'Babel Files'
+
   return (
     <CommunitySidebarShell activeItem="Babel Files" fillViewport>
       {isMobile ? <MobileLayout /> : <DesktopLayout />}
+
+      {/* Share bottom-sheet overlay */}
+      {shareOpen && (
+        <div
+          onClick={() => setShareOpen(false)}
+          style={{
+            position: 'fixed', inset: 0, zIndex: 200,
+            background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(2px)',
+            display: 'flex', alignItems: 'flex-end',
+          }}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{
+              width: '100%', maxWidth: 480, margin: '0 auto',
+              background: isDark ? '#1a1624' : '#faf8f5',
+              borderRadius: '16px 16px 0 0',
+              padding: '20px 20px calc(20px + env(safe-area-inset-bottom, 0px))',
+              border: `1px solid ${isDark ? 'rgba(201,168,76,0.2)' : 'rgba(0,0,0,0.1)'}`,
+              borderBottom: 'none',
+            }}
+          >
+            <div style={{ fontFamily: 'var(--font-label)', fontSize: 8, letterSpacing: '0.2em', color: G, marginBottom: 16, textAlign: 'center' as const }}>
+              SHARE DOSSIER
+            </div>
+
+            <button onClick={handleCopyLink} style={{
+              display: 'flex', alignItems: 'center', gap: 12, width: '100%',
+              padding: '14px 16px', marginBottom: 8,
+              background: isDark ? 'rgba(201,168,76,0.06)' : 'rgba(201,168,76,0.05)',
+              border: `1px solid rgba(201,168,76,0.2)`, borderRadius: 8,
+              cursor: 'pointer', textAlign: 'left' as const,
+            }}>
+              <Share2 size={14} style={{ color: G, flexShrink: 0 }} />
+              <div>
+                <div style={{ fontFamily: 'var(--font-label)', fontSize: 10, letterSpacing: '0.1em', color: txt, marginBottom: 2 }}>COPY LINK</div>
+                <div style={{ fontFamily: crimson, fontSize: 12, color: mut, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const, maxWidth: 300 }}>{shareUrl}</div>
+              </div>
+            </button>
+
+            <button onClick={() => handleShareNative(shareTitle)} style={{
+              display: 'flex', alignItems: 'center', gap: 12, width: '100%',
+              padding: '14px 16px', marginBottom: 8,
+              background: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.03)',
+              border: `1px solid ${bdr}`, borderRadius: 8,
+              cursor: 'pointer', textAlign: 'left' as const,
+            }}>
+              <span style={{ fontSize: 14, flexShrink: 0 }}>💬</span>
+              <div>
+                <div style={{ fontFamily: 'var(--font-label)', fontSize: 10, letterSpacing: '0.1em', color: txt, marginBottom: 2 }}>SHARE TO DM</div>
+                <div style={{ fontFamily: crimson, fontSize: 12, color: mut }}>Send via your device's share menu</div>
+              </div>
+            </button>
+
+            <button onClick={() => handleShareNative(`[Babel Files] ${shareTitle}`)} style={{
+              display: 'flex', alignItems: 'center', gap: 12, width: '100%',
+              padding: '14px 16px', marginBottom: 16,
+              background: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.03)',
+              border: `1px solid ${bdr}`, borderRadius: 8,
+              cursor: 'pointer', textAlign: 'left' as const,
+            }}>
+              <span style={{ fontSize: 14, flexShrink: 0 }}>🎯</span>
+              <div>
+                <div style={{ fontFamily: 'var(--font-label)', fontSize: 10, letterSpacing: '0.1em', color: txt, marginBottom: 2 }}>SHARE TO FIELD TEAM</div>
+                <div style={{ fontFamily: crimson, fontSize: 12, color: mut }}>Share to War Room Intelligence community</div>
+              </div>
+            </button>
+
+            <button onClick={() => setShareOpen(false)} style={{
+              width: '100%', padding: '10px', background: 'transparent',
+              border: `1px solid ${bdr}`, borderRadius: 8,
+              fontFamily: 'var(--font-label)', fontSize: 9, letterSpacing: '0.1em',
+              color: mut, cursor: 'pointer',
+            }}>
+              CANCEL
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Copy-link toast */}
+      {shareToast && (
+        <div style={{
+          position: 'fixed', bottom: 'calc(24px + env(safe-area-inset-bottom, 0px))', left: '50%',
+          transform: 'translateX(-50%)', zIndex: 300,
+          background: isDark ? '#1a1624' : '#2D2924', color: isDark ? G : '#FAF8F5',
+          fontFamily: 'var(--font-label)', fontSize: 9, letterSpacing: '0.14em',
+          padding: '8px 20px', borderRadius: 24,
+          border: `1px solid rgba(201,168,76,0.4)`,
+          pointerEvents: 'none' as const,
+        }}>
+          LINK COPIED
+        </div>
+      )}
     </CommunitySidebarShell>
   )
 }
