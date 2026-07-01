@@ -31,7 +31,7 @@ export interface NavNode {
   externalLink?: boolean;
   disabled?: boolean;
   disabledLabel?: string;
-  badgeSource?: 'dm-unread' | 'notifications' | 'my-sol-jobs' | 'war-room-chat-unread';
+  badgeSource?: 'dm-unread' | 'notifications' | 'my-sol-jobs' | 'war-room-chat-unread' | 'war-room-unread';
 }
 
 export interface NavSection {
@@ -146,6 +146,32 @@ export const NAV_TREE: NavSection[] = [
     id: 'community-life',
     label: 'Community Life',
     entries: [
+      {
+        id: 'war-room-chat',
+        label: 'War Room Chat',
+        icon: { kind: 'lucide', name: 'MessageSquare' },
+        target: { kind: 'section', sectionKey: 'war-room-chat' },
+        badgeSource: 'war-room-unread',
+      },
+      {
+        id: 'dms',
+        label: 'Direct Messages',
+        icon: { kind: 'lucide', name: 'Inbox' },
+        target: { kind: 'section', sectionKey: 'dms' },
+        badgeSource: 'dm-unread',
+      },
+      {
+        id: 'prayer-wall',
+        label: 'Prayer Wall',
+        icon: { kind: 'lucide', name: 'Heart' },
+        target: { kind: 'section', sectionKey: 'prayer-wall' },
+      },
+      {
+        id: 'testimony-wall',
+        label: 'Testimony Wall',
+        icon: { kind: 'lucide', name: 'Cross' },
+        target: { kind: 'section', sectionKey: 'testimony-wall' },
+      },
       {
         id: 'forum',
         label: 'Ops Board',

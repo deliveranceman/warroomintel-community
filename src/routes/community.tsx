@@ -26,10 +26,10 @@ import { WRITabBar } from '@/components/WRITabBar'
 import { FlagButton } from '@/components/FlagButton'
 import { SolIcon } from '@/components/SolIcon'
 import { NavTree } from '@/components/NavTree'
-import { NAV_TREE } from '@/lib/nav'
+import { NAV_TREE, FOOTER_SOCIAL } from '@/lib/nav'
 import CallOverlay from '../components/CallOverlay'
 import AudioPrayerCallOverlay from '../components/AudioPrayerCallOverlay'
-import { FileText, Plus, BookOpen, MessageSquare, Inbox, Heart, Cross, Users, HelpCircle, FolderOpen, Antenna, Radio, Archive, Sword, Library, Search, Map, Network, Moon, Eye, Calendar, Shield, Settings, GraduationCap, FolderArchive, DoorOpen, Zap, Bell, Mic, Phone, Video, ChevronLeft, Send, MoreHorizontal, PenLine, Image as ImageIcon, SlidersHorizontal } from 'lucide-react'
+import { Plus, BookOpen, MessageSquare, Inbox, Heart, Cross, Users, HelpCircle, Archive, Library, Calendar, Settings, Zap, Bell, Mic, Phone, Video, ChevronLeft, Send, MoreHorizontal, PenLine, Image as ImageIcon, SlidersHorizontal } from 'lucide-react'
 import { searchHelp, getArticlesByCategory } from '@/utils/helpSearch'
 import { helpCategories, helpArticles, type HelpArticle } from '@/data/helpContent'
 import { WRIReactionPicker } from '@/components/chat/WRIReactionPicker'
@@ -15374,7 +15374,6 @@ function CommunityPage() {
   }
 
   const NAV_DEFAULT = isDark ? '#b8a98a' : '#3d2e1e'
-  const navGold    = isDark ? G : '#8B6914'
 
   // Hamburger button for mobile center headers
   const Hamburger = () => isMobile ? (
@@ -15578,46 +15577,6 @@ function CommunityPage() {
 
   // ── MORE DRAWER CONTENT (grouped nav for mobile + iPad "More" drawers) ──
   const MoreDrawerContent = ({ closeDrawer }: { closeDrawer: () => void }) => {
-    const go = (section: string) => { setActiveSection(section); closeDrawer() }
-    const isOpsAllowed = ['commander', 'general'].includes(tier.toLowerCase()) || role === 'minister'
-    const grpHdr = (label: string) => (
-      <div style={{ padding: '14px 16px 4px', fontFamily: cinzel, fontSize: 9, letterSpacing: '0.18em', color: '#A07830', textTransform: 'uppercase' as const, userSelect: 'none' as const }}>{label}</div>
-    )
-    const row = (label: string, icon: React.ReactNode, active: boolean, onClick: () => void) => (
-      <button
-        onClick={onClick}
-        style={{
-          display: 'flex', alignItems: 'center', gap: 10, width: '100%',
-          padding: '9px 16px', background: active ? 'rgba(201,168,76,0.10)' : 'transparent',
-          border: 'none', borderLeft: `2px solid ${active ? navGold : 'transparent'}`,
-          fontFamily: cinzel, fontSize: 12, letterSpacing: '0.08em',
-          color: active ? navGold : NAV_DEFAULT, cursor: 'pointer',
-          textAlign: 'left' as const, boxSizing: 'border-box' as const,
-          transition: 'background 0.15s, color 0.15s',
-        }}
-      >
-        <span style={{ display: 'flex', alignItems: 'center', color: G, flexShrink: 0, width: 18 }}>{icon}</span>
-        {label}
-      </button>
-    )
-    const pageLink = (label: string, icon: React.ReactNode, href: string) => (
-      <a
-        href={href}
-        onClick={closeDrawer}
-        style={{
-          display: 'flex', alignItems: 'center', gap: 10, width: '100%',
-          padding: '9px 16px', background: 'transparent',
-          border: 'none', borderLeft: '2px solid transparent',
-          fontFamily: cinzel, fontSize: 12, letterSpacing: '0.08em',
-          color: NAV_DEFAULT, textDecoration: 'none',
-          boxSizing: 'border-box' as const,
-          transition: 'background 0.15s, color 0.15s',
-        }}
-      >
-        <span style={{ display: 'flex', alignItems: 'center', color: G, flexShrink: 0, width: 18 }}>{icon}</span>
-        {label}
-      </a>
-    )
     return (
       <div style={{ display: 'flex', flexDirection: 'column' as const, height: '100%', userSelect: 'none' as const, WebkitUserSelect: 'none' as const, WebkitTouchCallout: 'none' as const, WebkitTapHighlightColor: 'transparent' }}>
         {/* User header */}
@@ -15656,65 +15615,43 @@ function CommunityPage() {
           >Out</button>
         </div>
 
-        {/* Scrollable groups */}
+        {/* Scrollable body */}
         <div style={{ flex: 1, overflowY: 'auto' as const, paddingBottom: 'calc(env(safe-area-inset-bottom) + 16px)' }}>
-          {grpHdr('Community')}
-          {row('Ops Dashboard', <Zap size={15} strokeWidth={1.6} />,            activeSection === 'ops-dashboard',  () => go('ops-dashboard'))}
-          {row('Daily Brief',    <span style={{ fontSize: 14, lineHeight: 1 }}>☀</span>, activeSection === 'daily-brief', () => go('daily-brief'))}
-          {row('Weekly Intel',   <Antenna size={15} strokeWidth={1.6} />,        activeSection === 'intel',          () => go('intel'))}
-          {pageLink('Ask SOL',           <SolIcon size={15} />,                  '/community/ask-sol')}
-          {row('My SOL Jobs',    <Zap size={15} strokeWidth={1.6} />,             activeSection === 'my-sol-jobs',    () => go('my-sol-jobs'))}
-          {row('Fringe Feed',    <Radio size={15} strokeWidth={1.6} />,          activeSection === 'fringe-feed',    () => go('fringe-feed'))}
-          {row('Ops Board',      <MessageSquare size={15} strokeWidth={1.6} />,  activeSection === 'forum',          () => go('forum'))}
-          {row('Sitrep',         <Radio size={15} strokeWidth={1.6} />,          activeSection === 'sitrep',         () => go('sitrep'))}
-          {row('Events',         <Calendar size={15} strokeWidth={1.6} />,       activeSection === 'events',         () => go('events'))}
-          {row('Field Teams',    <Users size={15} strokeWidth={1.6} />,          activeSection === 'field-teams',    () => go('field-teams'))}
-          {row('War Room',       <Sword size={15} strokeWidth={1.6} />,          activeSection === 'war-room',       () => go('war-room'))}
-          {row('Prayer',         <Heart size={15} strokeWidth={1.6} />,          activeSection === 'prayer-wall',    () => go('prayer-wall'))}
-          {row('Testimony',      <Cross size={15} strokeWidth={1.6} />,          activeSection === 'testimony-wall', () => go('testimony-wall'))}
-          {row('Field Ministry', <BookOpen size={15} strokeWidth={1.6} />,       activeSection === 'field-ministry', () => go('field-ministry'))}
-          {row('Feedback',       <MessageSquare size={15} strokeWidth={1.6} />,  activeSection === 'feedback',       () => go('feedback'))}
-
-          {isOpsAllowed && <>
-            {grpHdr('Operations')}
-            {row('Session Center', <Shield size={15} strokeWidth={1.6} />,       activeSection === 'session-center', () => go('session-center'))}
-            {pageLink('Case Files',        <FolderOpen size={15} strokeWidth={1.6} />, '/community/field-ops')}
-            {row('Document Creator', <FileText size={15} strokeWidth={1.6} />,    activeSection === 'document-creator', () => go('document-creator'))}
-            {role === 'minister' && row('Assessment', <FileText size={15} strokeWidth={1.6} />, activeSection === 'assessment', () => go('assessment'))}
-          </>}
-
-          {grpHdr('Foundation')}
-          {row('Arsenal',        <Archive size={15} strokeWidth={1.6} />,        activeSection === 'arsenal',        () => go('arsenal'))}
-          {pageLink('Scripture',         <BookOpen size={15} strokeWidth={1.6} />, '/community/scripture')}
-          {row('Training',       <GraduationCap size={15} strokeWidth={1.6} />,  activeSection === 'training',       () => go('training'))}
-          {pageLink('QRF',               <Radio size={15} strokeWidth={1.6} />,   '/community/qrf')}
-
-          {grpHdr('Intel Archive')}
-          {row('My Intel',       <FolderOpen size={15} strokeWidth={1.6} />,     activeSection === 'my-intel',       () => go('my-intel'))}
-          {row('Intel Archive',  <FolderArchive size={15} strokeWidth={1.6} />,  activeSection === 'database',       () => go('database'))}
-          {row('Symptom',        <Search size={15} strokeWidth={1.6} />,         activeSection === 'investigate',    () => go('investigate'))}
-          {row('Body Map',       <Map size={15} strokeWidth={1.6} />,            activeSection === 'body-map',       () => go('body-map'))}
-          {row('Spirit Network', <Network size={15} strokeWidth={1.6} />,        activeSection === 'spirit-network', () => go('spirit-network'))}
-          {row('Gateway',        <DoorOpen size={15} strokeWidth={1.6} />,       activeSection === 'gateway',        () => go('gateway'))}
-          {pageLink('Dream Interpreter', <Moon size={15} strokeWidth={1.6} />,   '/community/dream-interpreter')}
-
-          {grpHdr('Babel Files')}
-          {pageLink('Babel Files', <BookOpen size={15} strokeWidth={1.6} />, '/community/babel-files')}
-          {pageLink('🧑 Babel Figures',   <span style={{ fontSize: 12, lineHeight: 1 }}>🧑</span>, '/community/babel-files?type=person')}
-          {pageLink('🎬 Babel Cinema',    <span style={{ fontSize: 12, lineHeight: 1 }}>🎬</span>, '/community/babel-files?type=movie')}
-          {pageLink('👁 Babel Symbols',   <span style={{ fontSize: 12, lineHeight: 1 }}>👁</span>, '/community/babel-files?type=symbol')}
-          {pageLink('📺 Babel Broadcast', <span style={{ fontSize: 12, lineHeight: 1 }}>📺</span>, '/community/babel-files?type=tv_show')}
-          {pageLink('🎵 Babel Beats',     <span style={{ fontSize: 12, lineHeight: 1 }}>🎵</span>, '/community/babel-files?type=music')}
-          {pageLink('🎮 Babel Games',     <span style={{ fontSize: 12, lineHeight: 1 }}>🎮</span>, '/community/babel-files?type=game')}
-          {pageLink('📖 Babel Codex',     <span style={{ fontSize: 12, lineHeight: 1 }}>📖</span>, '/community/babel-files?type=book')}
-          {pageLink('✝ Babel Beliefs',    <span style={{ fontSize: 12, lineHeight: 1 }}>✝</span>,  '/community/babel-files?type=religion')}
-          {pageLink('⚡ Babel Mythos',    <span style={{ fontSize: 12, lineHeight: 1 }}>⚡</span>, '/community/babel-files?type=mythology')}
-          {pageLink('🏛 Babel Societies', <span style={{ fontSize: 12, lineHeight: 1 }}>🏛</span>, '/community/babel-files?type=secret_society')}
-          {pageLink('📅 Babel Current',   <span style={{ fontSize: 12, lineHeight: 1 }}>📅</span>, '/community/babel-files?type=event')}
-
-          {grpHdr('Account')}
-          {row('Profile',        <Eye size={15} strokeWidth={1.6} />,            false,                               () => { setEditingProfile(true); closeDrawer() })}
-          {row('Settings',       <Settings size={15} strokeWidth={1.6} />,       false,                               () => { setEditingProfile(true); closeDrawer() })}
+          <NavTree
+            tree={NAV_TREE}
+            mode="drawer"
+            tierLevel={tierLevel}
+            role={role}
+            activeSection={activeSection}
+            onSectionChange={(section) => {
+              setActiveSection(section)
+              closeDrawer()
+            }}
+            onSpecial={(kind) => {
+              if (kind === 'edit-profile') {
+                setEditingProfile(true)
+                closeDrawer()
+              }
+            }}
+            badges={{
+              'dm-unread': unreadDMs + pendingDMCount,
+              'war-room-unread': unreadWarRoom ?? 0,
+            }}
+          />
+          <div style={{ padding: '12px 16px 0', borderTop: '1px solid rgba(201,168,76,0.12)' }}>
+            {FOOTER_SOCIAL.map(node => {
+              const href = node.target && node.target.kind === 'url' ? node.target.href : '#'
+              const emoji = node.icon && node.icon.kind === 'emoji' ? node.icon.value : ''
+              return (
+                <a key={node.id} href={href} target="_blank" rel="noopener noreferrer"
+                  onClick={closeDrawer}
+                  style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0', color: NAV_DEFAULT, textDecoration: 'none', fontFamily: cinzel, fontSize: 11, letterSpacing: '0.06em' }}>
+                  <span style={{ fontSize: 14, width: 18, flexShrink: 0, textAlign: 'center' as const }}>{emoji}</span>
+                  {node.label}
+                </a>
+              )
+            })}
+          </div>
         </div>
       </div>
     )
@@ -15849,6 +15786,7 @@ function CommunityPage() {
           badges={{
             'dm-unread': unreadDMs + pendingDMCount,
             'war-room-chat-unread': unreadWarRoom,
+            'war-room-unread': unreadWarRoom,
           }}
         />
       </div>
