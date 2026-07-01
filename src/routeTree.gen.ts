@@ -29,6 +29,7 @@ import { Route as SplatRouteImport } from './routes/$'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminIndexRouteImport } from './routes/admin.index'
 import { Route as ProductsProductIdRouteImport } from './routes/products/$productId'
+import { Route as DevNavTreeSmokeRouteImport } from './routes/dev_.nav-tree-smoke'
 import { Route as CommunitySpiritualMappingRouteImport } from './routes/community_.spiritual-mapping'
 import { Route as CommunitySearchRouteImport } from './routes/community_.search'
 import { Route as CommunityScriptureRouteImport } from './routes/community_.scripture'
@@ -178,6 +179,11 @@ const AdminIndexRoute = AdminIndexRouteImport.update({
 const ProductsProductIdRoute = ProductsProductIdRouteImport.update({
   id: '/products/$productId',
   path: '/products/$productId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DevNavTreeSmokeRoute = DevNavTreeSmokeRouteImport.update({
+  id: '/dev_/nav-tree-smoke',
+  path: '/dev/nav-tree-smoke',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CommunitySpiritualMappingRoute =
@@ -497,6 +503,7 @@ export interface FileRoutesByFullPath {
   '/community/scripture': typeof CommunityScriptureRoute
   '/community/search': typeof CommunitySearchRoute
   '/community/spiritual-mapping': typeof CommunitySpiritualMappingRoute
+  '/dev/nav-tree-smoke': typeof DevNavTreeSmokeRoute
   '/products/$productId': typeof ProductsProductIdRoute
   '/admin/': typeof AdminIndexRoute
   '/admin/bloodline/cultural-dossiers': typeof AdminBloodlineCulturalDossiersRoute
@@ -568,6 +575,7 @@ export interface FileRoutesByTo {
   '/community/scripture': typeof CommunityScriptureRoute
   '/community/search': typeof CommunitySearchRoute
   '/community/spiritual-mapping': typeof CommunitySpiritualMappingRoute
+  '/dev/nav-tree-smoke': typeof DevNavTreeSmokeRoute
   '/products/$productId': typeof ProductsProductIdRoute
   '/admin': typeof AdminIndexRoute
   '/admin/bloodline/cultural-dossiers': typeof AdminBloodlineCulturalDossiersRoute
@@ -641,6 +649,7 @@ export interface FileRoutesById {
   '/community_/scripture': typeof CommunityScriptureRoute
   '/community_/search': typeof CommunitySearchRoute
   '/community_/spiritual-mapping': typeof CommunitySpiritualMappingRoute
+  '/dev_/nav-tree-smoke': typeof DevNavTreeSmokeRoute
   '/products/$productId': typeof ProductsProductIdRoute
   '/admin/': typeof AdminIndexRoute
   '/admin_/bloodline/cultural-dossiers': typeof AdminBloodlineCulturalDossiersRoute
@@ -715,6 +724,7 @@ export interface FileRouteTypes {
     | '/community/scripture'
     | '/community/search'
     | '/community/spiritual-mapping'
+    | '/dev/nav-tree-smoke'
     | '/products/$productId'
     | '/admin/'
     | '/admin/bloodline/cultural-dossiers'
@@ -786,6 +796,7 @@ export interface FileRouteTypes {
     | '/community/scripture'
     | '/community/search'
     | '/community/spiritual-mapping'
+    | '/dev/nav-tree-smoke'
     | '/products/$productId'
     | '/admin'
     | '/admin/bloodline/cultural-dossiers'
@@ -858,6 +869,7 @@ export interface FileRouteTypes {
     | '/community_/scripture'
     | '/community_/search'
     | '/community_/spiritual-mapping'
+    | '/dev_/nav-tree-smoke'
     | '/products/$productId'
     | '/admin/'
     | '/admin_/bloodline/cultural-dossiers'
@@ -929,6 +941,7 @@ export interface RootRouteChildren {
   CommunityScriptureRoute: typeof CommunityScriptureRoute
   CommunitySearchRoute: typeof CommunitySearchRoute
   CommunitySpiritualMappingRoute: typeof CommunitySpiritualMappingRoute
+  DevNavTreeSmokeRoute: typeof DevNavTreeSmokeRoute
   ProductsProductIdRoute: typeof ProductsProductIdRoute
   AdminIntelGatewaysRoute: typeof AdminIntelGatewaysRoute
   AdminIntelScripturesRoute: typeof AdminIntelScripturesRoute
@@ -1078,6 +1091,13 @@ declare module '@tanstack/react-router' {
       path: '/products/$productId'
       fullPath: '/products/$productId'
       preLoaderRoute: typeof ProductsProductIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/dev_/nav-tree-smoke': {
+      id: '/dev_/nav-tree-smoke'
+      path: '/dev/nav-tree-smoke'
+      fullPath: '/dev/nav-tree-smoke'
+      preLoaderRoute: typeof DevNavTreeSmokeRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/community_/spiritual-mapping': {
@@ -1542,6 +1562,7 @@ const rootRouteChildren: RootRouteChildren = {
   CommunityScriptureRoute: CommunityScriptureRoute,
   CommunitySearchRoute: CommunitySearchRoute,
   CommunitySpiritualMappingRoute: CommunitySpiritualMappingRoute,
+  DevNavTreeSmokeRoute: DevNavTreeSmokeRoute,
   ProductsProductIdRoute: ProductsProductIdRoute,
   AdminIntelGatewaysRoute: AdminIntelGatewaysRoute,
   AdminIntelScripturesRoute: AdminIntelScripturesRoute,
