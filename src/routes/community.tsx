@@ -25,6 +25,8 @@ import { BottomNav, TacticalCard, ClassBadge, HUDChip, MonoTime, ThreatBar, Sect
 import { WRITabBar } from '@/components/WRITabBar'
 import { FlagButton } from '@/components/FlagButton'
 import { SolIcon } from '@/components/SolIcon'
+import { NavTree } from '@/components/NavTree'
+import { NAV_TREE } from '@/lib/nav'
 import CallOverlay from '../components/CallOverlay'
 import AudioPrayerCallOverlay from '../components/AudioPrayerCallOverlay'
 import { FileText, Plus, BookOpen, MessageSquare, Inbox, Heart, Cross, Users, HelpCircle, FolderOpen, Antenna, Radio, Archive, Sword, Library, Search, Map, Network, Moon, Eye, Calendar, Shield, Settings, GraduationCap, FolderArchive, DoorOpen, Zap, Bell, Mic, Phone, Video, ChevronLeft, Send, MoreHorizontal, PenLine, Image as ImageIcon, SlidersHorizontal } from 'lucide-react'
@@ -14266,15 +14268,6 @@ function CommunityPage() {
     }
   }, [activeSection])
 
-  const [fringeExpanded, setFringeExpanded]     = useState(false)
-  const [briefsOpen, setBriefsOpen]             = useState(false)
-  const [solOpen, setSolOpen]                   = useState(false)
-  const [intelArchiveOpen, setIntelArchiveOpen] = useState(() => {
-    try { return localStorage.getItem('sidebar_intel_archive_open') !== 'false' } catch { return true }
-  })
-  const [babelFilesOpen, setBabelFilesOpen] = useState(() => {
-    try { return localStorage.getItem('sidebar_babel_files_open') !== 'false' } catch { return true }
-  })
   const [tooltipVisible, setTooltipVisible]     = useState<string | null>(null)
 
   const [streamToken, setStreamToken] = useState<string>('')
@@ -15380,51 +15373,8 @@ function CommunityPage() {
     shadow: isDark ? 'none' : '0 2px 12px rgba(45,41,36,0.06), 0 1px 3px rgba(45,41,36,0.04)',
   }
 
-  // ── NAV HELPERS ────────────────────────────────────────────
-  const ARCHIVE_SECTS       = new Set(['investigate', 'body-map', 'spirit-network', 'gateway'])
-  const archiveOpen  = intelArchiveOpen || ARCHIVE_SECTS.has(activeSection)
-
-  const chevronStyle = (open: boolean): React.CSSProperties => ({
-    fontSize: 10, color: isDark ? '#6b5e45' : '#5C5248', display: 'inline-block',
-    transform: open ? 'rotate(90deg)' : 'none', transition: 'transform 0.2s',
-  })
-
-  const sectionLabel = (label: string) => sidebarCollapsed && !isMobile ? null : (
-    <div style={{ padding: '12px 16px 4px 16px', fontFamily: cinzel, fontSize: 9, letterSpacing: '0.18em', color: isDark ? '#7a6d58' : '#5C5248' }}>
-      {label}
-    </div>
-  )
-
   const NAV_DEFAULT = isDark ? '#b8a98a' : '#3d2e1e'
   const navGold    = isDark ? G : '#8B6914'
-
-  const navItem = (label: string, section: string, icon?: React.ReactNode) => {
-    const active = activeSection === section
-    const collapsed = sidebarCollapsed && !isMobile
-    return (
-      <button
-        onClick={() => { setActiveSection(section); if (isMobile) setSidebarOpen(false) }}
-        title={collapsed ? label : undefined}
-        data-active={active ? 'true' : undefined}
-        style={{
-          display: 'flex', alignItems: 'center', justifyContent: collapsed ? 'center' : 'flex-start', gap: collapsed ? 0 : 8,
-          width: '100%', padding: collapsed ? '10px 0' : '8px 16px',
-          background: active ? 'rgba(201,168,76,0.1)' : 'transparent',
-          border: 'none', borderLeft: `2px solid ${active ? navGold : 'transparent'}`,
-          textAlign: 'left', cursor: 'pointer',
-          fontFamily: cinzel, fontSize: 12, letterSpacing: '0.1em',
-          color: active ? navGold : NAV_DEFAULT,
-          fontWeight: active ? 600 : 400,
-          transition: 'all 0.15s',
-        }}
-        onMouseEnter={e => { if (!active) { e.currentTarget.style.background = 'rgba(201,168,76,0.05)'; e.currentTarget.style.color = navGold } }}
-        onMouseLeave={e => { if (!active) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = NAV_DEFAULT } }}
-      >
-        {icon && <span style={{ display: 'flex', alignItems: 'center', width: 20, flexShrink: 0 }}>{icon}</span>}
-        {!collapsed && label}
-      </button>
-    )
-  }
 
   // Hamburger button for mobile center headers
   const Hamburger = () => isMobile ? (
@@ -15845,11 +15795,10 @@ function CommunityPage() {
             { icon: <Cross size={16} strokeWidth={1.6} />,         label: 'Testimony Wall',    mobileLabel: 'Testimony', section: 'testimony-wall' },
             { icon: <Users size={16} strokeWidth={1.6} />,         label: 'Members',           mobileLabel: 'Members',   section: 'members'        },
             { icon: <HelpCircle size={16} strokeWidth={1.6} />,    label: 'Help Center',       mobileLabel: 'Help',      section: 'help'           },
-            { icon: <SolIcon size={16} />, label: 'Ask SOL', mobileLabel: 'SOL', section: 'ask-sol' },
           ] as { icon: React.ReactNode; label: string; mobileLabel: string; section: string }[]).map(({ icon, label, mobileLabel, section }, idx) => (
             <div key={section} style={{ position: 'relative' as const, display: 'flex', flexDirection: 'column' as const, alignItems: 'center', gap: 2 }}>
               <button
-                onClick={() => { if (section === 'ask-sol') { setChatOpen(o => !o); if (isMobile) setSidebarOpen(false) } else { setActiveSection(section); if (isMobile) setSidebarOpen(false) } }}
+                onClick={() => { setActiveSection(section); if (isMobile) setSidebarOpen(false) }}
                 onMouseEnter={() => !isMobile ? setTooltipVisible(section) : undefined}
                 onMouseLeave={() => !isMobile ? setTooltipVisible(null) : undefined}
                 style={{ background: activeSection === section ? 'rgba(201,168,76,0.15)' : 'transparent', border: activeSection === section ? '1px solid rgba(201,168,76,0.3)' : '1px solid transparent', borderRadius: 8, width: isMobile ? 40 : 36, height: isMobile ? 40 : 36, cursor: 'pointer', color: activeSection === section ? (isDark ? G : '#8B6914') : (isDark ? '#8B7355' : '#574B33'), display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.15s ease', position: 'relative' as const }}
@@ -15880,258 +15829,28 @@ function CommunityPage() {
           ))}
         </div>}
 
-        {/* ── COMMUNITY ── */}
-        {sectionLabel('Community')}
-        {navItem('Ops Dashboard', 'ops-dashboard', <Zap size={16} strokeWidth={1.6} />)}
-
-        {/* ── Intelligence (sub-divider) ── */}
-        {sectionLabel('Intelligence')}
-        {/* Briefs (expandable) */}
-        {(sidebarCollapsed && !isMobile) ? navItem('Briefs', 'daily-brief', <span style={{ fontSize: 14, lineHeight: 1 }}>☀️</span>) : (
-          <>
-            <button
-              onClick={() => setBriefsOpen(o => !o)}
-              style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 16px', background: 'transparent', border: 'none', borderLeft: `2px solid transparent`, fontFamily: cinzel, fontSize: 12, letterSpacing: '0.1em', color: (['daily-brief','intel'].includes(activeSection)) ? navGold : NAV_DEFAULT, cursor: 'pointer', textAlign: 'left' as const, boxSizing: 'border-box' as const, transition: 'all 0.15s' }}
-            >
-              <span style={{ display: 'flex', alignItems: 'center', width: 20, flexShrink: 0 }}><Antenna size={16} strokeWidth={1.6} /></span>
-              <span style={{ flex: 1 }}>Briefs</span>
-              <span style={chevronStyle(briefsOpen || ['daily-brief','intel'].includes(activeSection))}>›</span>
-            </button>
-            <div style={{ overflow: 'hidden', maxHeight: (briefsOpen || ['daily-brief','intel'].includes(activeSection)) ? 200 : 0, transition: 'max-height 0.2s ease' }}>
-              {navItem('Daily Brief', 'daily-brief', <span style={{ fontSize: 14, lineHeight: 1 }}>☀️</span>)}
-              {navItem('Weekly Intel', 'intel', <Antenna size={16} strokeWidth={1.6} />)}
-            </div>
-          </>
-        )}
-        {/* SOL (expandable) */}
-        {(sidebarCollapsed && !isMobile) ? navItem('SOL', 'my-sol-jobs', <SolIcon size={16} />) : (
-          <>
-            <button
-              onClick={() => setSolOpen(o => !o)}
-              style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 16px', background: 'transparent', border: 'none', borderLeft: `2px solid transparent`, fontFamily: cinzel, fontSize: 12, letterSpacing: '0.1em', color: (activeSection === 'my-sol-jobs') ? navGold : NAV_DEFAULT, cursor: 'pointer', textAlign: 'left' as const, boxSizing: 'border-box' as const, transition: 'all 0.15s' }}
-            >
-              <span style={{ display: 'flex', alignItems: 'center', width: 20, flexShrink: 0 }}><SolIcon size={16} /></span>
-              <span style={{ flex: 1 }}>SOL</span>
-              <span style={chevronStyle(solOpen || activeSection === 'my-sol-jobs')}>›</span>
-            </button>
-            <div style={{ overflow: 'hidden', maxHeight: (solOpen || activeSection === 'my-sol-jobs') ? 200 : 0, transition: 'max-height 0.2s ease' }}>
-              <a href="/community/ask-sol" style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 16px', background: 'transparent', textDecoration: 'none', borderLeft: '2px solid transparent', fontFamily: cinzel, fontSize: 12, letterSpacing: '0.1em', color: NAV_DEFAULT, transition: 'all 0.15s', boxSizing: 'border-box' as const }}
-                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(201,168,76,0.05)'; (e.currentTarget as HTMLElement).style.color = navGold }}
-                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent'; (e.currentTarget as HTMLElement).style.color = NAV_DEFAULT }}>
-                <span style={{ display: 'flex', alignItems: 'center', width: 20, flexShrink: 0 }}><SolIcon size={14} /></span>
-                <span>Ask SOL</span>
-              </a>
-              {navItem('My SOL Jobs', 'my-sol-jobs', <Zap size={16} strokeWidth={1.6} />)}
-            </div>
-          </>
-        )}
-        {/* Fringe Intelligence (expandable) — pulled out of the old Intelligence tree */}
-        <button onClick={() => setFringeExpanded(e => !e)} style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 16px', background: 'transparent', border: 'none', cursor: 'pointer', fontFamily: cinzel, fontSize: 12, letterSpacing: '0.1em', color: activeSection === 'fringe-feed' ? navGold : NAV_DEFAULT, textAlign: 'left' as const, boxSizing: 'border-box' as const }}>
-          <span style={{ display: 'flex', alignItems: 'center', width: 20, flexShrink: 0 }}><Eye size={14} strokeWidth={1.6} /></span>
-          <span style={{ flex: 1 }}>Fringe Intelligence</span>
-          <span style={{ fontSize: 10, color: isDark ? '#6b5e45' : '#5C5248', display: 'inline-block', transform: (fringeExpanded || activeSection === 'fringe-feed') ? 'rotate(90deg)' : 'none', transition: 'transform 0.2s' }}>›</span>
-        </button>
-        {(fringeExpanded || activeSection === 'fringe-feed') && (
-          <div style={{ paddingLeft: 16, borderLeft: '1px solid rgba(201,168,76,0.1)', marginLeft: 16 }}>
-            {navItem('The Feed', 'fringe-feed', <Radio size={16} strokeWidth={1.6} />)}
-            {([{ label: 'The Archive', icon: <FolderArchive size={13} strokeWidth={1.6} /> }, { label: 'Fringe Chat', icon: <MessageSquare size={13} strokeWidth={1.6} /> }, { label: 'Courses', icon: <GraduationCap size={13} strokeWidth={1.6} /> }] as { label: string; icon: React.ReactNode }[]).map(({ label, icon }) => (
-              <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 16px', opacity: 0.45 }}>
-                <span style={{ display: 'flex', alignItems: 'center', width: 20 }}>{icon}</span>
-                <span style={{ fontFamily: cinzel, fontSize: 11, letterSpacing: '0.08em', color: isDark ? '#6b5e45' : '#5C5248', flex: 1 }}>{label}</span>
-                <span style={{ fontSize: 8, fontFamily: cinzel, background: 'rgba(201,168,76,0.1)', color: isDark ? '#8B7355' : '#574B33', padding: '1px 6px', borderRadius: 3 }}>SOON</span>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* ── Community Life (sub-divider) ── */}
-        {sectionLabel('Community Life')}
-        {navItem('Ops Board', 'forum', <MessageSquare size={16} strokeWidth={1.6} />)}
-        {navItem('SITREP', 'sitrep', <span style={{ fontSize: 14, lineHeight: 1 }}>📡</span>)}
-        {navItem('Events', 'events', <Calendar size={16} strokeWidth={1.6} />)}
-        {navItem('Field Teams', 'field-teams', <span style={{ fontSize: 13, lineHeight: 1 }}>⚔</span>)}
-        {/* Ministry Hub removed from sidebar — route preserved for future Training redesign */}
-        {navItem('Feedback', 'feedback', <span style={{ fontSize: 14, lineHeight: 1 }}>💬</span>)}
-
-        {/* ── OPERATIONS (Commander+/Minister) ── */}
-        {(['commander', 'general'].includes(((user?.publicMetadata?.tier as string) || '').toLowerCase()) || (user?.publicMetadata?.role as string) === 'minister') && (
-          <>
-            {sectionLabel('Operations')}
-            {navItem('Session Center', 'session-center', <Sword size={16} strokeWidth={1.6} />)}
-            <a href="/community/field-ops" style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 16px', background: 'transparent', textDecoration: 'none', borderLeft: '2px solid transparent', fontFamily: cinzel, fontSize: 12, letterSpacing: '0.1em', color: NAV_DEFAULT, transition: 'all 0.15s', boxSizing: 'border-box' as const }}
-              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(201,168,76,0.05)'; (e.currentTarget as HTMLElement).style.color = navGold }}
-              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent'; (e.currentTarget as HTMLElement).style.color = NAV_DEFAULT }}>
-              <span style={{ display: 'flex', alignItems: 'center', width: 20, flexShrink: 0 }}><FolderOpen size={14} strokeWidth={1.6} /></span>
-              <span>Case Files</span>
-            </a>
-            {navItem('Document Creator', 'document-creator', <FileText size={16} strokeWidth={1.6} />)}
-            {(user?.publicMetadata?.role as string) === 'minister' && navItem('Assessment', 'assessment', <FileText size={16} strokeWidth={1.6} />)}
-          </>
-        )}
-
-        {/* ── FOUNDATION ── */}
-        {sectionLabel('Foundation')}
-        {navItem('Arsenal', 'arsenal', <Archive size={16} strokeWidth={1.6} />)}
-        <a href="/community/scripture" style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 16px', background: 'transparent', textDecoration: 'none', borderLeft: '2px solid transparent', fontFamily: cinzel, fontSize: 12, letterSpacing: '0.1em', color: NAV_DEFAULT, transition: 'all 0.15s', boxSizing: 'border-box' as const }}
-          onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(201,168,76,0.05)'; (e.currentTarget as HTMLElement).style.color = navGold }}
-          onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent'; (e.currentTarget as HTMLElement).style.color = NAV_DEFAULT }}>
-          <span style={{ display: 'flex', alignItems: 'center', width: 20, flexShrink: 0 }}><BookOpen size={14} /></span>
-          <span>Scripture</span>
-        </a>
-        {navItem('Training', 'training', <span style={{ fontSize: 15, lineHeight: 1 }}>🎬</span>)}
-        <a href="/community/qrf" style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 16px', background: 'transparent', textDecoration: 'none', borderLeft: '2px solid transparent', fontFamily: cinzel, fontSize: 12, letterSpacing: '0.1em', color: NAV_DEFAULT, transition: 'all 0.15s', boxSizing: 'border-box' as const }}
-          onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(201,168,76,0.05)'; (e.currentTarget as HTMLElement).style.color = navGold }}
-          onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent'; (e.currentTarget as HTMLElement).style.color = NAV_DEFAULT }}>
-          <span style={{ display: 'flex', alignItems: 'center', width: 20, flexShrink: 0 }}><Radio size={14} strokeWidth={1.6} /></span>
-          <span>QRF</span>
-        </a>
-
-        {/* ── INTEL ARCHIVE ── (old Intelligence wrapper dissolved; My Intel stays put, archive sub-tree unchanged) */}
-        {sectionLabel('Intel Archive')}
-        {navItem('My Intel', 'my-intel', <span style={{ fontSize: 14, lineHeight: 1 }}>📋</span>)}
-        <div>
-          <div style={{ display: 'flex', alignItems: 'center' }}>
-            <button
-              onClick={() => { setActiveSection('database'); if (isMobile) setSidebarOpen(false) }}
-              style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1, padding: '8px 8px 8px 16px', background: activeSection === 'database' ? 'rgba(201,168,76,0.1)' : 'transparent', border: 'none', borderLeft: `2px solid ${activeSection === 'database' ? navGold : 'transparent'}`, cursor: 'pointer', fontFamily: cinzel, fontSize: 12, letterSpacing: '0.1em', color: activeSection === 'database' ? navGold : NAV_DEFAULT, fontWeight: activeSection === 'database' ? 600 : 400, textAlign: 'left' as const, boxSizing: 'border-box' as const, transition: 'all 0.15s' }}
-              onMouseEnter={e => { if (activeSection !== 'database') { e.currentTarget.style.background = 'rgba(201,168,76,0.05)'; e.currentTarget.style.color = navGold } }}
-              onMouseLeave={e => { if (activeSection !== 'database') { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = NAV_DEFAULT } }}
-            >
-              <span style={{ display: 'flex', alignItems: 'center', width: 20, flexShrink: 0 }}><Library size={14} strokeWidth={1.6} /></span>
-              Intel Archive
-            </button>
-            <button
-              onClick={() => {
-                const next = !intelArchiveOpen
-                setIntelArchiveOpen(next)
-                try { localStorage.setItem('sidebar_intel_archive_open', String(next)) } catch {}
-              }}
-              style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: '8px 12px 8px 4px', color: activeSection === 'database' ? navGold : (isDark ? '#6b5e45' : '#5C5248'), flexShrink: 0 }}
-            >
-              <span style={chevronStyle(archiveOpen)}>›</span>
-            </button>
-          </div>
-          <div style={{ overflow: 'hidden', maxHeight: archiveOpen ? 250 : 0, transition: 'max-height 0.2s ease' }}>
-            <div style={{ paddingLeft: 16 }}>
-              <button onClick={() => { setActiveSection('investigate'); if (isMobile) setSidebarOpen(false) }} style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '6px 16px', background: activeSection === 'investigate' ? 'rgba(201,168,76,0.06)' : 'transparent', border: 'none', borderLeft: activeSection === 'investigate' ? '2px solid rgba(201,168,76,0.5)' : '2px solid rgba(201,168,76,0.1)', cursor: 'pointer', fontFamily: cinzel, fontSize: 12, letterSpacing: '0.08em', color: activeSection === 'investigate' ? navGold : (isDark ? '#9a8874' : '#7a6858'), textAlign: 'left' as const, boxSizing: 'border-box' as const }}>
-                <Search size={14} strokeWidth={1.6} />
-                <span>Symptom Investigator</span>
-              </button>
-              <button onClick={() => { setActiveSection('body-map'); if (isMobile) setSidebarOpen(false) }} style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '6px 16px', background: activeSection === 'body-map' ? 'rgba(201,168,76,0.06)' : 'transparent', border: 'none', borderLeft: activeSection === 'body-map' ? '2px solid rgba(201,168,76,0.5)' : '2px solid rgba(201,168,76,0.1)', cursor: 'pointer', fontFamily: cinzel, fontSize: 12, letterSpacing: '0.08em', color: activeSection === 'body-map' ? navGold : (isDark ? '#9a8874' : '#7a6858'), textAlign: 'left' as const, boxSizing: 'border-box' as const }}>
-                <Map size={14} strokeWidth={1.6} />
-                <span>Body Map</span>
-              </button>
-              <button onClick={() => { setActiveSection('spirit-network'); if (isMobile) setSidebarOpen(false) }} style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '6px 16px', background: activeSection === 'spirit-network' ? 'rgba(201,168,76,0.06)' : 'transparent', border: 'none', borderLeft: activeSection === 'spirit-network' ? '2px solid rgba(201,168,76,0.5)' : '2px solid rgba(201,168,76,0.1)', cursor: 'pointer', fontFamily: cinzel, fontSize: 12, letterSpacing: '0.08em', color: activeSection === 'spirit-network' ? navGold : (isDark ? '#9a8874' : '#7a6858'), textAlign: 'left' as const, boxSizing: 'border-box' as const }}>
-                <Network size={14} strokeWidth={1.6} />
-                <span>Spirit Network</span>
-              </button>
-              <button onClick={() => { setActiveSection('gateway'); if (isMobile) setSidebarOpen(false) }} style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '6px 16px', background: activeSection === 'gateway' ? 'rgba(201,168,76,0.06)' : 'transparent', border: 'none', borderLeft: activeSection === 'gateway' ? '2px solid rgba(201,168,76,0.5)' : '2px solid rgba(201,168,76,0.1)', cursor: 'pointer', fontFamily: cinzel, fontSize: 12, letterSpacing: '0.08em', color: activeSection === 'gateway' ? navGold : (isDark ? '#9a8874' : '#7a6858'), textAlign: 'left' as const, boxSizing: 'border-box' as const }}>
-                <DoorOpen size={14} strokeWidth={1.6} />
-                <span>Gateway Investigator</span>
-              </button>
-              <a href="/community/dream-interpreter" style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '6px 16px', background: 'transparent', textDecoration: 'none', borderLeft: '2px solid rgba(201,168,76,0.1)', fontFamily: cinzel, fontSize: 12, letterSpacing: '0.08em', color: isDark ? '#9a8874' : '#7a6858', boxSizing: 'border-box' as const }}
-                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = navGold; (e.currentTarget as HTMLElement).style.borderLeftColor = 'rgba(201,168,76,0.5)' }}
-                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = isDark ? '#9a8874' : '#7a6858'; (e.currentTarget as HTMLElement).style.borderLeftColor = 'rgba(201,168,76,0.1)' }}>
-                <Moon size={14} strokeWidth={1.6} />
-                <span>Dream Interpreter</span>
-              </a>
-              {tierLevel >= 2 && (
-                <button onClick={() => { setActiveSection('deliverance-protocol'); if (isMobile) setSidebarOpen(false) }} style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '6px 16px', background: activeSection === 'deliverance-protocol' ? 'rgba(201,168,76,0.06)' : 'transparent', border: 'none', borderLeft: activeSection === 'deliverance-protocol' ? '2px solid rgba(201,168,76,0.5)' : '2px solid rgba(201,168,76,0.1)', cursor: 'pointer', fontFamily: cinzel, fontSize: 12, letterSpacing: '0.08em', color: activeSection === 'deliverance-protocol' ? navGold : (isDark ? '#9a8874' : '#7a6858'), textAlign: 'left' as const, boxSizing: 'border-box' as const }}>
-                  <Sword size={14} strokeWidth={1.6} />
-                  <span>Deliverance Protocol</span>
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* ── BABEL FILES ── */}
-        {sectionLabel('Babel Files')}
-        <div style={{ display: 'flex', alignItems: 'stretch' }}>
-          <a
-            href="/community/babel-files"
-            style={{
-              display: 'flex', alignItems: 'center', gap: 8, flex: 1,
-              padding: sidebarCollapsed && !isMobile ? '10px 0' : '8px 8px 8px 16px',
-              background: 'transparent', textDecoration: 'none',
-              borderLeft: '2px solid transparent',
-              justifyContent: sidebarCollapsed && !isMobile ? 'center' : 'flex-start',
-              fontFamily: cinzel, fontSize: 12, letterSpacing: '0.1em',
-              color: NAV_DEFAULT, transition: 'all 0.15s',
-              boxSizing: 'border-box' as const,
-            }}
-            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(201,168,76,0.05)'; e.currentTarget.style.color = navGold }}
-            onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = NAV_DEFAULT }}
-          >
-            <span style={{ display: 'flex', alignItems: 'center', width: 20, flexShrink: 0 }}>
-              <span style={{ fontSize: 14, lineHeight: 1 }}>🗂</span>
-            </span>
-            {!(sidebarCollapsed && !isMobile) && 'Babel Files'}
-          </a>
-          {!(sidebarCollapsed && !isMobile) && (
-            <button
-              onClick={() => {
-                const next = !babelFilesOpen
-                setBabelFilesOpen(next)
-                try { localStorage.setItem('sidebar_babel_files_open', String(next)) } catch {}
-              }}
-              style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: '8px 12px 8px 4px', color: isDark ? '#6b5e45' : '#5C5248', flexShrink: 0 }}
-            >
-              <span style={chevronStyle(babelFilesOpen)}>›</span>
-            </button>
-          )}
-        </div>
-        {!(sidebarCollapsed && !isMobile) && (
-          <div style={{ overflow: 'hidden', maxHeight: babelFilesOpen ? 400 : 0, transition: 'max-height 0.2s ease' }}>
-            <div style={{ paddingLeft: 16 }}>
-              {([
-                { label: 'Babel Figures',   type: 'person',         icon: '🧑' },
-                { label: 'Babel Cinema',    type: 'movie',          icon: '🎬' },
-                { label: 'Babel Symbols',   type: 'symbol',         icon: '👁' },
-                { label: 'Babel Broadcast', type: 'tv_show',        icon: '📺' },
-                { label: 'Babel Beats',     type: 'music',          icon: '🎵' },
-                { label: 'Babel Games',     type: 'game',           icon: '🎮' },
-                { label: 'Babel Codex',     type: 'book',           icon: '📖' },
-                { label: 'Babel Beliefs',   type: 'religion',       icon: '✝' },
-                { label: 'Babel Mythos',    type: 'mythology',      icon: '⚡' },
-                { label: 'Babel Societies', type: 'secret_society', icon: '🏛' },
-                { label: 'Babel Current',   type: 'event',          icon: '📅' },
-              ] as { label: string; type: string; icon: string }[]).map(({ label, type, icon }) => (
-                <a
-                  key={type}
-                  href={`/community/babel-files?type=${type}`}
-                  style={{
-                    display: 'flex', alignItems: 'center', gap: 8, width: '100%',
-                    padding: '6px 16px', background: 'transparent', textDecoration: 'none',
-                    borderLeft: '2px solid rgba(201,168,76,0.1)',
-                    fontFamily: cinzel, fontSize: 12, letterSpacing: '0.08em',
-                    color: isDark ? '#9a8874' : '#7a6858',
-                    boxSizing: 'border-box' as const, transition: 'all 0.15s',
-                  }}
-                  onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = navGold; (e.currentTarget as HTMLElement).style.borderLeftColor = 'rgba(201,168,76,0.5)' }}
-                  onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = isDark ? '#9a8874' : '#7a6858'; (e.currentTarget as HTMLElement).style.borderLeftColor = 'rgba(201,168,76,0.1)' }}
-                >
-                  <span style={{ fontSize: 11, width: 14, flexShrink: 0, textAlign: 'center' as const }}>{icon}</span>
-                  <span>{label}</span>
-                </a>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* ── ADMIN (minister only) ── */}
-        {(user?.publicMetadata?.role as string) === 'minister' && (
-          <>
-            <div style={{ height: 1, background: 'rgba(201,168,76,0.15)', margin: '12px 16px 8px' }} />
-            <a href="/admin" style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '10px 16px', background: 'rgba(201,168,76,0.06)', borderLeft: '2px solid rgba(201,168,76,0.4)', textDecoration: 'none', fontFamily: cinzel, fontSize: 12, letterSpacing: '0.1em', color: isDark ? G : '#8B6914', transition: 'background 0.15s', boxSizing: 'border-box' as const }}
-              onMouseEnter={e => { (e.currentTarget as HTMLAnchorElement).style.background = 'rgba(201,168,76,0.12)' }}
-              onMouseLeave={e => { (e.currentTarget as HTMLAnchorElement).style.background = 'rgba(201,168,76,0.06)' }}
-            >
-              <span style={{ display: 'flex', alignItems: 'center', width: 20, flexShrink: 0 }}><Shield size={14} strokeWidth={1.6} /></span>
-              Admin Panel
-            </a>
-          </>
-        )}
+        <NavTree
+          tree={NAV_TREE}
+          mode="internal-state"
+          tierLevel={tierLevel}
+          role={(user?.publicMetadata?.role as string) || ''}
+          activeSection={activeSection}
+          onSectionChange={(section) => {
+            setActiveSection(section)
+            if (isMobile) setSidebarOpen(false)
+          }}
+          onSpecial={(special) => {
+            if (special === 'edit-profile') {
+              setEditingProfile(true)
+              if (isMobile) setSidebarOpen(false)
+            }
+          }}
+          sidebarCollapsed={sidebarCollapsed && !isMobile}
+          badges={{
+            'dm-unread': unreadDMs + pendingDMCount,
+            'war-room-chat-unread': unreadWarRoom,
+          }}
+        />
       </div>
 
       {/* ── SIDEBAR FOOTER — pinned outside scroll ── */}
