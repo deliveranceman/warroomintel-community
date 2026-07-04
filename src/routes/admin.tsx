@@ -4637,6 +4637,8 @@ function TrainingManager({ getToken, isDark }: { getToken: any, isDark: boolean 
   const [cTier, setCTier]       = useState('free')
   const [cStatus, setCStatus]   = useState('draft')
   const [cType, setCType]       = useState<'course' | 'protocol' | 'quick-hit'>('course')
+  const [cScripture, setCScripture] = useState('')
+  const [cObjectives, setCObjectives] = useState<string[]>([])
 
   const [thumbnailUploading, setThumbnailUploading] = useState(false)
 
@@ -4673,9 +4675,12 @@ function TrainingManager({ getToken, isDark }: { getToken: any, isDark: boolean 
       setEditingCourse(course); setCTitle(course.title); setCDesc(course.description || '')
       setCThumbnail(course.thumbnail_url || ''); setCTier(course.tier); setCStatus(course.status)
       setCType(course.course_type || 'course')
+      setCScripture(course.scripture_callout || '')
+      setCObjectives(Array.isArray(course.objectives) ? course.objectives : [])
     } else {
       setEditingCourse(null); setCTitle(''); setCDesc(''); setCThumbnail(''); setCTier('free'); setCStatus('draft')
       setCType('course')
+      setCScripture(''); setCObjectives([])
     }
     setShowCourseForm(true)
   }
@@ -4698,7 +4703,12 @@ function TrainingManager({ getToken, isDark }: { getToken: any, isDark: boolean 
     if (!cTitle.trim()) return
     setSaving(true)
     const token = await getToken()
-    const body = { title: cTitle, description: cDesc, thumbnail_url: cThumbnail, tier: cTier, status: cStatus, courseType: cType }
+    const cleanObjectives = cObjectives.map(o => o.trim()).filter(Boolean)
+    const body = {
+      title: cTitle, description: cDesc, thumbnail_url: cThumbnail, tier: cTier, status: cStatus, courseType: cType,
+      scriptureCallout: cScripture.trim() || null,
+      objectives: cleanObjectives.length ? cleanObjectives : null,
+    }
     const res = editingCourse
       ? await fetch(`/api/admin-courses?id=${editingCourse.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify(body) })
       : await fetch('/api/admin-courses', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify(body) })
@@ -5045,6 +5055,25 @@ function TrainingManager({ getToken, isDark }: { getToken: any, isDark: boolean 
                 ))}
               </div>
               <textarea value={cDesc} onChange={e => setCDesc(e.target.value)} placeholder="Description" rows={3} style={{ ...inp2, resize: 'vertical' as const }} />
+              <div>
+                <label style={{ fontFamily: cinzel, fontSize: 9, color: GG, letterSpacing: '0.14em', textTransform: 'uppercase' as const, display: 'block', marginBottom: 5 }}>Scripture Callout</label>
+                <textarea value={cScripture} onChange={e => setCScripture(e.target.value)} placeholder="The Spirit of the Lord is upon me... — Luke 4:18" rows={2} style={{ ...inp2, resize: 'vertical' as const }} />
+                <div style={{ fontFamily: crimson, fontSize: 11, color: MUT, marginTop: 4, lineHeight: 1.4 }}>Renders as gold-quote pull block on course landing. Include the reference after an em dash.</div>
+              </div>
+              <div>
+                <label style={{ fontFamily: cinzel, fontSize: 9, color: GG, letterSpacing: '0.14em', textTransform: 'uppercase' as const, display: 'block', marginBottom: 5 }}>Objectives</label>
+                {cObjectives.length > 0 && (
+                  <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 6, marginBottom: 8 }}>
+                    {cObjectives.map((obj, i) => (
+                      <div key={i} style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                        <input value={obj} onChange={e => setCObjectives(prev => prev.map((o, j) => j === i ? e.target.value : o))} placeholder={`Objective ${i + 1}`} style={{ ...inp2, flex: 1, marginBottom: 0 }} />
+                        <button onClick={() => setCObjectives(prev => prev.filter((_, j) => j !== i))} style={{ background: 'none', border: `1px solid ${BDR2}`, borderRadius: 4, color: '#f87171', cursor: 'pointer', fontSize: 14, padding: '0 10px', lineHeight: '30px', flexShrink: 0 }}>×</button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <button onClick={() => setCObjectives(prev => [...prev, ''])} style={{ padding: '6px 12px', background: 'transparent', border: `1px dashed ${BDR2}`, borderRadius: 6, color: GG, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: 'pointer', textTransform: 'uppercase' as const }}>+ Add Objective</button>
+              </div>
               <div>
                 {cThumbnail && (
                   <div style={{ marginBottom: 8, position: 'relative' as const }}>

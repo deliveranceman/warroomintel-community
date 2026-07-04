@@ -50,6 +50,8 @@ export default async function handler(req: Request) {
         status: body.status || 'draft',
         sort_order: body.sort_order || 0,
         course_type: body.courseType || 'course',
+        scripture_callout: (body.scriptureCallout && String(body.scriptureCallout).trim()) || null,
+        objectives: (Array.isArray(body.objectives) && body.objectives.length) ? body.objectives : null,
       })
       .select()
       .single()
@@ -64,6 +66,9 @@ export default async function handler(req: Request) {
     const updateObj: Record<string, any> = { ...body }
     if (body.courseType !== undefined) updateObj.course_type = body.courseType
     delete updateObj.courseType
+    if (body.scriptureCallout !== undefined) updateObj.scripture_callout = (body.scriptureCallout && String(body.scriptureCallout).trim()) || null
+    delete updateObj.scriptureCallout
+    if (body.objectives !== undefined) updateObj.objectives = (Array.isArray(body.objectives) && body.objectives.length) ? body.objectives : null
     const { data, error } = await supabase
       .from('courses')
       .update(updateObj)
