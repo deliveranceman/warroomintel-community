@@ -65,7 +65,7 @@
 
 [functions."admin-library-save"]
   timeout = 30
-  external_node_modules = ["mammoth"]
+  external_node_modules = ["mammoth", "pdfjs-dist"]
 
 [functions."library-autofill"]
   timeout = 15
@@ -153,7 +153,7 @@
 
 [functions."assessment-upload"]
   timeout = 30
-  external_node_modules = ["mammoth"]
+  external_node_modules = ["mammoth", "pdfjs-dist"]
 
 [functions."assessment-strategy"]
   timeout = 60
