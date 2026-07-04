@@ -167,6 +167,12 @@
 [functions."assessment-strategy-latest"]
   timeout = 10
 
+[functions."assessment-strategy-list"]
+  timeout = 15
+
+[functions."assessment-strategy-get"]
+  timeout = 10
+
 [functions."scheduled-event-reminders"]
   schedule = "0 * * * *"
 
