@@ -156,7 +156,13 @@
   external_node_modules = ["mammoth", "pdfjs-dist"]
 
 [functions."assessment-strategy"]
-  timeout = 60
+  timeout = 15
+
+[functions."assessment-strategy-background"]
+  # Netlify background function — runs up to 15 min after returning 202 to caller
+
+[functions."assessment-strategy-status"]
+  timeout = 10
 
 [functions."scheduled-event-reminders"]
   schedule = "0 * * * *"
