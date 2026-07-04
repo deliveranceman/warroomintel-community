@@ -10926,7 +10926,7 @@ function AssessmentUploadView({ theme, isMobile, tier: _tier, tierLevel: _tierLe
               <div style={{ textAlign: 'center' as const, padding: '60px 20px' }}>
                 <div style={{ fontFamily: cinzel, fontSize: 12, color: isDark ? G : '#8B6914', letterSpacing: '0.1em', marginBottom: 8 }}>GENERATING WAR STRATEGY...</div>
                 <div style={{ fontFamily: crimson, fontSize: 15, color: isDark ? '#6b5e45' : '#574B33', lineHeight: 1.7 }}>
-                  AI is analyzing your assessment and building a personalized spiritual warfare strategy. This takes 15-30 seconds.
+                  SOL is analyzing your assessment and building a personalized spiritual warfare strategy. This takes 15-30 seconds.
                 </div>
               </div>
             ) : strategy ? (
@@ -14601,13 +14601,13 @@ function CommunityPage() {
       const data = await res.json()
 
       if (res.status === 429) {
-        setChatMessages(prev => [...prev, { role: 'assistant', content: `**Limit Reached** — ${data.error || 'Daily AI limit reached.'} [Upgrade your membership](/membership) to continue.` }])
+        setChatMessages(prev => [...prev, { role: 'assistant', content: `**Limit Reached** — ${data.error || 'Daily SOL limit reached.'} [Upgrade your membership](/membership) to continue.` }])
         _usageCache = null
         setChatLoading(false); setChatStage(''); setTimeout(() => chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 50)
         return
       }
       if (!res.ok) {
-        setChatMessages(prev => [...prev, { role: 'assistant', content: `AI error: ${data.error || res.status}. Please try again.` }])
+        setChatMessages(prev => [...prev, { role: 'assistant', content: `SOL error: ${data.error || res.status}. Please try again.` }])
         setChatLoading(false); setChatStage(''); setTimeout(() => chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 50)
         return
       }
@@ -17732,7 +17732,7 @@ function CommunityPage() {
           { id: 'sitrep',      label: 'SITREP', icon: <span style={{ fontSize: 18 }}>📡</span> },
           { id: 'database', label: 'Database', icon: <Library size={20} strokeWidth={1.6} /> },
           { id: 'forum',    label: 'Ops',      icon: <MessageSquare size={20} strokeWidth={1.6} /> },
-          { id: 'ai',       label: 'AI',       icon: <Zap size={20} strokeWidth={1.6} /> },
+          { id: 'ai',       label: 'SOL',      icon: <Zap size={20} strokeWidth={1.6} /> },
         ]}
         activeId={activeSection}
         onTab={(id) => {
