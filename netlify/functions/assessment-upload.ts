@@ -19,28 +19,6 @@ export default async function handler(req: Request) {
 
   if (!fileData) return new Response(JSON.stringify({ error: 'No file data' }), { status: 400, headers })
 
-  // Phase-1A probe — send fileData='__probe__' to verify @napi-rs/canvas deploys (remove after confirmed)
-  if (fileData === '__probe__') {
-    const results: Record<string, unknown> = {}
-    try {
-      const { createCanvas } = await import('@napi-rs/canvas')
-      const canvas = createCanvas(200, 200)
-      const ctx = canvas.getContext('2d')
-      ctx.fillStyle = 'rgb(10, 20, 30)'
-      ctx.fillRect(0, 0, 200, 200)
-      ctx.fillStyle = 'white'
-      ctx.fillRect(10, 10, 50, 50)
-      const pngBuf = canvas.toBuffer('image/png')
-      results.canvas = { ok: true, bytes: pngBuf.length }
-      console.log('[OCR-PROBE] @napi-rs/canvas OK — PNG bytes:', pngBuf.length)
-    } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : String(e)
-      results.canvas = { ok: false, error: msg.slice(0, 500) }
-      console.error('[OCR-PROBE] @napi-rs/canvas FAILED:', msg)
-    }
-    return new Response(JSON.stringify({ probe: true, results }), { status: 200, headers })
-  }
-
   let extractedText = ''
 
   try {
