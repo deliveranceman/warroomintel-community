@@ -10736,7 +10736,7 @@ function urlBase64ToUint8Array(base64String: string) {
   return Uint8Array.from([...raw].map(c => c.charCodeAt(0)))
 }
 
-function AssessmentUploadView({ theme, isMobile, tier: _tier, tierLevel: _tierLevel, user, getToken }: {
+function AssessmentUploadView({ theme, isMobile, tier: _tier, tierLevel: _tierLevel, user: _user, getToken }: {
   theme: string; isMobile: boolean; setSidebarOpen: (v: boolean) => void;
   tier: string; tierLevel: number; user: any; getToken: () => Promise<string | null>
 }) {
@@ -10754,6 +10754,8 @@ function AssessmentUploadView({ theme, isMobile, tier: _tier, tierLevel: _tierLe
   const [showAnonConsent, setShowAnonConsent] = useState(false)
   const [anonConsented, setAnonConsented] = useState<boolean | null>(null)
   const [extractedText, setExtractedText] = useState('')
+  const strategyPollRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  useEffect(() => () => { if (strategyPollRef.current) clearInterval(strategyPollRef.current) }, [])
 
   async function handleFileUpload(f: File) {
     setFile(f)
@@ -10799,69 +10801,81 @@ function AssessmentUploadView({ theme, isMobile, tier: _tier, tierLevel: _tierLe
     setShowAnonConsent(false)
     setAnonConsented(consented)
     setStrategyLoading(true)
+    setError('')
     setTab('strategy')
 
-    // getToken() with a 10s timeout — it can hang indefinitely if Clerk's session refresh
-    // stalls after a long OCR upload (the refresh network call never resolves).
     async function getTokenWithTimeout(): Promise<string | null> {
-      const timeout = new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error('token-timeout')), 10_000),
-      )
-      return Promise.race([getToken(), timeout])
+      return Promise.race([
+        getToken(),
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('token-timeout')), 10_000)),
+      ])
     }
 
+    let token: string | null = null
     try {
-      let token: string | null = null
       try {
         token = await getTokenWithTimeout()
       } catch {
-        // First attempt timed out or failed — retry once. A stalled Clerk refresh
-        // frequently succeeds on the second call once the session cache is warm again.
         try {
           token = await getTokenWithTimeout()
         } catch {
           setError("Couldn't verify your session to generate the strategy. Please refresh the page and try again — your uploaded assessment text is preserved.")
+          setStrategyLoading(false)
           return
         }
       }
 
-      // 65s AbortController — assessment-strategy has a 60s Netlify timeout;
-      // give it 5s of headroom then surface a clear error instead of an infinite spinner.
-      const controller = new AbortController()
-      const strategyTimeout = setTimeout(() => controller.abort(), 65_000)
+      const startRes = await fetch('/api/assessment-strategy', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ assessmentText: extractedText, anonymizeAndLog: consented }),
+      })
+      const startData = await startRes.json()
 
-      let res: Response
-      try {
-        res = await fetch('/api/assessment-strategy', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-          body: JSON.stringify({
-            assessmentText: extractedText,
-            anonymizeAndLog: consented,
-            userName: user?.firstName || 'Warrior',
-          }),
-          signal: controller.signal,
-        })
-      } catch (e: any) {
-        if (e?.name === 'AbortError') {
-          setError('Strategy generation timed out — please try again.')
-        } else {
-          setError('Could not reach the server. Please check your connection and try again.')
-        }
+      if (!startRes.ok) {
+        setError(startData.error || 'Strategy request failed.')
+        setStrategyLoading(false)
         return
-      } finally {
-        clearTimeout(strategyTimeout)
       }
 
-      const data = await res.json()
-      if (data.strategy) {
-        setStrategy(data.strategy)
-      } else {
-        setError(data.error || 'Strategy generation failed.')
+      const { id } = startData
+      if (!id) {
+        setError('Strategy request failed — no job ID returned.')
+        setStrategyLoading(false)
+        return
       }
+
+      const startedAt = Date.now()
+      strategyPollRef.current = setInterval(async () => {
+        if (Date.now() - startedAt > 5 * 60 * 1000) {
+          clearInterval(strategyPollRef.current!)
+          strategyPollRef.current = null
+          setError('Strategy generation timed out. Please try again.')
+          setStrategyLoading(false)
+          return
+        }
+        try {
+          const statusRes = await fetch(`/api/assessment-strategy-status?id=${encodeURIComponent(id)}`, {
+            headers: { Authorization: `Bearer ${token}` },
+          })
+          if (!statusRes.ok) return
+          const statusData = await statusRes.json()
+          if (statusData.status === 'complete') {
+            clearInterval(strategyPollRef.current!)
+            strategyPollRef.current = null
+            setStrategy(statusData.strategy || '')
+            setStrategyLoading(false)
+          } else if (statusData.status === 'failed') {
+            clearInterval(strategyPollRef.current!)
+            strategyPollRef.current = null
+            setError(statusData.error || 'Strategy generation failed.')
+            setStrategyLoading(false)
+          }
+        } catch { /* transient network error — keep polling */ }
+      }, 3000)
+
     } catch {
       setError('Could not generate strategy. Please try again.')
-    } finally {
       setStrategyLoading(false)
     }
   }
