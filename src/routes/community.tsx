@@ -1524,6 +1524,28 @@ function stripMdPreview(raw: string, maxChars = 120): string {
   return result.length > maxChars ? result.slice(0, maxChars).trimEnd() + '…' : result
 }
 
+// Strips the boilerplate YouTube channel-promo block that WRI episode/course
+// copy tends to carry ("War Room Intel / Subscribe for teachings on: ... #hashtags").
+// The player already spam-detects this at the notes tab; this returns the clean
+// prose above the promo so it can still render. Returns '' if nothing usable remains.
+function stripPromoBlock(text: string): string {
+  if (!text) return ''
+  const markers = [
+    /\n?\s*war room intel\s*\n/i,
+    /\n?\s*subscribe for teachings/i,
+    /\n?\s*deliverance\s*[•·|]\s*spiritual warfare/i,
+  ]
+  let cut = text.length
+  for (const m of markers) {
+    const found = text.match(m)
+    if (found && found.index !== undefined && found.index < cut) cut = found.index
+  }
+  let out = text.slice(0, cut)
+  // Drop any trailing hashtag run left behind.
+  out = out.replace(/(?:^|\n)\s*(?:#\w+\s*)+$/gim, '').trim()
+  return out
+}
+
 // Maps raw ai_search_history.tool slugs to user-facing labels. The SOL analyst
 // has shipped under several internal slugs ('ai-assistant', 'ask-sol', 'ask-dake');
 // all surface as "SOL" to users. Other tools title-case their slug. Display only —
@@ -2456,7 +2478,6 @@ function TrainingView({ theme, isMobile, userId, userTier, getToken, setActiveSe
   const [loading, setLoading]               = useState(true)
   const [episodeSidebarCollapsed, setEpisodeSidebarCollapsed] = useState(false)
   const [expandedDescCourseId, setExpandedDescCourseId] = useState<string | null>(null)
-  const [courseAboutExpanded, setCourseAboutExpanded] = useState(false)
   const [readMoreEpisode, setReadMoreEpisode] = useState<any>(null)
 
   function extractYouTubeId(url: string): string | null {
@@ -2480,7 +2501,7 @@ function TrainingView({ theme, isMobile, userId, userTier, getToken, setActiveSe
     const token = await getToken()
     const res = await fetch(`/api/courses?id=${course.id}`, { headers: { Authorization: `Bearer ${token}` } })
     if (res.ok) { const d = await res.json(); setEpisodes(d.episodes || []); setProgress(d.progress || []) }
-    setSelectedCourse(course); setSelectedEpisode(null); setView('course'); setCourseAboutExpanded(false)
+    setSelectedCourse(course); setSelectedEpisode(null); setView('course')
   }
 
   async function openEpisode(ep: any) {
@@ -2732,23 +2753,142 @@ function TrainingView({ theme, isMobile, userId, userTier, getToken, setActiveSe
         </>
       )}
 
-      {/* ── NO EPISODE SELECTED ── */}
-      {!selectedEpisode && (
-        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column' as const, gap: 12, color: mut, padding: 32 }}>
-          <div style={{ fontSize: 40 }}>▶</div>
-          <div style={{ fontFamily: cinzel, fontSize: 13, color: G, letterSpacing: '0.06em' }}>{isMobile ? 'Tap an episode above to begin' : 'Select an episode to begin'}</div>
-          {!isMobile && selectedCourse.description && (
-            <div style={{ maxWidth: 480, width: '100%', textAlign: 'center' }}>
-              <div style={{ fontFamily: crimson, fontSize: 13, color: mut, maxHeight: courseAboutExpanded ? 'none' : 120, overflow: 'hidden', lineHeight: 1.6 }} dangerouslySetInnerHTML={renderMd(selectedCourse.description)} />
-              {selectedCourse.description.length > 200 && (
-                <button onClick={() => setCourseAboutExpanded(e => !e)} style={{ background: 'none', border: 'none', color: G, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: 'pointer', marginTop: 6, padding: 0 }}>
-                  {courseAboutExpanded ? 'READ LESS ↑' : 'READ MORE ↓'}
-                </button>
+      {/* ── COURSE BRIEFING (no episode selected) ── */}
+      {!selectedEpisode && (() => {
+        const brief = stripPromoBlock(selectedCourse.description || '')
+        const objectives: string[] = Array.isArray(selectedCourse.objectives)
+          ? selectedCourse.objectives.filter((o: any) => typeof o === 'string' && o.trim())
+          : []
+        const scripture = (selectedCourse.scripture_callout || '').trim()
+        const totalSecs = episodes.reduce((s: number, e: any) => s + (e.duration_seconds || 0), 0)
+        const fmtRuntime = (secs: number) => {
+          const m = Math.round(secs / 60)
+          if (m < 60) return `${m} min`
+          const h = Math.floor(m / 60)
+          return `${h}h ${m % 60}m`
+        }
+        const nextIdx = episodes.findIndex(ep => !isWatched(ep.id))
+        const pct = episodes.length ? Math.round((watchedCount / episodes.length) * 100) : 0
+
+        const missionBrief = brief ? (
+          <div>
+            <div style={{ fontFamily: cinzel, fontSize: 11, color: G, letterSpacing: '0.14em', textTransform: 'uppercase' as const, marginBottom: 10 }}>Mission Brief</div>
+            <div style={{ fontFamily: crimson, fontSize: 15, color: txt, lineHeight: 1.75 }} dangerouslySetInnerHTML={renderMd(brief)} />
+          </div>
+        ) : null
+
+        const scriptureBlock = scripture ? (
+          <div style={{ borderLeft: `3px solid ${G}`, background: isDark ? 'rgba(201,168,76,0.06)' : 'rgba(139,105,20,0.06)', padding: '14px 18px', borderRadius: '0 8px 8px 0' }}>
+            <div style={{ fontFamily: crimson, fontSize: 15, color: txt, fontStyle: 'italic', lineHeight: 1.7 }} dangerouslySetInnerHTML={renderMd(scripture)} />
+          </div>
+        ) : null
+
+        const objectivesBlock = objectives.length > 0 ? (
+          <div>
+            <div style={{ fontFamily: cinzel, fontSize: 11, color: G, letterSpacing: '0.14em', textTransform: 'uppercase' as const, marginBottom: 10 }}>Objectives</div>
+            <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 8 }}>
+              {objectives.map((o, i) => (
+                <div key={i} style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+                  <span style={{ color: G, fontSize: 10, lineHeight: '1.6', flexShrink: 0, marginTop: 2 }}>◆</span>
+                  <span style={{ fontFamily: crimson, fontSize: 14, color: txt, lineHeight: 1.6 }}>{o}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : null
+
+        const manifest = (
+          <div>
+            <div style={{ fontFamily: cinzel, fontSize: 11, color: G, letterSpacing: '0.14em', textTransform: 'uppercase' as const, marginBottom: 12 }}>Module Manifest</div>
+            {episodes.length === 0 ? (
+              <div style={{ color: mut, fontFamily: crimson, fontStyle: 'italic', fontSize: 14 }}>Modules are being prepared.</div>
+            ) : (
+              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(240px, 1fr))', gap: 10 }}>
+                {episodes.map((ep, idx) => {
+                  const watched = isWatched(ep.id)
+                  const isNext = idx === nextIdx
+                  const badge = watched ? { label: 'DONE', color: '#4ade80' } : isNext ? { label: 'NEXT', color: G } : null
+                  return (
+                    <button key={ep.id} onClick={() => openEpisode(ep)}
+                      style={{ display: 'flex', alignItems: 'center', gap: 12, textAlign: 'left' as const, padding: '12px 14px', background: surf, border: `1px solid ${isNext ? G : bdr}`, borderRadius: 10, cursor: 'pointer', width: '100%' }}
+                      onMouseEnter={e => ((e.currentTarget as HTMLElement).style.borderColor = G)}
+                      onMouseLeave={e => ((e.currentTarget as HTMLElement).style.borderColor = isNext ? G : bdr)}>
+                      <div style={{ width: 28, height: 28, borderRadius: '50%', border: `1px solid ${watched ? '#4ade80' : bdr}`, background: watched ? 'rgba(74,222,128,0.15)' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: cinzel, fontSize: 11, color: watched ? '#4ade80' : mut, flexShrink: 0 }}>
+                        {watched ? '✓' : idx + 1}
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontFamily: cinzel, fontSize: 12, color: txt, letterSpacing: '0.03em', whiteSpace: 'nowrap' as const, overflow: 'hidden', textOverflow: 'ellipsis' }}>{ep.title}</div>
+                        {ep.duration_seconds ? <div style={{ fontFamily: crimson, fontSize: 11, color: mut, marginTop: 2 }}>{fmtRuntime(ep.duration_seconds)}</div> : null}
+                      </div>
+                      {badge && <span style={{ fontFamily: cinzel, fontSize: 8, letterSpacing: '0.08em', color: badge.color, border: `1px solid ${badge.color}`, borderRadius: 8, padding: '2px 7px', flexShrink: 0 }}>{badge.label}</span>}
+                    </button>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+        )
+
+        const railRow = (label: string, value: string) => (
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 10, padding: '10px 0', borderBottom: `1px solid ${bdr}` }}>
+            <span style={{ fontFamily: cinzel, fontSize: 9, color: mut, letterSpacing: '0.1em', textTransform: 'uppercase' as const }}>{label}</span>
+            <span style={{ fontFamily: crimson, fontSize: 13, color: txt, textAlign: 'right' as const }}>{value}</span>
+          </div>
+        )
+        const rail = (
+          <div style={{ background: surf, border: `1px solid ${bdr}`, borderRadius: 12, padding: '4px 16px 16px' }}>
+            {totalSecs > 0 && railRow('Runtime', fmtRuntime(totalSecs))}
+            {railRow('Clearance', tierLabel(selectedCourse.tier))}
+            {railRow('Modules', String(episodes.length))}
+            <div style={{ paddingTop: 14 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 6 }}>
+                <span style={{ fontFamily: cinzel, fontSize: 9, color: mut, letterSpacing: '0.1em', textTransform: 'uppercase' as const }}>Progress</span>
+                <span style={{ fontFamily: crimson, fontSize: 13, color: G }}>{watchedCount}/{episodes.length}</span>
+              </div>
+              <div style={{ height: 4, background: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.08)', borderRadius: 2 }}>
+                <div style={{ height: '100%', width: `${pct}%`, background: G, borderRadius: 2, transition: 'width 0.3s' }} />
+              </div>
+            </div>
+          </div>
+        )
+
+        return (
+          <div style={{ flex: 1, overflowY: 'auto', minHeight: 0, background: bg }}>
+            {/* Classification bar */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '6px 20px', background: isDark ? 'rgba(201,168,76,0.08)' : 'rgba(139,105,20,0.08)', borderBottom: `1px solid ${bdr}`, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.14em', color: G, textTransform: 'uppercase' as const }}>
+              <span>◆ Course Briefing</span>
+              <span>Clearance: {tierLabel(selectedCourse.tier)}</span>
+            </div>
+            {/* Midnight header block */}
+            <div style={{ background: '#0D0B14', padding: isMobile ? '20px 16px' : '28px 24px', borderBottom: `1px solid ${bdr}` }}>
+              <div style={{ fontFamily: cinzel, fontSize: isMobile ? 20 : 26, color: G, letterSpacing: '0.06em', lineHeight: 1.25 }}>{selectedCourse.title}</div>
+              <div style={{ fontFamily: crimson, fontSize: 13, color: '#9a8c74', letterSpacing: '0.08em', marginTop: 6, textTransform: 'uppercase' as const }}>Staffordtown Church</div>
+            </div>
+            {/* Body */}
+            <div style={{ padding: isMobile ? '20px 16px' : '24px' }}>
+              {isMobile ? (
+                <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 22 }}>
+                  {missionBrief}
+                  {scriptureBlock}
+                  {objectivesBlock}
+                  {rail}
+                  {manifest}
+                </div>
+              ) : (
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 220px', gap: 28, alignItems: 'start' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 24, minWidth: 0 }}>
+                    {missionBrief}
+                    {scriptureBlock}
+                    {objectivesBlock}
+                    {manifest}
+                  </div>
+                  <div style={{ position: 'sticky' as const, top: 0 }}>{rail}</div>
+                </div>
               )}
             </div>
-          )}
-        </div>
-      )}
+          </div>
+        )
+      })()}
 
       {/* ── EPISODE PLAYER ── */}
       {selectedEpisode && (
