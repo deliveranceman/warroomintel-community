@@ -10847,6 +10847,7 @@ function AssessmentUploadView({ theme, isMobile, tier: _tier, tierLevel: _tierLe
   const [historyLoading, setHistoryLoading] = useState(false)
   const [historyError, setHistoryError] = useState('')
   const [reopenLoading, setReopenLoading] = useState<string | null>(null)
+  const [strategyFromHistory, setStrategyFromHistory] = useState(false)
   useEffect(() => {
     if (tab !== 'history') return
     let cancelled = false
@@ -10876,6 +10877,7 @@ function AssessmentUploadView({ theme, isMobile, tier: _tier, tierLevel: _tierLe
       if (!res.ok) { setHistoryError('Could not load strategy.'); return }
       const data = await res.json()
       setStrategy(data.war_strategy ?? '')
+      setStrategyFromHistory(true)
       setTab('strategy')
     } catch { setHistoryError('Could not load strategy.') }
     finally { setReopenLoading(null) }
@@ -10925,6 +10927,7 @@ function AssessmentUploadView({ theme, isMobile, tier: _tier, tierLevel: _tierLe
     setShowAnonConsent(false)
     setAnonConsented(consented)
     setStrategyLoading(true)
+    setStrategyFromHistory(false)
     setError('')
     setTab('strategy')
 
@@ -11129,9 +11132,15 @@ function AssessmentUploadView({ theme, isMobile, tier: _tier, tierLevel: _tierLe
                   <button onClick={() => exportStrategyToPDF(strategy)} style={{ background: G, border: 'none', color: '#060408', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', padding: '9px 20px', borderRadius: 5, cursor: 'pointer', fontWeight: 700 }}>
                     ↓ Export as PDF
                   </button>
-                  <button onClick={() => { setStrategy(''); setFile(null); setExtractedText(''); setError(''); setTab('upload') }} style={{ background: 'none', border: `1px solid rgba(201,168,76,0.3)`, color: isDark ? G : '#8B6914', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', padding: '9px 20px', borderRadius: 5, cursor: 'pointer' }}>
-                    ← New Assessment
-                  </button>
+                  {strategyFromHistory ? (
+                    <button onClick={() => { setStrategyFromHistory(false); setTab('history') }} style={{ background: 'none', border: `1px solid rgba(201,168,76,0.3)`, color: isDark ? G : '#8B6914', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', padding: '9px 20px', borderRadius: 5, cursor: 'pointer' }}>
+                      ← Back to History
+                    </button>
+                  ) : (
+                    <button onClick={() => { setStrategy(''); setFile(null); setExtractedText(''); setError(''); setTab('upload') }} style={{ background: 'none', border: `1px solid rgba(201,168,76,0.3)`, color: isDark ? G : '#8B6914', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', padding: '9px 20px', borderRadius: 5, cursor: 'pointer' }}>
+                      ← New Assessment
+                    </button>
+                  )}
                 </div>
               </div>
             ) : error ? (
