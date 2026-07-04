@@ -10807,7 +10807,7 @@ function AssessmentUploadView({ theme, isMobile, tier: _tier, tierLevel: _tierLe
   const cinzel = "'Cinzel', serif"
   const crimson = "'Crimson Pro', serif"
 
-  const [tab, setTab] = useState<'upload'|'fill'|'strategy'>('upload')
+  const [tab, setTab] = useState<'upload'|'fill'|'strategy'|'history'>('upload')
   const [file, setFile] = useState<File | null>(null)
   const [uploading, setUploading] = useState(false)
   const [strategy, setStrategy] = useState('')
@@ -10841,6 +10841,45 @@ function AssessmentUploadView({ theme, isMobile, tier: _tier, tierLevel: _tierLe
     fetchLatest()
     return () => { cancelled = true }
   }, [])
+
+  type HistoryRow = { id: string; status: string; created_at: string; derived_name: string | null; strategy_len: number }
+  const [historyRows, setHistoryRows] = useState<HistoryRow[]>([])
+  const [historyLoading, setHistoryLoading] = useState(false)
+  const [historyError, setHistoryError] = useState('')
+  const [reopenLoading, setReopenLoading] = useState<string | null>(null)
+  useEffect(() => {
+    if (tab !== 'history') return
+    let cancelled = false
+    setHistoryLoading(true)
+    setHistoryError('')
+    async function fetchHistory() {
+      try {
+        const token = await getToken()
+        if (cancelled) return
+        const res = await fetch('/api/assessment-strategy-list', { headers: { Authorization: `Bearer ${token}` } })
+        if (cancelled) return
+        if (!res.ok) { setHistoryError('Failed to load history.'); return }
+        const data = await res.json()
+        if (!cancelled) setHistoryRows(data.items ?? [])
+      } catch { if (!cancelled) setHistoryError('Could not load history.') }
+      finally { if (!cancelled) setHistoryLoading(false) }
+    }
+    fetchHistory()
+    return () => { cancelled = true }
+  }, [tab])
+
+  async function reopenStrategy(id: string) {
+    setReopenLoading(id)
+    try {
+      const token = await getToken()
+      const res = await fetch(`/api/assessment-strategy-get?id=${encodeURIComponent(id)}`, { headers: { Authorization: `Bearer ${token}` } })
+      if (!res.ok) { setHistoryError('Could not load strategy.'); return }
+      const data = await res.json()
+      setStrategy(data.war_strategy ?? '')
+      setTab('strategy')
+    } catch { setHistoryError('Could not load strategy.') }
+    finally { setReopenLoading(null) }
+  }
 
   async function handleFileUpload(f: File) {
     setFile(f)
@@ -10977,11 +11016,12 @@ function AssessmentUploadView({ theme, isMobile, tier: _tier, tierLevel: _tierLe
         </p>
 
         {/* Tabs */}
-        <div style={{ display: 'flex', gap: 4, marginBottom: 28, borderBottom: `1px solid rgba(201,168,76,0.15)`, paddingBottom: 0 }}>
+        <div style={{ display: 'flex', gap: 4, marginBottom: 28, borderBottom: `1px solid rgba(201,168,76,0.15)`, paddingBottom: 0, flexWrap: 'wrap' as const }}>
           {[
             { id: 'upload',   label: '⬆ Upload Assessment' },
             { id: 'fill',     label: '✏ Fill Out Now' },
             { id: 'strategy', label: '⚔ War Strategy' },
+            { id: 'history',  label: '📋 History' },
           ].map(t => (
             <button key={t.id} onClick={() => setTab(t.id as any)} style={{
               background: 'none', border: 'none',
@@ -11105,6 +11145,64 @@ function AssessmentUploadView({ theme, isMobile, tier: _tier, tierLevel: _tierLe
                 <button onClick={() => setTab('upload')} style={{ marginTop: 16, background: 'none', border: `1px solid rgba(201,168,76,0.3)`, color: isDark ? G : '#8B6914', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', padding: '9px 20px', borderRadius: 5, cursor: 'pointer' }}>Upload Assessment →</button>
               </div>
             ) : null}
+          </div>
+        )}
+
+        {/* HISTORY TAB */}
+        {tab === 'history' && (
+          <div>
+            <div style={{ fontFamily: cinzel, fontSize: 10, color: isDark ? G : '#8B6914', letterSpacing: '0.12em', marginBottom: 16 }}>SAVED WAR STRATEGIES</div>
+            {historyLoading ? (
+              <div style={{ textAlign: 'center' as const, padding: '60px 20px' }}>
+                <div style={{ fontFamily: cinzel, fontSize: 11, color: isDark ? G : '#8B6914', letterSpacing: '0.1em' }}>LOADING...</div>
+              </div>
+            ) : historyError ? (
+              <div style={{ padding: '12px 16px', background: 'rgba(220,38,38,0.1)', border: '1px solid rgba(220,38,38,0.3)', borderRadius: 6, fontFamily: crimson, fontSize: 14, color: '#fca5a5' }}>{historyError}</div>
+            ) : historyRows.length === 0 ? (
+              <div style={{ textAlign: 'center' as const, padding: '40px 20px' }}>
+                <div style={{ fontFamily: crimson, fontSize: 15, color: isDark ? '#6b5e45' : '#574B33' }}>No saved strategies yet. Upload an assessment to generate your first.</div>
+                <button onClick={() => setTab('upload')} style={{ marginTop: 16, background: 'none', border: `1px solid rgba(201,168,76,0.3)`, color: isDark ? G : '#8B6914', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', padding: '9px 20px', borderRadius: 5, cursor: 'pointer' }}>Upload Assessment →</button>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 8 }}>
+                {historyRows.map(row => {
+                  const isComplete = row.status === 'complete'
+                  const date = new Date(row.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
+                  const name = row.derived_name ?? 'Unnamed Strategy'
+                  const isLoading = reopenLoading === row.id
+                  return (
+                    <div key={row.id}
+                      onClick={() => { if (isComplete && !reopenLoading) reopenStrategy(row.id) }}
+                      style={{
+                        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                        background: isDark ? 'rgba(201,168,76,0.04)' : 'rgba(201,168,76,0.06)',
+                        border: `1px solid rgba(201,168,76,${isComplete ? '0.2' : '0.1'})`,
+                        borderRadius: 8, padding: '12px 16px',
+                        cursor: isComplete && !reopenLoading ? 'pointer' : 'default',
+                        opacity: reopenLoading && !isLoading ? 0.6 : 1,
+                        transition: 'all 0.15s',
+                      }}>
+                      <div style={{ minWidth: 0 }}>
+                        <div style={{ fontFamily: cinzel, fontSize: 11, color: isDark ? (isComplete ? '#e8dcc8' : '#6b5e45') : (isComplete ? '#1F1B12' : '#8B7355'), letterSpacing: '0.05em', whiteSpace: 'nowrap' as const, overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 320 }}>{name}</div>
+                        <div style={{ fontFamily: crimson, fontSize: 12, color: isDark ? '#6b5e45' : '#8B7355', marginTop: 2 }}>
+                          {date}{row.strategy_len > 0 ? ` · ${Math.round(row.strategy_len / 1000)}k chars` : ''}
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0, marginLeft: 12 }}>
+                        <span style={{ fontFamily: cinzel, fontSize: 9, letterSpacing: '0.1em', padding: '3px 8px', borderRadius: 4, background: isComplete ? 'rgba(74,222,128,0.1)' : row.status === 'processing' ? 'rgba(201,168,76,0.1)' : 'rgba(220,38,38,0.1)', color: isComplete ? '#86efac' : row.status === 'processing' ? G : '#fca5a5', border: `1px solid ${isComplete ? 'rgba(74,222,128,0.25)' : row.status === 'processing' ? 'rgba(201,168,76,0.25)' : 'rgba(220,38,38,0.25)'}` }}>
+                          {isComplete ? 'COMPLETE' : row.status === 'processing' ? 'PROCESSING' : 'FAILED'}
+                        </span>
+                        {isComplete && (
+                          <span style={{ fontFamily: cinzel, fontSize: 9, color: isDark ? G : '#8B6914', letterSpacing: '0.08em' }}>
+                            {isLoading ? '...' : 'OPEN →'}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
           </div>
         )}
       </div>
