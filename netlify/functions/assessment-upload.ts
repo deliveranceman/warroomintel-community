@@ -74,6 +74,11 @@ export default async function handler(req: Request) {
       // PDF → pdfjs-dist  |  DOCX/DOC → mammoth  |  TXT → TextDecoder
       const buffer = Buffer.from(fileData as string, 'base64')
       const { text, method } = await extractTextFromFile(buffer, fileName || '', fileType as string | undefined)
+      if (method === 'ocr-failed') {
+        return new Response(JSON.stringify({
+          error: "OCR couldn't read this PDF (it may be too large, too slow, or corrupted). Try splitting it into fewer pages, or paste the text with Fill Out Now.",
+        }), { status: 400, headers })
+      }
       if (method === 'none' || !text) {
         if (isPDF) {
           return new Response(JSON.stringify({

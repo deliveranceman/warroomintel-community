@@ -1,12 +1,17 @@
-// Shared file-text extraction helper — pdfjs-dist + mammoth + TextDecoder.
+// Shared file-text extraction helper — pdfjs-dist + mammoth + TextDecoder + Mistral OCR fallback.
 // Called by admin-library-save.mts and assessment-upload.ts so the fix lives in one place.
 // PDF-PARSE IS PERMANENTLY BANNED — never import it here or anywhere.
+// @napi-rs/canvas IS DEAD (won't load in Lambda) — never import it here or anywhere.
+
+import { ocrPdfWithMistral } from './mistralOcr'
 
 const MAX_CHARS = 120_000  // matches admin-library-save limit
 
 export interface FileTextResult {
-  text:   string
-  method: 'pdfjs' | 'mammoth' | 'text' | 'none'
+  text:    string
+  method:  'pdfjs' | 'mammoth' | 'text' | 'none' | 'mistral-ocr' | 'ocr-failed'
+  pages?:  number   // set when method='mistral-ocr'; pages_processed from Mistral
+  error?:  string   // set when method='ocr-failed'; Mistral error message
 }
 
 export async function extractTextFromFile(
@@ -53,8 +58,18 @@ export async function extractTextFromFile(
       }
       const text = pages.join('\n\n').trim().slice(0, MAX_CHARS)
       if (text.length < 50) {
-        // Scanned / image-only PDF — no extractable text layer
-        return { text: '', method: 'none' }
+        // Scanned / image-only PDF — no text layer. Try Mistral OCR (single call, server-side).
+        try {
+          const { text: ocrText, pages: ocrPages } = await ocrPdfWithMistral(buffer.toString('base64'))
+          if (ocrText.length >= 50) {
+            return { text: ocrText.slice(0, MAX_CHARS), method: 'mistral-ocr', pages: ocrPages }
+          }
+          // OCR ran but returned nothing meaningful — document is truly unreadable.
+          return { text: '', method: 'none' }
+        } catch (e: any) {
+          console.error('[fileText] Mistral OCR failed:', e?.message)
+          return { text: '', method: 'ocr-failed', error: e?.message ?? 'OCR failed' }
+        }
       }
       return { text, method: 'pdfjs' }
     } catch (e: any) {
