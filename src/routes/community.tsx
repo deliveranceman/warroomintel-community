@@ -2891,64 +2891,66 @@ function TrainingView({ theme, isMobile, userId, userTier, getToken, setActiveSe
       })()}
 
       {/* ── EPISODE PLAYER ── */}
-      {selectedEpisode && (
+      {selectedEpisode && (() => {
+        const cleanNotes = stripPromoBlock((selectedEpisode.notes || '').trim())
+        const notesAvailable = !!cleanNotes && cleanNotes.toLowerCase() !== 'coming soon'
+        const resourcesAvailable = attachments.length > 0
+        const visibleTabs: ('notes' | 'resources' | 'discussion')[] = [
+          ...(notesAvailable ? ['notes' as const] : []),
+          ...(resourcesAvailable ? ['resources' as const] : []),
+          'discussion' as const,
+        ]
+        const effectiveTab = visibleTabs.includes(activeTab) ? activeTab : visibleTabs[0]
+        const watched = isWatched(selectedEpisode.id)
+        const ytId = selectedEpisode.youtube_url ? extractYouTubeId(selectedEpisode.youtube_url) : null
+        return (
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column' as const, minHeight: 0, overflow: 'hidden' }}>
-          {/* 16:9 responsive video container */}
-          {selectedEpisode.youtube_url && (
-            <div style={{ position: 'relative' as const, paddingBottom: '56.25%', height: 0, background: '#000', flexShrink: 0, width: '100%' }}>
-              {extractYouTubeId(selectedEpisode.youtube_url) ? (
-                <iframe src={`https://www.youtube-nocookie.com/embed/${extractYouTubeId(selectedEpisode.youtube_url)}?rel=0&modestbranding=1`} style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', border: 'none' }} allowFullScreen allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" />
-              ) : null}
+          {/* Classification bar */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '6px 20px', background: isDark ? 'rgba(201,168,76,0.08)' : 'rgba(139,105,20,0.08)', borderBottom: `1px solid ${bdr}`, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.14em', color: G, textTransform: 'uppercase' as const }}>
+            <span>◆ Episode Briefing</span>
+            <span>Unclassified</span>
+          </div>
+          {/* Video in gold-bordered frame */}
+          {ytId && (
+            <div style={{ flexShrink: 0, padding: isMobile ? 12 : 16, background: isDark ? '#0a0812' : '#efe9dc' }}>
+              <div style={{ position: 'relative' as const, paddingBottom: '56.25%', height: 0, background: '#000', width: '100%', border: `1px solid ${G}`, borderRadius: 8, overflow: 'hidden', boxShadow: '0 4px 20px rgba(0,0,0,0.4)' }}>
+                <iframe src={`https://www.youtube-nocookie.com/embed/${ytId}?rel=0&modestbranding=1`} style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', border: 'none' }} allowFullScreen allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" />
+              </div>
             </div>
           )}
-          {isMobile ? (
-            <div style={{ padding: '10px 14px', borderBottom: `1px solid ${bdr}`, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 }}>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontFamily: cinzel, fontSize: 13, color: txt, letterSpacing: '0.04em', lineHeight: 1.3 }}>{selectedEpisode.title}</div>
-                <div style={{ fontFamily: crimson, fontSize: 12, color: mut, marginTop: 2 }}>{selectedCourse.title}</div>
-              </div>
-              <button onClick={() => markWatched(selectedEpisode.id, !isWatched(selectedEpisode.id))}
-                style={{ flexShrink: 0, padding: '5px 10px', background: isWatched(selectedEpisode.id) ? 'rgba(74,222,128,0.15)' : 'rgba(201,168,76,0.1)', border: `1px solid ${isWatched(selectedEpisode.id) ? '#4ade80' : G}`, borderRadius: 6, color: isWatched(selectedEpisode.id) ? '#4ade80' : G, fontFamily: cinzel, fontSize: 8, letterSpacing: '0.08em', cursor: 'pointer', textTransform: 'uppercase' as const }}>
-                {isWatched(selectedEpisode.id) ? '✓ Watched' : 'Mark Watched'}
-              </button>
+          {/* Title + action bar */}
+          <div style={{ padding: isMobile ? '8px 14px 12px' : '10px 20px 16px', borderBottom: `1px solid ${bdr}`, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: isMobile ? 10 : 16 }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontFamily: cinzel, fontSize: isMobile ? 15 : 19, color: txt, letterSpacing: '0.04em', lineHeight: 1.3, display: 'inline-block', borderBottom: `2px solid ${G}`, paddingBottom: 6 }}>{selectedEpisode.title}</div>
+              <div style={{ fontFamily: crimson, fontSize: 12, color: mut, marginTop: 8 }}>{selectedCourse.title}</div>
+              {!isMobile && selectedEpisode.description && (
+                <>
+                  <div style={{ fontFamily: crimson, fontSize: 13, color: mut, marginTop: 8, ...(selectedEpisode.description.length > 200 ? { display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical' as any, overflow: 'hidden' } : {}) }} dangerouslySetInnerHTML={renderMd(selectedEpisode.description)} />
+                  {selectedEpisode.description.length > 200 && (
+                    <button onClick={() => setReadMoreEpisode(selectedEpisode)} style={{ background: 'none', border: 'none', color: G, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: 'pointer', padding: '4px 0 0', opacity: 0.8 }}>READ MORE ↓</button>
+                  )}
+                </>
+              )}
             </div>
-          ) : (
-            <div style={{ padding: '16px 20px', borderBottom: `1px solid ${bdr}`, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16 }}>
-              <div>
-                <div style={{ fontFamily: cinzel, fontSize: 15, color: txt, letterSpacing: '0.04em', marginBottom: 4 }}>{selectedEpisode.title}</div>
-                {selectedEpisode.description && (
-                  <>
-                    <div style={{ fontFamily: crimson, fontSize: 13, color: mut, ...(selectedEpisode.description.length > 200 ? { display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical' as any, overflow: 'hidden' } : {}) }} dangerouslySetInnerHTML={renderMd(selectedEpisode.description)} />
-                    {selectedEpisode.description.length > 200 && (
-                      <button onClick={() => setReadMoreEpisode(selectedEpisode)} style={{ background: 'none', border: 'none', color: G, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: 'pointer', padding: '4px 0 0', opacity: 0.8 }}>READ MORE ↓</button>
-                    )}
-                  </>
-                )}
-              </div>
-              <button onClick={() => markWatched(selectedEpisode.id, !isWatched(selectedEpisode.id))}
-                style={{ flexShrink: 0, padding: '7px 14px', background: isWatched(selectedEpisode.id) ? 'rgba(74,222,128,0.15)' : 'rgba(201,168,76,0.1)', border: `1px solid ${isWatched(selectedEpisode.id) ? '#4ade80' : G}`, borderRadius: 6, color: isWatched(selectedEpisode.id) ? '#4ade80' : G, fontFamily: cinzel, fontSize: 9, letterSpacing: '0.08em', cursor: 'pointer', textTransform: 'uppercase' as const }}>
-                {isWatched(selectedEpisode.id) ? '✓ Watched' : 'Mark Watched'}
-              </button>
-            </div>
-          )}
+            <button onClick={() => markWatched(selectedEpisode.id, !watched)}
+              style={{ flexShrink: 0, padding: isMobile ? '5px 10px' : '7px 14px', background: watched ? 'rgba(74,222,128,0.15)' : 'rgba(201,168,76,0.1)', border: `1px solid ${watched ? '#4ade80' : G}`, borderRadius: 6, color: watched ? '#4ade80' : G, fontFamily: cinzel, fontSize: isMobile ? 8 : 9, letterSpacing: '0.08em', cursor: 'pointer', textTransform: 'uppercase' as const }}>
+              {watched ? '✓ Watched' : 'Mark Watched'}
+            </button>
+          </div>
           <div style={{ display: 'flex', borderBottom: `1px solid ${bdr}`, padding: isMobile ? '0 8px' : '0 20px', ...(isMobile && { position: 'sticky' as const, top: 0, zIndex: 100, background: bg }) }}>
-            {(['notes', 'resources', 'discussion'] as const).map(tab => (
+            {visibleTabs.map(tab => (
               <button key={tab} onClick={() => setActiveTab(tab)}
-                style={{ padding: '10px 16px', background: 'transparent', border: 'none', borderBottom: activeTab === tab ? `2px solid ${G}` : '2px solid transparent', color: activeTab === tab ? G : mut, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', cursor: 'pointer', textTransform: 'capitalize' as const, marginBottom: -1 }}>
-                {tab === 'notes' ? '📝 Notes' : tab === 'resources' ? '📎 Resources' : '💬 Discussion'}
+                style={{ padding: '10px 16px', background: 'transparent', border: 'none', borderBottom: effectiveTab === tab ? `2px solid ${G}` : '2px solid transparent', color: effectiveTab === tab ? G : mut, fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', cursor: 'pointer', textTransform: 'capitalize' as const, marginBottom: -1 }}>
+                {tab === 'notes' ? '📝 Study Notes' : tab === 'resources' ? '📎 Resources' : '💬 Discussion'}
                 {tab === 'discussion' && comments.length > 0 && <span style={{ marginLeft: 4, fontSize: 9, background: 'rgba(201,168,76,0.2)', borderRadius: 10, padding: '1px 6px', color: G }}>{comments.length}</span>}
               </button>
             ))}
           </div>
           <div style={{ flex: 1, padding: '20px', overflowY: 'auto', minHeight: 0, paddingBottom: isMobile ? 'calc(64px + env(safe-area-inset-bottom, 0px))' : 20 }}>
-            {activeTab === 'notes' && (() => {
-              const notes = selectedEpisode.notes || ''
-              const isYtSpam = notes.includes('#Deliverance') || notes.includes('Subscribe for teachings')
-              return notes && !isYtSpam
-                ? <div style={{ fontFamily: crimson, fontSize: 15, color: txt, lineHeight: 1.8 }} dangerouslySetInnerHTML={renderMd(notes)} />
-                : <div style={{ color: mut, fontFamily: crimson, fontStyle: 'italic', fontSize: 14 }}>Notes for this episode will be added shortly.</div>
-            })()}
-            {activeTab === 'resources' && (() => {
+            {effectiveTab === 'notes' && (
+              <div style={{ fontFamily: crimson, fontSize: 15, color: txt, lineHeight: 1.8 }} dangerouslySetInnerHTML={renderMd(cleanNotes)} />
+            )}
+            {effectiveTab === 'resources' && (() => {
               const TIER_LVL: Record<string, number> = { watchman: 0, free: 0, soldier: 1, charter_soldier: 1, commander: 2, charter_commander: 2, general: 3, founding_general: 3, minister: 4, commandant: 5 }
               const epTierNum  = TIER_LVL[selectedEpisode.tier?.toLowerCase()] ?? 0
               const userTierNum = getAccessLevel({ tier: userTier, role: (user?.publicMetadata?.role as string) || '' })
@@ -3004,7 +3006,7 @@ function TrainingView({ theme, isMobile, userId, userTier, getToken, setActiveSe
                 </div>
               )
             })()}
-            {activeTab === 'discussion' && (
+            {effectiveTab === 'discussion' && (
               <div>
                 {/* Comment count header */}
                 <div style={{ fontFamily: cinzel, fontSize: isMobile ? 11 : 13, color: txt, letterSpacing: '0.06em', marginBottom: isMobile ? 12 : 16 }}>
@@ -3096,7 +3098,8 @@ function TrainingView({ theme, isMobile, userId, userTier, getToken, setActiveSe
             )}
           </div>
         </div>
-      )}
+        )
+      })()}
 
       {/* READ MORE modal */}
       {readMoreEpisode && (
