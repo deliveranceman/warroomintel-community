@@ -10800,17 +10800,59 @@ function AssessmentUploadView({ theme, isMobile, tier: _tier, tierLevel: _tierLe
     setAnonConsented(consented)
     setStrategyLoading(true)
     setTab('strategy')
+
+    // getToken() with a 10s timeout — it can hang indefinitely if Clerk's session refresh
+    // stalls after a long OCR upload (the refresh network call never resolves).
+    async function getTokenWithTimeout(): Promise<string | null> {
+      const timeout = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('token-timeout')), 10_000),
+      )
+      return Promise.race([getToken(), timeout])
+    }
+
     try {
-      const token = await getToken()
-      const res = await fetch('/api/assessment-strategy', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({
-          assessmentText: extractedText,
-          anonymizeAndLog: consented,
-          userName: user?.firstName || 'Warrior',
-        }),
-      })
+      let token: string | null = null
+      try {
+        token = await getTokenWithTimeout()
+      } catch {
+        // First attempt timed out or failed — retry once. A stalled Clerk refresh
+        // frequently succeeds on the second call once the session cache is warm again.
+        try {
+          token = await getTokenWithTimeout()
+        } catch {
+          setError("Couldn't verify your session to generate the strategy. Please refresh the page and try again — your uploaded assessment text is preserved.")
+          return
+        }
+      }
+
+      // 65s AbortController — assessment-strategy has a 60s Netlify timeout;
+      // give it 5s of headroom then surface a clear error instead of an infinite spinner.
+      const controller = new AbortController()
+      const strategyTimeout = setTimeout(() => controller.abort(), 65_000)
+
+      let res: Response
+      try {
+        res = await fetch('/api/assessment-strategy', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({
+            assessmentText: extractedText,
+            anonymizeAndLog: consented,
+            userName: user?.firstName || 'Warrior',
+          }),
+          signal: controller.signal,
+        })
+      } catch (e: any) {
+        if (e?.name === 'AbortError') {
+          setError('Strategy generation timed out — please try again.')
+        } else {
+          setError('Could not reach the server. Please check your connection and try again.')
+        }
+        return
+      } finally {
+        clearTimeout(strategyTimeout)
+      }
+
       const data = await res.json()
       if (data.strategy) {
         setStrategy(data.strategy)
