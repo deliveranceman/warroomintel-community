@@ -10756,6 +10756,29 @@ function AssessmentUploadView({ theme, isMobile, tier: _tier, tierLevel: _tierLe
   const [extractedText, setExtractedText] = useState('')
   const strategyPollRef = useRef<ReturnType<typeof setInterval> | null>(null)
   useEffect(() => () => { if (strategyPollRef.current) clearInterval(strategyPollRef.current) }, [])
+  const [latestFetching, setLatestFetching] = useState(true)
+  useEffect(() => {
+    let cancelled = false
+    async function fetchLatest() {
+      try {
+        const token = await getToken()
+        if (cancelled) return
+        const res = await fetch('/api/assessment-strategy-latest', {
+          headers: { Authorization: `Bearer ${token}` },
+        })
+        if (!res.ok || cancelled) return
+        const data = await res.json()
+        if (!cancelled && data.status === 'complete' && data.strategy) {
+          setStrategy(data.strategy)
+        }
+      } catch { /* silent — empty state is fine */ }
+      finally {
+        if (!cancelled) setLatestFetching(false)
+      }
+    }
+    fetchLatest()
+    return () => { cancelled = true }
+  }, [])
 
   async function handleFileUpload(f: File) {
     setFile(f)
@@ -10847,7 +10870,7 @@ function AssessmentUploadView({ theme, isMobile, tier: _tier, tierLevel: _tierLe
 
       const startedAt = Date.now()
       strategyPollRef.current = setInterval(async () => {
-        if (Date.now() - startedAt > 5 * 60 * 1000) {
+        if (Date.now() - startedAt > 4 * 60 * 1000) {
           clearInterval(strategyPollRef.current!)
           strategyPollRef.current = null
           setError('Strategy generation timed out. Please try again.')
@@ -10982,8 +11005,12 @@ function AssessmentUploadView({ theme, isMobile, tier: _tier, tierLevel: _tierLe
               <div style={{ textAlign: 'center' as const, padding: '60px 20px' }}>
                 <div style={{ fontFamily: cinzel, fontSize: 12, color: isDark ? G : '#8B6914', letterSpacing: '0.1em', marginBottom: 8 }}>GENERATING WAR STRATEGY...</div>
                 <div style={{ fontFamily: crimson, fontSize: 15, color: isDark ? '#6b5e45' : '#574B33', lineHeight: 1.7 }}>
-                  SOL is analyzing your assessment and building a personalized spiritual warfare strategy. This takes 15-30 seconds.
+                  SOL is analyzing your assessment and building a personalized spiritual warfare strategy. This may take 2–3 minutes.
                 </div>
+              </div>
+            ) : latestFetching ? (
+              <div style={{ textAlign: 'center' as const, padding: '60px 20px' }}>
+                <div style={{ fontFamily: cinzel, fontSize: 11, color: isDark ? G : '#8B6914', letterSpacing: '0.1em' }}>LOADING...</div>
               </div>
             ) : strategy ? (
               <div>
@@ -10996,9 +11023,14 @@ function AssessmentUploadView({ theme, isMobile, tier: _tier, tierLevel: _tierLe
                     ✓ An anonymized copy has been logged to help improve WRI ministry resources.
                   </div>
                 )}
-                <button onClick={() => { setStrategy(''); setFile(null); setExtractedText(''); setTab('upload') }} style={{ marginTop: 20, background: 'none', border: `1px solid rgba(201,168,76,0.3)`, color: isDark ? G : '#8B6914', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', padding: '9px 20px', borderRadius: 5, cursor: 'pointer' }}>
+                <button onClick={() => { setStrategy(''); setFile(null); setExtractedText(''); setError(''); setTab('upload') }} style={{ marginTop: 20, background: 'none', border: `1px solid rgba(201,168,76,0.3)`, color: isDark ? G : '#8B6914', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', padding: '9px 20px', borderRadius: 5, cursor: 'pointer' }}>
                   ← New Assessment
                 </button>
+              </div>
+            ) : error ? (
+              <div style={{ textAlign: 'center' as const, padding: '40px 20px' }}>
+                <div style={{ padding: '12px 16px', background: 'rgba(220,38,38,0.1)', border: '1px solid rgba(220,38,38,0.3)', borderRadius: 6, fontFamily: crimson, fontSize: 14, color: '#fca5a5', marginBottom: 16 }}>{error}</div>
+                <button onClick={() => { setError(''); setTab('upload') }} style={{ background: 'none', border: `1px solid rgba(201,168,76,0.3)`, color: isDark ? G : '#8B6914', fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em', padding: '9px 20px', borderRadius: 5, cursor: 'pointer' }}>← Try Again</button>
               </div>
             ) : !file && !extractedText ? (
               <div style={{ textAlign: 'center' as const, padding: '40px 20px' }}>
