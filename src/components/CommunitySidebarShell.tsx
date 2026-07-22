@@ -117,24 +117,27 @@ export function CommunitySidebarShell({ activeItem, fillViewport, children }: Pr
 
   const subNavLink = (label: string, href: string, icon?: React.ReactNode, activeAliases?: string[]) => {
     const active = activeAliases ? isActive(label, ...activeAliases) : isActive(label)
+    const restColor = 'var(--nav-sub-text)'
     return (
       <a
         key={label}
         href={href}
         style={{
-          display: 'flex', alignItems: 'center', gap: 6,
-          width: '100%', padding: '5px 16px', boxSizing: 'border-box',
+          display: 'flex', alignItems: 'center', gap: 8,
+          width: '100%', padding: '6px 10px 6px 44px', boxSizing: 'border-box',
           background: active ? 'rgba(201,168,76,0.06)' : 'transparent',
           textDecoration: 'none',
-          borderLeft: active ? '2px solid var(--border-bright)' : '2px solid rgba(201,168,76,0.1)',
-          fontFamily: cinzel, fontSize: 10, letterSpacing: '0.08em',
-          color: active ? navGold : 'var(--muted)',
+          borderLeft: `2px solid ${active ? 'var(--border-bright)' : 'transparent'}`,
+          fontFamily: cinzel, fontSize: 13, letterSpacing: '0.06em',
+          fontWeight: active ? 600 : 500,
+          color: active ? navGold : restColor,
+          opacity: 1,
           transition: 'all 0.15s',
         }}
-        onMouseEnter={e => { const el = e.currentTarget as HTMLElement; el.style.color = navGold; el.style.borderLeftColor = 'var(--border-bright)' }}
-        onMouseLeave={e => { if (!active) { const el = e.currentTarget as HTMLElement; el.style.color = 'var(--muted)'; el.style.borderLeftColor = 'rgba(201,168,76,0.1)' } }}
+        onMouseEnter={e => { if (!active) { const el = e.currentTarget as HTMLElement; el.style.background = 'rgba(201,168,76,0.05)'; el.style.color = navGold } }}
+        onMouseLeave={e => { if (!active) { const el = e.currentTarget as HTMLElement; el.style.background = 'transparent'; el.style.color = restColor } }}
       >
-        {icon && <span style={{ display: 'flex', alignItems: 'center', width: 20, flexShrink: 0 }}>{icon}</span>}
+        {icon && <span style={{ display: 'flex', alignItems: 'center', width: 16, flexShrink: 0, opacity: 1 }}>{icon}</span>}
         {label}
       </a>
     )
@@ -374,12 +377,13 @@ export function CommunitySidebarShell({ activeItem, fillViewport, children }: Pr
             setArchiveOpen(next)
             try { localStorage.setItem('sidebar_intel_archive_open', String(next)) } catch {}
           }, (
-            <div style={{ paddingLeft: 16 }}>
-              {subNavLink('Symptom Investigator', '/community',                   <Search   size={11} strokeWidth={1.6} />)}
-              {subNavLink('Body Map',             '/community',                   <Map      size={11} strokeWidth={1.6} />)}
-              {subNavLink('Spirit Network',       '/community',                   <Network  size={11} strokeWidth={1.6} />)}
-              {subNavLink('Gateway Investigator', '/community',                   <DoorOpen size={11} strokeWidth={1.6} />)}
-              {subNavLink('Dream Interpreter',    '/community/dream-interpreter', <Moon     size={11} strokeWidth={1.6} />)}
+            <div style={{ position: 'relative' as const, paddingLeft: 0 }}>
+              <div style={{ position: 'absolute' as const, left: 28, top: 4, bottom: 4, width: 2, background: 'var(--nav-spine)', pointerEvents: 'none' as const }} />
+              {subNavLink('Symptom Investigator', '/community',                   <Search   size={14} strokeWidth={1.6} />)}
+              {subNavLink('Body Map',             '/community',                   <Map      size={14} strokeWidth={1.6} />)}
+              {subNavLink('Spirit Network',       '/community',                   <Network  size={14} strokeWidth={1.6} />)}
+              {subNavLink('Gateway Investigator', '/community',                   <DoorOpen size={14} strokeWidth={1.6} />)}
+              {subNavLink('Dream Interpreter',    '/community/dream-interpreter', <Moon     size={14} strokeWidth={1.6} />)}
             </div>
           ))}
 
@@ -390,18 +394,19 @@ export function CommunitySidebarShell({ activeItem, fillViewport, children }: Pr
             setBabelOpen(next)
             try { localStorage.setItem('sidebar_babel_files_open', String(next)) } catch {}
           }, (
-            <div style={{ paddingLeft: 16 }}>
-              {subNavLink('Babel Figures',   '/community/babel-files?type=person',         <span style={{ fontSize: 11 }}>🧑</span>, ['Babel Figures'])}
-              {subNavLink('Babel Cinema',    '/community/babel-files?type=movie',           <span style={{ fontSize: 11 }}>🎬</span>, ['Babel Cinema'])}
-              {subNavLink('Babel Symbols',   '/community/babel-files?type=symbol',          <span style={{ fontSize: 11 }}>👁</span>, ['Babel Symbols'])}
-              {subNavLink('Babel Broadcast', '/community/babel-files?type=tv_show',         <span style={{ fontSize: 11 }}>📺</span>, ['Babel Broadcast'])}
-              {subNavLink('Babel Beats',     '/community/babel-files?type=music',           <span style={{ fontSize: 11 }}>🎵</span>, ['Babel Beats'])}
-              {subNavLink('Babel Games',     '/community/babel-files?type=game',            <span style={{ fontSize: 11 }}>🎮</span>, ['Babel Games'])}
-              {subNavLink('Babel Codex',     '/community/babel-files?type=book',            <span style={{ fontSize: 11 }}>📖</span>, ['Babel Codex'])}
-              {subNavLink('Babel Beliefs',   '/community/babel-files?type=religion',        <span style={{ fontSize: 11 }}>✝</span>,  ['Babel Beliefs'])}
-              {subNavLink('Babel Mythos',    '/community/babel-files?type=mythology',       <span style={{ fontSize: 11 }}>⚡</span>, ['Babel Mythos'])}
-              {subNavLink('Babel Societies', '/community/babel-files?type=secret_society',  <span style={{ fontSize: 11 }}>🏛</span>, ['Babel Societies'])}
-              {subNavLink('Babel Current',   '/community/babel-files?type=event',           <span style={{ fontSize: 11 }}>📅</span>, ['Babel Current'])}
+            <div style={{ position: 'relative' as const, paddingLeft: 0 }}>
+              <div style={{ position: 'absolute' as const, left: 28, top: 4, bottom: 4, width: 2, background: 'var(--nav-spine)', pointerEvents: 'none' as const }} />
+              {subNavLink('Babel Figures',   '/community/babel-files?type=person',         <span style={{ fontSize: 13 }}>🧑</span>, ['Babel Figures'])}
+              {subNavLink('Babel Cinema',    '/community/babel-files?type=movie',           <span style={{ fontSize: 13 }}>🎬</span>, ['Babel Cinema'])}
+              {subNavLink('Babel Symbols',   '/community/babel-files?type=symbol',          <span style={{ fontSize: 13 }}>👁</span>, ['Babel Symbols'])}
+              {subNavLink('Babel Broadcast', '/community/babel-files?type=tv_show',         <span style={{ fontSize: 13 }}>📺</span>, ['Babel Broadcast'])}
+              {subNavLink('Babel Beats',     '/community/babel-files?type=music',           <span style={{ fontSize: 13 }}>🎵</span>, ['Babel Beats'])}
+              {subNavLink('Babel Games',     '/community/babel-files?type=game',            <span style={{ fontSize: 13 }}>🎮</span>, ['Babel Games'])}
+              {subNavLink('Babel Codex',     '/community/babel-files?type=book',            <span style={{ fontSize: 13 }}>📖</span>, ['Babel Codex'])}
+              {subNavLink('Babel Beliefs',   '/community/babel-files?type=religion',        <span style={{ fontSize: 13 }}>✝</span>,  ['Babel Beliefs'])}
+              {subNavLink('Babel Mythos',    '/community/babel-files?type=mythology',       <span style={{ fontSize: 13 }}>⚡</span>, ['Babel Mythos'])}
+              {subNavLink('Babel Societies', '/community/babel-files?type=secret_society',  <span style={{ fontSize: 13 }}>🏛</span>, ['Babel Societies'])}
+              {subNavLink('Babel Current',   '/community/babel-files?type=event',           <span style={{ fontSize: 13 }}>📅</span>, ['Babel Current'])}
             </div>
           ))}
 

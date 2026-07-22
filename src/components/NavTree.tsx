@@ -97,7 +97,8 @@ const T = {
   goldHover:   'rgba(201,168,76,0.05)',
   text:        'var(--text, #ECE3CB)',
   muted:       'var(--muted, #b8a98a)',
-  dimText:     'rgba(236,227,203,0.75)',
+  dimText:     'var(--nav-sub-text, rgba(236,227,203,0.78))',
+  spine:       'var(--nav-spine, rgba(201,168,76,0.28))',
   borderBright:'var(--border-bright, rgba(201,168,76,0.5))',
   border:      'var(--border, rgba(201,168,76,0.15))',
 }
@@ -141,21 +142,22 @@ function tier3Style(active: boolean): React.CSSProperties {
   return {
     display: 'flex',
     alignItems: 'center',
-    gap: 6,
+    gap: 8,
     width: '100%',
-    padding: '5px 10px 5px 24px',
+    padding: '6px 10px 6px 44px',
     boxSizing: 'border-box',
     background: active ? 'rgba(201,168,76,0.06)' : 'transparent',
     border: 'none',
     borderLeft: `2px solid ${active ? T.borderBright : 'transparent'}`,
     fontFamily: cinzel,
-    fontSize: 11,
-    letterSpacing: '0.07em',
-    fontWeight: 400,
+    fontSize: 13,
+    letterSpacing: '0.06em',
+    fontWeight: active ? 600 : 500,
     color: active ? T.gold : T.dimText,
     cursor: 'pointer',
     textAlign: 'left',
     textDecoration: 'none',
+    opacity: 1,
     transition: 'background 0.15s, color 0.15s',
   }
 }
@@ -333,11 +335,23 @@ export function NavTree(props: NavTreeProps) {
     const selfActive = nodeIsActive(node, mode, activeSection, activeItem)
 
     if (mode === 'drawer') {
-      // Drawer mode: flat — render parent as leaf, then children as leaves
+      // Drawer mode: parent renders as leaf, children render as tier3 with spine —
+      // same visual hierarchy as sidebar but always expanded (no collapse toggle in drawer).
       return (
         <React.Fragment key={node.id}>
           {renderLeaf({ ...node, children: undefined }, 0)}
-          {children.map(c => renderLeaf(c, 0))}
+          <div style={{ position: 'relative', paddingLeft: 0 }}>
+            <div style={{
+              position: 'absolute',
+              left: 28,
+              top: 4,
+              bottom: 4,
+              width: 2,
+              background: T.spine,
+              pointerEvents: 'none' as const,
+            }} />
+            {children.map(c => renderLeaf(c, 1))}
+          </div>
         </React.Fragment>
       )
     }
@@ -446,16 +460,15 @@ export function NavTree(props: NavTreeProps) {
           transition: 'max-height 0.2s ease',
         }}
       >
-        {/* Gutter line container */}
+        {/* Group spine container — subtle vertical line signals child grouping */}
         <div style={{ position: 'relative', paddingLeft: 0 }}>
-          {/* Vertical gutter line — spans entire child group */}
           <div style={{
             position: 'absolute',
-            left: 12,
-            top: 0,
-            bottom: 0,
-            width: 1,
-            background: T.goldFaint,
+            left: 28,
+            top: 4,
+            bottom: 4,
+            width: 2,
+            background: T.spine,
             pointerEvents: 'none',
           }} />
           {children.map(c => renderLeaf(c, 1))}
