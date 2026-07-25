@@ -4,9 +4,10 @@ import {
   MessageSquare, Inbox, Heart, Users, HelpCircle,
   Archive, Sword, Library, Search, Map, Network, Eye,
   Calendar, Antenna, FolderOpen, Settings, ClipboardList,
-  DoorOpen, Moon, Radio, FolderArchive, GraduationCap,
+  DoorOpen, Moon, Sun, Bell, Cross, Radio, FolderArchive, GraduationCap,
   Star, Shield, BookOpen, Home, Zap,
 } from 'lucide-react'
+import { useIsDark } from '@/lib/use-is-dark'
 
 interface Props {
   activeItem: string
@@ -28,6 +29,7 @@ function getTierLevel(tier: string): number {
 export function CommunitySidebarShell({ activeItem, fillViewport, children }: Props) {
   const { user } = useUser()
   const { signOut } = useAuth()
+  const isDark = useIsDark()
 
   const [briefsOpen, setBriefsOpen]   = useState(false)
   const [solOpen, setSolOpen]         = useState(false)
@@ -240,6 +242,22 @@ export function CommunitySidebarShell({ activeItem, fillViewport, children }: Pr
             </div>
           </div>
           <button
+            onClick={() => {
+              const current = document.documentElement.dataset.theme ?? 'dark'
+              const next = current === 'dark' ? 'light' : 'dark'
+              document.documentElement.dataset.theme = next
+              try { localStorage.setItem('wri-theme', next) } catch {}
+            }}
+            title="Toggle theme"
+            style={{
+              background: 'none', border: 'none', cursor: 'pointer',
+              color: G, padding: 2, flexShrink: 0,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}
+          >
+            {isDark ? <Sun size={14} strokeWidth={1.6} /> : <Moon size={14} strokeWidth={1.6} />}
+          </button>
+          <button
             onClick={() => signOut()}
             style={{
               background: 'none',
@@ -278,11 +296,12 @@ export function CommunitySidebarShell({ activeItem, fillViewport, children }: Pr
           marginBottom: 4,
         }}>
           {([
-            { icon: <MessageSquare size={16} strokeWidth={1.6} />, label: 'War Room Chat',   href: '/community' },
-            { icon: <Inbox         size={16} strokeWidth={1.6} />, label: 'Direct Messages', href: '/community' },
-            { icon: <Heart         size={16} strokeWidth={1.6} />, label: 'Prayer Wall',     href: '/community' },
-            { icon: <Users         size={16} strokeWidth={1.6} />, label: 'Members',         href: '/community' },
-            { icon: <HelpCircle    size={16} strokeWidth={1.6} />, label: 'Feedback',        href: '/community' },
+            { icon: <MessageSquare size={16} strokeWidth={1.6} />, label: 'War Room Chat',   href: '/community?section=war-room-chat'  },
+            { icon: <Inbox         size={16} strokeWidth={1.6} />, label: 'Direct Messages', href: '/community?section=dms'            },
+            { icon: <Heart         size={16} strokeWidth={1.6} />, label: 'Prayer Wall',     href: '/community?section=prayer-wall'    },
+            { icon: <Cross         size={16} strokeWidth={1.6} />, label: 'Testimony Wall',  href: '/community?section=testimony-wall' },
+            { icon: <Users         size={16} strokeWidth={1.6} />, label: 'Members',         href: '/community?section=members'        },
+            { icon: <HelpCircle    size={16} strokeWidth={1.6} />, label: 'Help Center',     href: '/community?section=help'           },
           ]).map(({ icon, label, href }) => (
             <a
               key={label}
@@ -520,6 +539,7 @@ export function CommunitySidebarShell({ activeItem, fillViewport, children }: Pr
           { icon: <Users         size={18} strokeWidth={1.6} />, label: 'Warriors Online',       href: '/community' },
           { icon: <Archive       size={18} strokeWidth={1.6} />, label: 'Latest Arsenal Drops',  href: '/arsenal'   },
           { icon: <BookOpen      size={18} strokeWidth={1.6} />, label: 'Intel Archive',         href: '/community' },
+          { icon: <Bell          size={18} strokeWidth={1.6} />, label: 'Notifications',         href: '/community?rail=notifs' },
         ]).map(({ icon, label, href }) => (
           <a
             key={label}
