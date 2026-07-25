@@ -391,11 +391,14 @@ function DreamInterpreterPage() {
               />
             </div>
             <div style={{ marginBottom: 24 }}>
-              <label style={labelSt}>Dreamer Context (optional)</label>
+              <label style={labelSt}>Dreamer Context (recommended)</label>
+              <p style={{ fontFamily: crimson, fontSize: 13, fontWeight: 400, color: dim, lineHeight: 1.5, margin: '4px 0 8px' }}>
+                Intelligence is only as good as the context feeding it. Share what is going on in your life (current season, spiritual battles, prayer focus, recent events at home or work, open doors you have identified) and the interpretation sharpens accordingly.
+              </p>
               <input
                 value={context}
                 onChange={e => setContext(e.target.value)}
-                placeholder="e.g. recurring dream, current spiritual battle, recent events or open doors…"
+                placeholder="e.g. current spiritual battle, recurring theme, what you are praying about, recent events at home or work, open doors you have identified, seasons of transition…"
                 style={inp}
               />
             </div>
